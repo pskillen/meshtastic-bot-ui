@@ -21,7 +21,12 @@ indent_style = space
 indent_size = 2
 
 # JavaScript/JSON files
-[*.{js,json}]
+[*.{js,jsx,ts,tsx,json}]
+indent_style = space
+indent_size = 2
+
+# CSS/SCSS files
+[*.{css,scss}]
 indent_style = space
 indent_size = 2
 
