@@ -1,34 +1,34 @@
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
 import { AppSidebar } from "@/components/app-sidebar"
-import { ChartAreaInteractive } from "@/components/chart-area-interactive"
-import { DataTable } from "@/components/data-table"
-import { SectionCards } from "@/components/section-cards"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-
-import data from "./app/dashboard/data.json"
+import { NodesList } from "@/pages/nodes/NodesList"
+import { NodeMap } from "@/pages/map/NodeMap"
+import { MessageHistory } from "@/pages/messages/MessageHistory"
+import { Settings } from "@/pages/settings/Settings"
+import { Dashboard } from "@/pages/Dashboard"
 
 function App() {
-
   return (
-    <>
+    <Router>
       <SidebarProvider>
-      <AppSidebar variant="inset" />
-      <SidebarInset>
-        <SiteHeader />
-        <div className="flex flex-1 flex-col">
-          <div className="@container/main flex flex-1 flex-col gap-2">
-            <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-              <SectionCards />
-              <div className="px-4 lg:px-6">
-                <ChartAreaInteractive />
-              </div>
-              <DataTable data={data} />
+        <AppSidebar variant="inset" />
+        <SidebarInset>
+          <SiteHeader />
+          <div className="flex flex-1 flex-col">
+            <div className="@container/main flex flex-1 flex-col gap-2">
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/nodes" element={<NodesList />} />
+                <Route path="/map" element={<NodeMap />} />
+                <Route path="/messages" element={<MessageHistory />} />
+                <Route path="/settings" element={<Settings />} />
+              </Routes>
             </div>
           </div>
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
-    </>
+        </SidebarInset>
+      </SidebarProvider>
+    </Router>
   )
 }
 
