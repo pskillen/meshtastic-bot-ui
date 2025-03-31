@@ -1,24 +1,16 @@
 import { AppConfig } from "@/types/types";
+import axios from 'axios';
 
-// These vars may be overwritten by a build script
-const MESHBOT_API_URL = 'http://localhost:8000';
-const MESHBOT_API_BASE_PATH = '/api/ui';
-const MESHBOT_API_TIMEOUT = 10000;
-const MESHBOT_API_TOKEN = 'd9891a1ed5541ae02392b9829cb68267bf68e06c';
-const MAP_DEFAULT_CENTER_LAT = 0;
-const MAP_DEFAULT_CENTER_LNG = 0;
-const MAP_DEFAULT_ZOOM = 2;
-
-// Default configuration from environment variables
-const config: AppConfig = {
+// Default configuration
+const defaultConfig: AppConfig = {
   apis: {
     meshBot: {
-      baseUrl: MESHBOT_API_URL,
-      basePath: MESHBOT_API_BASE_PATH,
-      timeout: MESHBOT_API_TIMEOUT,
+      baseUrl: 'http://localhost:8000',
+      basePath: '/api/ui',
+      timeout: 10000,
       auth: {
         type: 'token',
-        token: MESHBOT_API_TOKEN,
+        token: 'd9891a1ed5541ae02392b9829cb68267bf68e06c',
       },
       headers: {
         'Accept': 'application/json',
@@ -26,11 +18,8 @@ const config: AppConfig = {
     },
   },
   map: {
-    defaultCenter: [
-      MAP_DEFAULT_CENTER_LAT,
-      MAP_DEFAULT_CENTER_LNG
-    ],
-    defaultZoom: MAP_DEFAULT_ZOOM,
+    defaultCenter: [0, 0],
+    defaultZoom: 2,
   },
   refresh: {
     nodesList: 30000, // 30 seconds
@@ -38,4 +27,42 @@ const config: AppConfig = {
   },
 };
 
-export default config;
+// Function to fetch and merge config
+async function fetchConfig(): Promise<AppConfig> {
+  try {
+    const response = await axios.get('/config.json');
+    const remoteConfig = response.data;
+
+    // Deep merge the configs, with remote config taking precedence
+    return {
+      apis: {
+        meshBot: {
+          ...defaultConfig.apis.meshBot,
+          ...remoteConfig.apis?.meshBot,
+        },
+      },
+      map: {
+        ...defaultConfig.map,
+        ...remoteConfig.map,
+      },
+      refresh: {
+        ...defaultConfig.refresh,
+        ...remoteConfig.refresh,
+      },
+    };
+  } catch (error) {
+    console.log('No config.json found, using default configuration');
+    return defaultConfig;
+  }
+}
+
+// Create a promise that resolves to the final config
+const configPromise = fetchConfig();
+
+// Export a function to get the config
+export async function getConfig(): Promise<AppConfig> {
+  return configPromise;
+}
+
+// For backward compatibility, export the promise
+export default configPromise;

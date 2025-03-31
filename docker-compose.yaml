@@ -19,7 +19,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: meshtastic-bot-ui
     restart: unless-stopped
     environment:
       - MESHBOT_API_URL=http://meshtastic-bot-manager:8000
