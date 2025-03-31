@@ -6,11 +6,11 @@ import { BatteryChart } from '@/components/BatteryChart';
 export function NodeDetails() {
   const { id } = useParams<{ id: string }>();
   const nodeId = parseInt(id || '0', 10);
-  const { getNode, getNodeMetrics, getNodePositions } = useNodes();
+  const { useNode, useNodeMetrics, useNodePositions } = useNodes();
 
-  const nodeQuery = getNode(nodeId);
-  const metricsQuery = getNodeMetrics(nodeId);
-  const positionsQuery = getNodePositions(nodeId);
+  const nodeQuery = useNode(nodeId);
+  const metricsQuery = useNodeMetrics(nodeId);
+  const positionsQuery = useNodePositions(nodeId);
 
   if (nodeQuery.isLoading || metricsQuery.isLoading || positionsQuery.isLoading) {
     return (

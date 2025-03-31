@@ -13,7 +13,7 @@ export function useNodes() {
     queryFn: () => api.getNodes(),
   });
 
-  const getNode = (id: number): UseQueryResult<NodeData> => {
+  const useNode = (id: number): UseQueryResult<NodeData> => {
     return useQuery({
       queryKey: ['nodes', id],
       queryFn: () => api.getNode(id),
@@ -21,7 +21,7 @@ export function useNodes() {
     });
   };
 
-  const getNodeMetrics = (id: number, dateRange?: DateRange): UseQueryResult<DeviceMetrics[]> => {
+  const useNodeMetrics = (id: number, dateRange?: DateRange): UseQueryResult<DeviceMetrics[]> => {
     return useQuery({
       queryKey: ['nodes', id, 'metrics', dateRange?.startDate?.toISOString(), dateRange?.endDate?.toISOString()],
       queryFn: () => {
@@ -34,7 +34,7 @@ export function useNodes() {
     });
   };
 
-  const getNodePositions = (id: number, dateRange?: DateRange): UseQueryResult<Position[]> => {
+  const useNodePositions = (id: number, dateRange?: DateRange): UseQueryResult<Position[]> => {
     return useQuery({
       queryKey: ['nodes', id, 'positions', dateRange?.startDate?.toISOString(), dateRange?.endDate?.toISOString()],
       queryFn: () => {
@@ -58,9 +58,9 @@ export function useNodes() {
     nodes: nodesQuery.data,
     isLoading: nodesQuery.isLoading,
     error: nodesQuery.error,
-    getNode,
-    getNodeMetrics,
-    getNodePositions,
+    useNode,
+    useNodeMetrics,
+    useNodePositions,
     searchNodes: searchNodesMutation.mutate,
     searchResults: searchNodesMutation.data,
     isSearching: searchNodesMutation.isPending,

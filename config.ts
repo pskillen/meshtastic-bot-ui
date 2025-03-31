@@ -56,7 +56,7 @@ async function fetchConfig(): Promise<AppConfig> {
         ...remoteConfig.refresh,
       },
     };
-  } catch (error) {
+  } catch {
     console.log('No config.json found, using default configuration');
     return defaultConfig;
   }

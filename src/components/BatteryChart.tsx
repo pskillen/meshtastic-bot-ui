@@ -39,10 +39,10 @@ function getDateRangeFromTimeRange(timeRange: string): { startDate: Date; endDat
 
 export function BatteryChart({ nodeId }: BatteryChartProps) {
   const [selectedRange, setSelectedRange] = useState('48h');
-  const { getNodeMetrics } = useNodes();
+  const { useNodeMetrics } = useNodes();
 
   const dateRange = useMemo(() => getDateRangeFromTimeRange(selectedRange), [selectedRange]);
-  const metricsQuery = getNodeMetrics(nodeId, dateRange);
+  const metricsQuery = useNodeMetrics(nodeId, dateRange);
 
   const handleRangeChange = useCallback((range: string) => {
     setSelectedRange(range);
