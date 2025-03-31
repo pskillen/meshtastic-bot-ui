@@ -5,6 +5,8 @@ import {
   Position,
   NodeSearchResult,
   DateRangeParams,
+  PacketStatsResponse,
+  PacketStatsParams,
 } from '../models';
 import { ApiConfig } from '@/types/types';
 
@@ -54,4 +56,16 @@ export class MeshtasticApi extends BaseApi {
     return this.get<NodeSearchResult[]>(`/nodes/search/?q=${encodeURIComponent(query)}`);
   }
 
+  async getPacketStats(params?: PacketStatsParams): Promise<PacketStatsResponse> {
+    const searchParams = new URLSearchParams();
+    if (params?.startDate) searchParams.append('startDate', params.startDate);
+    if (params?.endDate) searchParams.append('endDate', params.endDate);
+    if (params?.nodeId) searchParams.append('nodeId', params.nodeId.toString());
+    if (params?.channel) searchParams.append('channel', params.channel.toString());
+
+    const queryString = searchParams.toString();
+    return this.get<PacketStatsResponse>(
+      `/stats/${queryString ? `?${queryString}` : ''}`
+    );
+  }
 } 
