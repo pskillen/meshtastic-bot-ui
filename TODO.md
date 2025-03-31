@@ -28,6 +28,7 @@ Meshtastic Bot UI (React)
 
 ## Node details page
 * [ ] Map of position history
+* [ ] Disable chart zooming, etc
 
 
 ## Settings to add
@@ -36,5 +37,6 @@ Meshtastic Bot UI (React)
 
 
 ## Build
-* [ ] Docker image
-* [ ] We're going to need to bake the API URL in at build time, for preprod or prod
+* [x] Docker image
+* [x] We're going to need to bake the API URL in at build time, for preprod or prod
+* [ ] Build and smoke test docker image on pull request

@@ -54,6 +54,7 @@ jobs:
           docker buildx build \
             --platform ${{ matrix.platform }} \
             --build-arg BASE_IMAGE=${{ matrix.base_image }} \
+            --build-arg VERSION=${{ inputs.VERSION_TAG }} \
             -t ghcr.io/${{ github.repository }}:${{ inputs.VERSION_TAG }}-${{ env.PLATFORM_TAG }} \
             -f Dockerfile \
             --push .

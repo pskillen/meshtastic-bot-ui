@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query';
-import { useApi } from './useApi';
+import { useMeshBotApi } from './useApi';
 import { DeviceMetrics, NodeData, Position } from '../models';
 import { DateRange } from "@/types/types.ts";
 
 
 export function useNodes() {
-  const api = useApi();
+  const api = useMeshBotApi();
   const queryClient = useQueryClient();
 
   const nodesQuery = useQuery({

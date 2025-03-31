@@ -1,6 +1,9 @@
 # Build stage
 FROM node:20-alpine as build
 
+# Add build argument for version
+ARG VERSION=development
+
 WORKDIR /app
 
 # Copy package files
@@ -11,6 +14,9 @@ RUN npm ci
 
 # Copy source code
 COPY . .
+
+# Replace version in config.ts
+RUN sed -i "s/const VERSION = 'development'/const VERSION = '${VERSION}'/" config.ts
 
 # Build the app
 RUN npm run build
@@ -34,6 +40,7 @@ RUN mkdir -p /var/cache/nginx/client_temp \
     && chown -R nginx:nginx /var/cache/nginx \
     && chown -R nginx:nginx /var/log/nginx \
     && chown -R nginx:nginx /etc/nginx/conf.d \
+    && chown -R nginx:nginx /usr/share/nginx/html \
     && touch /var/run/nginx.pid \
     && chown -R nginx:nginx /var/run/nginx.pid \
     && chmod +x /docker-entrypoint.sh

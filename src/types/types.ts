@@ -18,6 +18,7 @@ export interface ApiConfig {
 }
 
 export interface AppConfig {
+  version: string;
   apis: {
     meshBot: ApiConfig;
   };

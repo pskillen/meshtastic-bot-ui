@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { MeshtasticApi } from '../api/meshtastic';
-import config from '../../../config';
+import { useConfig } from '@/providers/ConfigProvider';
 
-export function useApi() {
+export function useMeshBotApi() {
+  const config = useConfig();
   const api = useMemo(() => {
     return new MeshtasticApi(config.apis.meshBot);
   }, []);
