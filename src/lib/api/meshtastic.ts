@@ -12,9 +12,12 @@ export class MeshtasticApi extends BaseApi {
     super(config);
   }
 
-  // Node endpoints
+  async getNodes(): Promise<NodeData[]> {
+    return this.get<NodeData[]>('/nodes/');
+  }
+
   async getNode(id: number): Promise<NodeData> {
-    return this.get<NodeData>(`/api/nodes/${id}/`);
+    return this.get<NodeData>(`/nodes/${id}/`);
   }
 
   async getNodeDeviceMetrics(
@@ -27,7 +30,7 @@ export class MeshtasticApi extends BaseApi {
 
     const queryString = searchParams.toString();
     return this.get<DeviceMetrics[]>(
-      `/api/nodes/${id}/device_metrics/${queryString ? `?${queryString}` : ''}`
+      `/nodes/${id}/device_metrics/${queryString ? `?${queryString}` : ''}`
     );
   }
 
@@ -41,22 +44,13 @@ export class MeshtasticApi extends BaseApi {
 
     const queryString = searchParams.toString();
     return this.get<Position[]>(
-      `/api/nodes/${id}/positions/${queryString ? `?${queryString}` : ''}`
+      `/nodes/${id}/positions/${queryString ? `?${queryString}` : ''}`
     );
   }
 
   async searchNodes(query: string): Promise<NodeSearchResult[]> {
     if (!query.trim()) return [];
-    return this.get<NodeSearchResult[]>(`/api/nodes/search/?q=${encodeURIComponent(query)}`);
+    return this.get<NodeSearchResult[]>(`/nodes/search/?q=${encodeURIComponent(query)}`);
   }
 
-  // Helper method to create an instance with default configuration
-  static create(baseUrl: string): MeshtasticApi {
-    return new MeshtasticApi({
-      baseUrl,
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-  }
 } 

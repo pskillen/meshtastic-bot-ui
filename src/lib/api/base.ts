@@ -1,18 +1,22 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
-export interface ApiConfig {
-  baseUrl: string;
-  headers?: Record<string, string>;
-  auth?: AuthConfig;
+export interface AuthConfig {
+  type: 'none' | 'token' | 'basic' | 'oauth' | 'apiKey';
+  token?: string;
+  username?: string;
+  password?: string;
+  clientId?: string;
+  clientSecret?: string;
+  apiKey?: string;
+  apiKeyHeader?: string;
 }
 
-export interface AuthConfig {
-  type: 'token' | 'basic';
-  credentials: {
-    token?: string;
-    username?: string;
-    password?: string;
-  };
+export interface ApiConfig {
+  baseUrl: string;
+  timeout: number;
+  basePath?: string;  // Optional base path for all API endpoints
+  auth?: AuthConfig;
+  headers?: Record<string, string>;
 }
 
 export interface ApiError {
@@ -22,12 +26,19 @@ export interface ApiError {
 }
 
 export abstract class BaseApi {
-  protected axios: AxiosInstance;
-  private authConfig?: AuthConfig;
+  protected readonly axios: AxiosInstance;
+  private readonly authConfig?: AuthConfig;
 
   constructor(config: ApiConfig) {
+    // Remove trailing slash from baseUrl and leading slash from basePath if present
+    const baseUrl = config.baseUrl.replace(/\/$/, '');
+    const basePath = (config.basePath || '').replace(/^\//, '');
+    
+    // Combine baseUrl and basePath
+    const fullBaseUrl = basePath ? `${baseUrl}/${basePath}` : baseUrl;
+
     this.axios = axios.create({
-      baseURL: config.baseUrl.replace(/\/$/, ''), // Remove trailing slash if present
+      baseURL: fullBaseUrl,
       headers: {
         'Content-Type': 'application/json',
         ...config.headers,
@@ -36,7 +47,7 @@ export abstract class BaseApi {
 
     // Store auth config if provided
     if (config.auth) {
-      this.setAuth(config.auth);
+      this.authConfig = config.auth;
     }
 
     // Add request interceptor for auth
@@ -45,17 +56,25 @@ export abstract class BaseApi {
         if (this.authConfig) {
           switch (this.authConfig.type) {
             case 'token':
-              if (this.authConfig.credentials.token) {
-                config.headers.Authorization = `Token ${this.authConfig.credentials.token}`;
+              if (this.authConfig.token) {
+                config.headers.Authorization = `Token ${this.authConfig.token}`;
               }
               break;
             case 'basic':
-              if (this.authConfig.credentials.username && this.authConfig.credentials.password) {
+              if (this.authConfig.username && this.authConfig.password) {
                 const credentials = btoa(
-                  `${this.authConfig.credentials.username}:${this.authConfig.credentials.password}`
+                  `${this.authConfig.username}:${this.authConfig.password}`
                 );
                 config.headers.Authorization = `Basic ${credentials}`;
               }
+              break;
+            case 'apiKey':
+              if (this.authConfig.apiKey && this.authConfig.apiKeyHeader) {
+                config.headers[this.authConfig.apiKeyHeader] = this.authConfig.apiKey;
+              }
+              break;
+            case 'oauth':
+              // OAuth implementation would go here
               break;
           }
         }
@@ -84,20 +103,6 @@ export abstract class BaseApi {
         throw apiError;
       }
     );
-  }
-
-  /**
-   * Set or update authentication configuration
-   */
-  public setAuth(auth: AuthConfig): void {
-    this.authConfig = auth;
-  }
-
-  /**
-   * Clear authentication configuration
-   */
-  public clearAuth(): void {
-    this.authConfig = undefined;
   }
 
   protected async request<T>(

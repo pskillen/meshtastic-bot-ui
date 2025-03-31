@@ -8,15 +8,16 @@ export interface NodeData {
   hardware_model: string;
   meshtastic_version: string;
   latest_device_metrics: DeviceMetrics | null;
+  last_position: Position | null;
 }
 
 export interface DeviceMetrics {
-  logged_time: string;
+  time: string;
   battery_level: number;
   voltage: number;
-  channel_utilization: number;
-  air_util_tx: number;
-  uptime_seconds: number;
+  chUtil: number;
+  airUtil: number;
+  uptime: number;
 }
 
 export interface Position {
