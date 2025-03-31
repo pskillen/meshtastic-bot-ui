@@ -26,7 +26,7 @@ export function Dashboard() {
     endDate: new Date(),
   });
 
-  const { data: packetStats, isLoading: isLoadingStats } = usePacketStats({
+  const { data: packetStats } = usePacketStats({
     startDate: dateRange.startDate.toISOString(),
     endDate: dateRange.endDate.toISOString(),
   });
