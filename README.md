@@ -1,54 +1,106 @@
-# React + TypeScript + Vite
+# MeshtasticBotUI
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React-based user interface for the MeshtasticBot project.
 
-Currently, two official plugins are available:
+## Development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Prerequisites
 
-## Expanding the ESLint configuration
+- Node.js 20.x or later
+- npm 9.x or later
+- Docker (optional, for containerized development)
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Local Development
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+1. Install dependencies:
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
+2. Start the development server:
+```bash
+npm run dev
 ```
+
+The application will be available at `http://localhost:5173` by default.
+
+### Available Scripts
+
+- `npm run dev` - Start development server with hot reload
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build locally
+- `npm run lint` - Run ESLint
+- `npm run type-check` - Run TypeScript type checking
+
+## Build Process
+
+### Docker Build
+
+The application is containerized using a multi-stage Docker build process:
+
+1. Build stage:
+   - Uses Node.js 20 Alpine as base
+   - Installs dependencies
+   - Builds the application
+   - Injects version from build argument
+
+2. Production stage:
+   - Uses Nginx Alpine as base
+   - Serves static files
+   - Runs as non-root user for security
+
+### Versioning
+
+The application version is injected during the build process:
+- Development: Uses 'development' as default version
+- Production: Version is set from GitHub release tag or manual build argument
+
+### Multi-Architecture Support
+
+The Docker image is built for multiple architectures:
+- linux/amd64
+- linux/arm64
+
+## Deployment
+
+### GitHub Container Registry
+
+Images are automatically built and pushed to GitHub Container Registry (ghcr.io) on:
+- Release publication
+- Manual workflow trigger
+
+### Available Tags
+
+- `latest` - Latest stable release
+- `latest-rc` - Latest release candidate
+- `{version}` - Specific version (e.g., v1.0.0)
+- `{version}-{platform}` - Platform-specific builds
+
+## Project Structure
+
+```
+MeshtasticBotUI/
+├── src/                # Source code
+│   ├── components/     # React components
+│   ├── types/         # TypeScript type definitions
+│   └── App.tsx        # Main application component
+├── public/            # Static assets
+├── deploy/            # Deployment configurations
+│   └── docker/        # Docker-related files
+└── .github/           # GitHub Actions workflows
+```
+
+## Configuration
+
+The application uses a configuration system that:
+- Loads default configuration from `config.ts`
+- Can be overridden by a remote `config.json`
+- Supports environment-specific settings
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
