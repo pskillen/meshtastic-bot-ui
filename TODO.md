@@ -37,5 +37,6 @@ Meshtastic Bot UI (React)
 
 
 ## Build
-* [ ] Docker image
-* [ ] We're going to need to bake the API URL in at build time, for preprod or prod
+* [x] Docker image
+* [x] We're going to need to bake the API URL in at build time, for preprod or prod
+* [ ] Build and smoke test docker image on pull request
