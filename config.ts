@@ -1,8 +1,13 @@
 import { AppConfig } from "@/types/types";
 import axios from 'axios';
 
+
+// This var will be set to the version of the app when it is built
+const VERSION = 'development';
+
 // Default configuration
 const defaultConfig: AppConfig = {
+  version: VERSION,
   apis: {
     meshBot: {
       baseUrl: 'http://localhost:8000',
@@ -35,6 +40,7 @@ async function fetchConfig(): Promise<AppConfig> {
 
     // Deep merge the configs, with remote config taking precedence
     return {
+      version: VERSION,
       apis: {
         meshBot: {
           ...defaultConfig.apis.meshBot,

@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
+import { SiteFooter } from "@/components/site-footer"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { NodesList } from "@/pages/nodes/NodesList"
 import { NodeMap } from "@/pages/map/NodeMap"
@@ -31,6 +32,7 @@ function App() {
                     <Route path="/settings" element={<Settings />} />
                   </Routes>
                 </div>
+                <SiteFooter />
               </div>
             </SidebarInset>
           </SidebarProvider>
