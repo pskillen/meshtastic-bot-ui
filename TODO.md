@@ -28,6 +28,7 @@ Meshtastic Bot UI (React)
 
 ## Node details page
 * [ ] Map of position history
+* [ ] Disable chart zooming, etc
 
 
 ## Settings to add
