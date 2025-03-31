@@ -47,6 +47,8 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ github.repository }}:${{ needs.extract-tag.outputs.VERSION_TAG }}
-            ${{ fromJson(needs.extract-tag.outputs.IS_PRERELEASE) == false && format('ghcr.io/{0}:latest', github.repository) || '' }}
+            ${{ fromJson(needs.extract-tag.outputs.IS_PRERELEASE) == false && format('ghcr.io/{0}:latest', github.repository) || format('ghcr.io/{0}:latest-rc', github.repository) }}
+          build-args: |
+            VERSION=${{ needs.extract-tag.outputs.VERSION_TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

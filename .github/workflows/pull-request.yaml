@@ -46,6 +46,8 @@ jobs:
           load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=pr-${{ github.event.pull_request.number }}
 
       - name: Run Docker Container
         run: |
