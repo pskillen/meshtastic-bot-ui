@@ -7,6 +7,7 @@ import { NodeMap } from "@/pages/map/NodeMap"
 import { MessageHistory } from "@/pages/messages/MessageHistory"
 import { Settings } from "@/pages/settings/Settings"
 import { Dashboard } from "@/pages/Dashboard"
+import { NodeDetails } from '@/pages/nodes/NodeDetails'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/nodes" element={<NodesList />} />
+                <Route path="/nodes/:id" element={<NodeDetails />} />
                 <Route path="/map" element={<NodeMap />} />
                 <Route path="/messages" element={<MessageHistory />} />
                 <Route path="/settings" element={<Settings />} />

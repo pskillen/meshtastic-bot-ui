@@ -1,33 +1,14 @@
-import { useEffect, useState } from 'react';
-import { useApi } from '@/lib/hooks/useApi';
-import { NodeData } from '@/lib/models';
+import { Link } from 'react-router-dom';
+import { useNodes } from '@/lib/hooks/useNodes';
 import { formatDistanceToNow } from 'date-fns';
 
 export function NodesList() {
-  const api = useApi();
-  const [nodes, setNodes] = useState<NodeData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { nodes, isLoading, error } = useNodes();
 
-  useEffect(() => {
-    const fetchNodes = async () => {
-      try {
-        const data = await api.getNodes();
-        setNodes(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch nodes');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchNodes();
-  }, [api]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-xl">Loading nodes...</div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
@@ -35,63 +16,39 @@ export function NodesList() {
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-xl text-red-500">Error: {error}</div>
+        <div className="text-red-500">Error: {error instanceof Error ? error.message : 'Failed to fetch nodes'}</div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">Mesh Network Nodes</h1>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {nodes.map((node) => (
-          <div
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-8">Meshtastic Nodes</h1>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {nodes?.map((node) => (
+          <Link
             key={node.id}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow"
+            to={`/nodes/${node.id}`}
+            className="block p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200"
           >
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h2 className="text-xl font-semibold">{node.short_name}</h2>
-                <p className="text-gray-600 dark:text-gray-300">{node.long_name}</p>
+                <h2 className="text-xl font-semibold text-gray-800">{node.short_name}</h2>
+                <p className="text-gray-600">{node.long_name}</p>
               </div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                {node.last_heard
-                  ? `Last heard ${formatDistanceToNow(new Date(node.last_heard), { addSuffix: true })}`
-                  : 'Never heard'}
+              <span className="text-sm text-gray-500">
+                Last heard: {node.last_heard ? formatDistanceToNow(new Date(node.last_heard), { addSuffix: true }) : 'Never'}
               </span>
             </div>
-
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-gray-400">Node ID:</span>
-                <span className="font-mono">{node.node_id}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-gray-400">Hardware Model:</span>
-                <span>{node.hardware_model}</span>
-              </div>
+            <div className="space-y-2">
+              <p className="text-gray-600">ID: {node.node_id}</p>
+              <p className="text-gray-600">Model: {node.hardware_model}</p>
+              <p className="text-gray-600">Version: {node.meshtastic_version}</p>
               {node.latest_device_metrics && (
-                <>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Battery Level:</span>
-                    <span>{node.latest_device_metrics.battery_level}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Voltage:</span>
-                    <span>{node.latest_device_metrics.voltage}V</span>
-                  </div>
-                </>
-              )}
-              {node.last_position && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500 dark:text-gray-400">Location:</span>
-                  <span>
-                    {node.last_position.latitude.toFixed(6)}, {node.last_position.longitude.toFixed(6)}
-                  </span>
-                </div>
+                <p className="text-gray-600">Battery: {node.latest_device_metrics.battery_level}%</p>
               )}
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </div>
