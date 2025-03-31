@@ -1,6 +1,9 @@
 Meshtastic Bot UI (React)
 ========================
 
+## Look and feel
+- [ ] Dark mode
+
 ## Pages to add
 * [x] Nodes list
 * [x] Node details
