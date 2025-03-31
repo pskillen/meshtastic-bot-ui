@@ -1,5 +1,11 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, UseQueryResult } from '@tanstack/react-query';
 import { useApi } from './useApi';
+import { NodeData, DeviceMetrics, Position } from '../models';
+
+export interface DateRange {
+  startDate?: Date;
+  endDate?: Date;
+}
 
 export function useNodes() {
   const api = useApi();
@@ -10,7 +16,7 @@ export function useNodes() {
     queryFn: () => api.getNodes(),
   });
 
-  const nodeQuery = (id: number) => {
+  const getNode = (id: number): UseQueryResult<NodeData> => {
     return useQuery({
       queryKey: ['nodes', id],
       queryFn: () => api.getNode(id),
@@ -18,18 +24,28 @@ export function useNodes() {
     });
   };
 
-  const nodeMetricsQuery = (id: number) => {
+  const getNodeMetrics = (id: number, dateRange?: DateRange): UseQueryResult<DeviceMetrics[]> => {
     return useQuery({
-      queryKey: ['nodes', id, 'metrics'],
-      queryFn: () => api.getNodeDeviceMetrics(id),
+      queryKey: ['nodes', id, 'metrics', dateRange?.startDate?.toISOString(), dateRange?.endDate?.toISOString()],
+      queryFn: () => {
+        const params: { startDate?: string; endDate?: string } = {};
+        if (dateRange?.startDate) params.startDate = dateRange.startDate.toISOString();
+        if (dateRange?.endDate) params.endDate = dateRange.endDate.toISOString();
+        return api.getNodeDeviceMetrics(id, params);
+      },
       enabled: !!id,
     });
   };
 
-  const nodePositionsQuery = (id: number) => {
+  const getNodePositions = (id: number, dateRange?: DateRange): UseQueryResult<Position[]> => {
     return useQuery({
-      queryKey: ['nodes', id, 'positions'],
-      queryFn: () => api.getNodePositions(id),
+      queryKey: ['nodes', id, 'positions', dateRange?.startDate?.toISOString(), dateRange?.endDate?.toISOString()],
+      queryFn: () => {
+        const params: { startDate?: string; endDate?: string } = {};
+        if (dateRange?.startDate) params.startDate = dateRange.startDate.toISOString();
+        if (dateRange?.endDate) params.endDate = dateRange.endDate.toISOString();
+        return api.getNodePositions(id, params);
+      },
       enabled: !!id,
     });
   };
@@ -45,9 +61,9 @@ export function useNodes() {
     nodes: nodesQuery.data,
     isLoading: nodesQuery.isLoading,
     error: nodesQuery.error,
-    getNode: nodeQuery,
-    getNodeMetrics: nodeMetricsQuery,
-    getNodePositions: nodePositionsQuery,
+    getNode,
+    getNodeMetrics,
+    getNodePositions,
     searchNodes: searchNodesMutation.mutate,
     searchResults: searchNodesMutation.data,
     isSearching: searchNodesMutation.isPending,

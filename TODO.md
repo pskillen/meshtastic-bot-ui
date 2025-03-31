@@ -3,8 +3,7 @@ Meshtastic Bot UI (React)
 
 ## Pages to add
 * [x] Nodes list
-* [ ] Node details
-* [ ] Node map
+* [x] Node details
 * [ ] Message history
     * [ ] Channels 1-8
     * [ ] Direct messages (where available)
@@ -18,7 +17,17 @@ Meshtastic Bot UI (React)
 * [ ] Node map (links to larger map page)
 
 ## Other features
-* [ ] Quick search node
+* [x] Quick search node
+* [ ] Update node battery source, and auto refresh
+
+## Node list
+* [ ] Sort by last heard, short name, long name, nodeid, distance
+* [ ] accordion for online / offline
+* [ ] option to hide offline
+* [ ] Map of current locations for all nodes
+
+## Node details page
+* [ ] Map of position history
 
 
 ## Settings to add
