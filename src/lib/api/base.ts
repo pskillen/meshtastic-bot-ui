@@ -1,39 +1,15 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-
-export interface AuthConfig {
-  type: 'none' | 'token' | 'basic' | 'oauth' | 'apiKey';
-  token?: string;
-  username?: string;
-  password?: string;
-  clientId?: string;
-  clientSecret?: string;
-  apiKey?: string;
-  apiKeyHeader?: string;
-}
-
-export interface ApiConfig {
-  baseUrl: string;
-  timeout: number;
-  basePath?: string;  // Optional base path for all API endpoints
-  auth?: AuthConfig;
-  headers?: Record<string, string>;
-}
-
-export interface ApiError {
-  message: string;
-  status?: number;
-  data?: unknown;
-}
+import { ApiAuthConfig, ApiConfig, ApiError } from '@/types/types';
 
 export abstract class BaseApi {
   protected readonly axios: AxiosInstance;
-  private readonly authConfig?: AuthConfig;
+  private readonly authConfig?: ApiAuthConfig;
 
   constructor(config: ApiConfig) {
     // Remove trailing slash from baseUrl and leading slash from basePath if present
     const baseUrl = config.baseUrl.replace(/\/$/, '');
     const basePath = (config.basePath || '').replace(/^\//, '');
-    
+
     // Combine baseUrl and basePath
     const fullBaseUrl = basePath ? `${baseUrl}/${basePath}` : baseUrl;
 

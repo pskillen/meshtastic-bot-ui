@@ -1,4 +1,4 @@
-import { BaseApi, ApiConfig } from './base';
+import { BaseApi } from './base';
 import {
   NodeData,
   DeviceMetrics,
@@ -6,6 +6,7 @@ import {
   NodeSearchResult,
   DateRangeParams,
 } from '../models';
+import { ApiConfig } from '@/types/types';
 
 export class MeshtasticApi extends BaseApi {
   constructor(config: ApiConfig) {

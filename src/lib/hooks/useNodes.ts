@@ -1,11 +1,8 @@
-import { useQuery, useMutation, useQueryClient, UseQueryResult } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query';
 import { useApi } from './useApi';
-import { NodeData, DeviceMetrics, Position } from '../models';
+import { DeviceMetrics, NodeData, Position } from '../models';
+import { DateRange } from "@/types/types.ts";
 
-export interface DateRange {
-  startDate?: Date;
-  endDate?: Date;
-}
 
 export function useNodes() {
   const api = useApi();
@@ -68,4 +65,4 @@ export function useNodes() {
     searchResults: searchNodesMutation.data,
     isSearching: searchNodesMutation.isPending,
   };
-} 
+}
