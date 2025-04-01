@@ -80,14 +80,14 @@ export function PacketStatsChart({ data, title, description, config, onTimeRange
             variant="outline"
             className="@[767px]/card:flex hidden"
           >
-            <ToggleGroupItem value="90d" className="h-8 px-2.5">
-              Last 3 months
-            </ToggleGroupItem>
             <ToggleGroupItem value="30d" className="h-8 px-2.5">
               Last 30 days
             </ToggleGroupItem>
             <ToggleGroupItem value="7d" className="h-8 px-2.5">
               Last 7 days
+            </ToggleGroupItem>
+            <ToggleGroupItem value="1d" className="h-8 px-2.5">
+              Today
             </ToggleGroupItem>
           </ToggleGroup>
           <Select value={timeRange} onValueChange={setTimeRange}>
@@ -98,14 +98,14 @@ export function PacketStatsChart({ data, title, description, config, onTimeRange
               <SelectValue placeholder="Last 3 months" />
             </SelectTrigger>
             <SelectContent className="rounded-xl">
-              <SelectItem value="90d" className="rounded-lg">
-                Last 3 months
-              </SelectItem>
               <SelectItem value="30d" className="rounded-lg">
                 Last 30 days
               </SelectItem>
               <SelectItem value="7d" className="rounded-lg">
                 Last 7 days
+              </SelectItem>
+              <SelectItem value="1d" className="rounded-lg">
+                Today
               </SelectItem>
             </SelectContent>
           </Select>
