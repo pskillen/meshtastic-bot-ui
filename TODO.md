@@ -26,8 +26,8 @@ Meshtastic Bot UI (React)
 * [ ] Update node battery source, and auto refresh
 
 ## Node list
-* [ ] Sort by last heard, short name, long name, nodeid, distance
-* [ ] accordion for online / offline
+* [x] Sort by last heard, short name, long name, nodeid, distance
+* [x] accordion for online / offline
 * [ ] option to hide offline
 * [ ] Map of current locations for all nodes
 
