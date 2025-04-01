@@ -4,7 +4,7 @@ export interface NodeData {
   node_id: string;
   short_name: string;
   long_name: string;
-  last_heard: string | null;
+  last_heard: Date | null;
   hardware_model: string;
   meshtastic_version: string;
   latest_device_metrics: DeviceMetrics | null;
@@ -12,7 +12,7 @@ export interface NodeData {
 }
 
 export interface DeviceMetrics {
-  time: string;
+  time: Date;
   battery_level: number;
   voltage: number;
   chUtil: number;
@@ -21,8 +21,8 @@ export interface DeviceMetrics {
 }
 
 export interface Position {
-  time: string;
-  reported_time: string;
+  time: Date;
+  reported_time: Date;
   latitude: number;
   longitude: number;
   altitude: number;
@@ -39,13 +39,13 @@ export interface NodeSearchResult {
 
 // API request types
 export interface DateRangeParams {
-  startDate?: string;
-  endDate?: string;
+  startDate?: Date;
+  endDate?: Date;
 }
 
 // Packet Statistics types
 export interface PacketStatsWindow {
-  timestamp: string;
+  timestamp: Date;
   packets_tx: number;
   packets_rx: number;
   packets_rx_bad: number;
@@ -60,8 +60,8 @@ export interface PacketStatsSummary {
   total_packets_rx_dupe: number;
   total_packets: number;
   time_range: {
-    start: string;
-    end: string;
+    start: Date;
+    end: Date;
   };
 }
 

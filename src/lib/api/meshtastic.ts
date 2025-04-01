@@ -16,11 +16,37 @@ export class MeshtasticApi extends BaseApi {
   }
 
   async getNodes(): Promise<NodeData[]> {
-    return this.get<NodeData[]>('/nodes/');
+    const nodes = await this.get<NodeData[]>('/nodes/');
+    return nodes.map(node => ({
+      ...node,
+      last_heard: node.last_heard ? new Date(node.last_heard) : null,
+      last_position: node.last_position ? {
+        ...node.last_position,
+        time: new Date(node.last_position.time),
+        reported_time: new Date(node.last_position.reported_time)
+      } : null,
+      latest_device_metrics: node.latest_device_metrics ? {
+        ...node.latest_device_metrics,
+        time: new Date(node.latest_device_metrics.time)
+      } : null
+    }));
   }
 
   async getNode(id: number): Promise<NodeData> {
-    return this.get<NodeData>(`/nodes/${id}/`);
+    const node = await this.get<NodeData>(`/nodes/${id}/`);
+    return {
+      ...node,
+      last_heard: node.last_heard ? new Date(node.last_heard) : null,
+      last_position: node.last_position ? {
+        ...node.last_position,
+        time: new Date(node.last_position.time),
+        reported_time: new Date(node.last_position.reported_time)
+      } : null,
+      latest_device_metrics: node.latest_device_metrics ? {
+        ...node.latest_device_metrics,
+        time: new Date(node.latest_device_metrics.time)
+      } : null
+    };
   }
 
   async getNodeDeviceMetrics(
@@ -28,13 +54,17 @@ export class MeshtasticApi extends BaseApi {
     params?: DateRangeParams
   ): Promise<DeviceMetrics[]> {
     const searchParams = new URLSearchParams();
-    if (params?.startDate) searchParams.append('startDate', params.startDate);
-    if (params?.endDate) searchParams.append('endDate', params.endDate);
+    if (params?.startDate) searchParams.append('startDate', params.startDate.toISOString());
+    if (params?.endDate) searchParams.append('endDate', params.endDate.toISOString());
 
     const queryString = searchParams.toString();
-    return this.get<DeviceMetrics[]>(
+    const metrics = await this.get<DeviceMetrics[]>(
       `/nodes/${id}/device_metrics/${queryString ? `?${queryString}` : ''}`
     );
+    return metrics.map(metric => ({
+      ...metric,
+      time: new Date(metric.time)
+    }));
   }
 
   async getNodePositions(
@@ -42,13 +72,18 @@ export class MeshtasticApi extends BaseApi {
     params?: DateRangeParams
   ): Promise<Position[]> {
     const searchParams = new URLSearchParams();
-    if (params?.startDate) searchParams.append('startDate', params.startDate);
-    if (params?.endDate) searchParams.append('endDate', params.endDate);
+    if (params?.startDate) searchParams.append('startDate', params.startDate.toISOString());
+    if (params?.endDate) searchParams.append('endDate', params.endDate.toISOString());
 
     const queryString = searchParams.toString();
-    return this.get<Position[]>(
+    const positions = await this.get<Position[]>(
       `/nodes/${id}/positions/${queryString ? `?${queryString}` : ''}`
     );
+    return positions.map(position => ({
+      ...position,
+      time: new Date(position.time),
+      reported_time: new Date(position.reported_time)
+    }));
   }
 
   async searchNodes(query: string): Promise<NodeSearchResult[]> {
@@ -58,14 +93,28 @@ export class MeshtasticApi extends BaseApi {
 
   async getPacketStats(params?: PacketStatsParams): Promise<PacketStatsResponse> {
     const searchParams = new URLSearchParams();
-    if (params?.startDate) searchParams.append('startDate', params.startDate);
-    if (params?.endDate) searchParams.append('endDate', params.endDate);
+    if (params?.startDate) searchParams.append('startDate', params.startDate.toISOString());
+    if (params?.endDate) searchParams.append('endDate', params.endDate.toISOString());
     if (params?.nodeId) searchParams.append('nodeId', params.nodeId.toString());
     if (params?.channel) searchParams.append('channel', params.channel.toString());
 
     const queryString = searchParams.toString();
-    return this.get<PacketStatsResponse>(
+    const stats = await this.get<PacketStatsResponse>(
       `/stats/${queryString ? `?${queryString}` : ''}`
     );
+    return {
+      ...stats,
+      hourly_stats: stats.hourly_stats.map(stat => ({
+        ...stat,
+        timestamp: new Date(stat.timestamp)
+      })),
+      summary: {
+        ...stats.summary,
+        time_range: {
+          start: new Date(stats.summary.time_range.start),
+          end: new Date(stats.summary.time_range.end)
+        }
+      }
+    };
   }
 } 

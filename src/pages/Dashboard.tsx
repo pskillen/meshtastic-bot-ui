@@ -37,7 +37,7 @@ export function Dashboard() {
 
   const onlineNodes = nodes?.filter(node => {
     if (!node.last_heard) return false;
-    const lastHeard = new Date(node.last_heard);
+    const lastHeard = node.last_heard;
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
     return lastHeard > twoHoursAgo;
   }) || [];
@@ -102,7 +102,7 @@ export function Dashboard() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium">
-                        Last heard: {formatDistanceToNow(new Date(node.last_heard!), { addSuffix: true })}
+                        Last heard: {formatDistanceToNow(node.last_heard!, { addSuffix: true })}
                       </p>
                       {node.latest_device_metrics && (
                         <p className="text-sm text-muted-foreground">
