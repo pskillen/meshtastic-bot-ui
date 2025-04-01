@@ -11,6 +11,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 
 type SortOption = "last_heard" | "name";
 
@@ -18,6 +20,7 @@ export function NodesList() {
   const { nodes, isLoading, error } = useNodes();
   const [hoursThreshold, setHoursThreshold] = useState("2");
   const [sortBy, setSortBy] = useState<SortOption>("last_heard");
+  const [searchQuery, setSearchQuery] = useState("");
 
   if (isLoading) {
     return (
@@ -50,13 +53,24 @@ export function NodesList() {
     });
   };
 
-  const onlineNodes = sortNodes(nodes?.filter(node => 
+  const filterNodes = (nodes: any[]) => {
+    if (!searchQuery) return nodes;
+    
+    const query = searchQuery.toLowerCase();
+    return nodes.filter(node => 
+      node.long_name?.toLowerCase().includes(query) ||
+      node.short_name?.toLowerCase().includes(query) ||
+      node.node_id?.toLowerCase().includes(query)
+    );
+  };
+
+  const onlineNodes = sortNodes(filterNodes(nodes?.filter(node => 
     node.last_heard && new Date(node.last_heard) > threshold
-  ) || []);
+  ) || []));
   
-  const offlineNodes = sortNodes(nodes?.filter(node => 
+  const offlineNodes = sortNodes(filterNodes(nodes?.filter(node => 
     !node.last_heard || new Date(node.last_heard) <= threshold
-  ) || []);
+  ) || []));
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -90,6 +104,17 @@ export function NodesList() {
             </ToggleGroup>
           </div>
         </div>
+      </div>
+
+      <div className="relative mb-6">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
+        <Input
+          type="text"
+          placeholder="Search nodes by name or ID..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
       </div>
 
       <Accordion type="single" collapsible defaultValue="online" className="space-y-4">
