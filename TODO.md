@@ -3,6 +3,8 @@ Meshtastic Bot UI (React)
 
 ## Look and feel
 - [ ] Dark mode
+- [ ] Add an auto generated avatar for node cards - https://ui.shadcn.com/docs/components/avatar
+- [ ] Cardify the Node Details page
 
 ## Pages to add
 * [x] Nodes list
@@ -42,4 +44,4 @@ Meshtastic Bot UI (React)
 ## Build
 * [x] Docker image
 * [x] We're going to need to bake the API URL in at build time, for preprod or prod
-* [ ] Build and smoke test docker image on pull request
+* [ ] Build and smoke test docker image on pull request (and for other repos)
