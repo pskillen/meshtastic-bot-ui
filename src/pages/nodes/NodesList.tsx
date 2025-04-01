@@ -15,6 +15,8 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 type SortOption = "last_heard" | "name";
 
@@ -23,6 +25,7 @@ export function NodesList() {
   const [hoursThreshold, setHoursThreshold] = useState("2");
   const [sortBy, setSortBy] = useState<SortOption>("last_heard");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showOfflineNodes, setShowOfflineNodes] = useState(true);
 
   if (isLoading) {
     return (
@@ -74,6 +77,13 @@ export function NodesList() {
     !node.last_heard || node.last_heard <= threshold
   ) || []));
 
+  // Get nodes to show on map based on search and offline filter
+  const mapNodes = searchQuery 
+    ? [...onlineNodes, ...offlineNodes]
+    : showOfflineNodes 
+      ? nodes || []
+      : nodes?.filter(node => node.last_heard && node.last_heard > threshold) || [];
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
@@ -120,11 +130,19 @@ export function NodesList() {
       </div>
 
       <Card className="mb-8">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Node Locations</CardTitle>
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="show-offline"
+              checked={showOfflineNodes}
+              onCheckedChange={setShowOfflineNodes}
+            />
+            <Label htmlFor="show-offline">Show offline nodes</Label>
+          </div>
         </CardHeader>
         <CardContent>
-          <NodesMap nodes={nodes || []} />
+          <NodesMap nodes={mapNodes} />
         </CardContent>
       </Card>
 
