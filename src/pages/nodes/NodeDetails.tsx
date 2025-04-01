@@ -2,6 +2,8 @@ import { useParams, Link } from 'react-router-dom';
 import { useNodes } from '@/lib/hooks/useNodes';
 import { formatDistanceToNow } from 'date-fns';
 import { BatteryChart } from '@/components/BatteryChart';
+import { NodesMap } from '@/components/nodes/NodesMap';
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 export function NodeDetails() {
   const { id } = useParams<{ id: string }>();
@@ -80,6 +82,19 @@ export function NodeDetails() {
           )}
         </div>
 
+        {positions && positions.length > 0 && (
+          <div className="mt-8">
+            <Card>
+              <CardHeader>
+                <CardTitle>Node Location</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <NodesMap nodes={[node]} />
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         <div className="mt-8">
           <h2 className="text-xl font-semibold mb-4">Battery History</h2>
           <BatteryChart nodeId={nodeId} />
@@ -87,4 +102,4 @@ export function NodeDetails() {
       </div>
     </div>
   );
-} 
+}

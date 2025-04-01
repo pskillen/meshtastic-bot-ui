@@ -4,7 +4,6 @@ Meshtastic Bot UI (React)
 ## Look and feel
 - [ ] Dark mode
 - [ ] Add an auto generated avatar for node cards - https://ui.shadcn.com/docs/components/avatar
-- [ ] Cardify the Node Details page
 
 ## Pages to add
 * [x] Nodes list
@@ -16,9 +15,9 @@ Meshtastic Bot UI (React)
 * [ ] Login, request API token, store locally
 
 ## Dashboard
-* [ ] Online nodes
+* [x] Online nodes
 * [ ] Active nodes (sending messages today)
-* [ ] Graph of packets vs time (24h)
+* [x] Graph of packets vs time (24h)
 * [ ] Node map (links to larger map page)
 
 ## Other features
@@ -29,12 +28,12 @@ Meshtastic Bot UI (React)
 * [x] Sort by last heard, short name, long name, nodeid, distance
 * [x] accordion for online / offline
 * [ ] option to hide offline
-* [ ] Map of current locations for all nodes
+* [x] Map of current locations for all nodes
 
 ## Node details page
 * [ ] Map of position history
 * [ ] Disable chart zooming, etc
-
+- [ ] Cardify the Node Details page
 
 ## Settings to add
 - [ ] Home node ID (global)
