@@ -25,9 +25,9 @@ export function useNodes() {
     return useQuery({
       queryKey: ['nodes', id, 'metrics', dateRange?.startDate?.toISOString(), dateRange?.endDate?.toISOString()],
       queryFn: () => {
-        const params: { startDate?: string; endDate?: string } = {};
-        if (dateRange?.startDate) params.startDate = dateRange.startDate.toISOString();
-        if (dateRange?.endDate) params.endDate = dateRange.endDate.toISOString();
+        const params: { startDate?: Date; endDate?: Date } = {};
+        if (dateRange?.startDate) params.startDate = dateRange.startDate;
+        if (dateRange?.endDate) params.endDate = dateRange.endDate;
         return api.getNodeDeviceMetrics(id, params);
       },
       enabled: !!id,
@@ -38,9 +38,9 @@ export function useNodes() {
     return useQuery({
       queryKey: ['nodes', id, 'positions', dateRange?.startDate?.toISOString(), dateRange?.endDate?.toISOString()],
       queryFn: () => {
-        const params: { startDate?: string; endDate?: string } = {};
-        if (dateRange?.startDate) params.startDate = dateRange.startDate.toISOString();
-        if (dateRange?.endDate) params.endDate = dateRange.endDate.toISOString();
+        const params: { startDate?: Date; endDate?: Date } = {};
+        if (dateRange?.startDate) params.startDate = dateRange.startDate;
+        if (dateRange?.endDate) params.endDate = dateRange.endDate;
         return api.getNodePositions(id, params);
       },
       enabled: !!id,
