@@ -48,7 +48,7 @@ export function NodesList() {
       if (sortBy === "last_heard") {
         if (!a.last_heard) return 1;
         if (!b.last_heard) return -1;
-        return new Date(b.last_heard).getTime() - new Date(a.last_heard).getTime();
+        return b.last_heard.getTime() - a.last_heard.getTime();
       } else {
         return a.long_name.localeCompare(b.long_name);
       }
@@ -67,11 +67,11 @@ export function NodesList() {
   };
 
   const onlineNodes = sortNodes(filterNodes(nodes?.filter(node =>
-    node.last_heard && new Date(node.last_heard) > threshold
+    node.last_heard && node.last_heard > threshold
   ) || []));
 
   const offlineNodes = sortNodes(filterNodes(nodes?.filter(node =>
-    !node.last_heard || new Date(node.last_heard) <= threshold
+    !node.last_heard || node.last_heard <= threshold
   ) || []));
 
   return (

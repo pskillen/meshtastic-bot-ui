@@ -49,7 +49,7 @@ export function NodeDetails() {
               <p><span className="font-medium">Node ID:</span> {node.node_id}</p>
               <p><span className="font-medium">Hardware Model:</span> {node.hardware_model}</p>
               <p><span className="font-medium">Meshtastic Version:</span> {node.meshtastic_version}</p>
-              <p><span className="font-medium">Last Heard:</span> {node.last_heard ? formatDistanceToNow(new Date(node.last_heard), { addSuffix: true }) : 'Never'}</p>
+              <p><span className="font-medium">Last Heard:</span> {node.last_heard ? formatDistanceToNow(node.last_heard, { addSuffix: true }) : 'Never'}</p>
             </div>
           </div>
 
@@ -74,7 +74,7 @@ export function NodeDetails() {
                 <p><span className="font-medium">Longitude:</span> {positions[0].longitude.toFixed(6)}°</p>
                 <p><span className="font-medium">Altitude:</span> {positions[0].altitude.toFixed(1)}m</p>
                 <p><span className="font-medium">Location Source:</span> {positions[0].location_source}</p>
-                <p><span className="font-medium">Reported:</span> {formatDistanceToNow(new Date(positions[0].reported_time), { addSuffix: true })}</p>
+                <p><span className="font-medium">Reported:</span> {formatDistanceToNow(positions[0].reported_time, { addSuffix: true })}</p>
               </div>
             </div>
           )}

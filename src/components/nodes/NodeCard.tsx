@@ -19,7 +19,7 @@ export function NodeCard({ node }: NodeCardProps) {
           <p className="text-gray-600">{node.long_name}</p>
         </div>
         <span className="text-sm text-gray-500">
-          Last heard: {node.last_heard ? formatDistanceToNow(new Date(node.last_heard), { addSuffix: true }) : 'Never'}
+          Last heard: {node.last_heard ? formatDistanceToNow(node.last_heard, { addSuffix: true }) : 'Never'}
         </span>
       </div>
       <div className="space-y-2">

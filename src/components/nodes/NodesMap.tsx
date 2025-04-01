@@ -117,7 +117,7 @@ export function NodesMap({ nodes }: NodesMapProps) {
           .bindPopup(`
             <strong>Node: ${node.long_name || node.node_id}</strong><br>
             Battery: ${node.latest_device_metrics?.battery_level || 'Unknown'}%<br>
-            Last Seen: ${new Date(node.last_heard || 0).toLocaleString()}
+            Last Seen: ${node.last_heard?.toLocaleString() || 'Never'}
           `)
           .addTo(map);
 
