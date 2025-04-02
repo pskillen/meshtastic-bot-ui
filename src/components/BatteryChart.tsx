@@ -75,26 +75,26 @@ export function BatteryChart({ nodeId }: BatteryChartProps) {
     yaxis: [
       {
         opposite: true,
-        title: { text: 'Voltage (V)', style: { color: '#d0a8ff' } },
+        title: {text: 'Voltage (V)', style: {color: '#d0a8ff'}},
         min: 3.0,
         max: 4.2,
         decimalsInFloat: 2,
-        labels: { style: { colors: '#aaa' } },
+        labels: {style: {colors: '#aaa'}},
       },
       {
-        title: { text: 'Battery/Util (%)', style: { color: '#76d9c4' } },
+        title: {text: 'Battery/Util (%)', style: {color: '#76d9c4'}},
         min: 0,
         max: 100,
         decimalsInFloat: 1,
-        labels: { style: { colors: '#aaa' } },
+        labels: {style: {colors: '#aaa'}},
       },
     ],
     tooltip: {
       theme: 'dark' as const,
-      x: { format: 'MMM d, HH:mm' },
+      x: {format: 'MMM d, HH:mm'},
     },
-    legend: { labels: { colors: '#ddd' } },
-    grid: { borderColor: '#444' },
+    legend: {labels: {colors: '#ddd'}},
+    grid: {borderColor: '#444'},
   }), [dateRange]);
 
   const series = useMemo(() => {
@@ -143,10 +143,10 @@ export function BatteryChart({ nodeId }: BatteryChartProps) {
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
-        {timeRanges.map((range) => (
+        {timeRanges.map(range => (
           <Button
             key={range.value}
-            variant={selectedRange === range.value ? "default" : "outline"}
+            variant={selectedRange === range.value ? 'default' : 'outline'}
             size="sm"
             onClick={() => handleRangeChange(range.value)}
           >
@@ -173,4 +173,4 @@ export function BatteryChart({ nodeId }: BatteryChartProps) {
       )}
     </div>
   );
-} 
+}

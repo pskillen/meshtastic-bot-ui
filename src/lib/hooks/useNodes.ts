@@ -1,8 +1,7 @@
 import { useMutation, useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query';
 import { useMeshBotApi } from './useApi';
 import { DeviceMetrics, NodeData, Position } from '../models';
-import { DateRange } from "@/types/types.ts";
-
+import { DateRange } from '@/types/types.ts';
 
 export function useNodes() {
   const api = useMeshBotApi();
@@ -23,7 +22,13 @@ export function useNodes() {
 
   const useNodeMetrics = (id: number, dateRange?: DateRange): UseQueryResult<DeviceMetrics[]> => {
     return useQuery({
-      queryKey: ['nodes', id, 'metrics', dateRange?.startDate?.toISOString(), dateRange?.endDate?.toISOString()],
+      queryKey: [
+        'nodes',
+        id,
+        'metrics',
+        dateRange?.startDate?.toISOString(),
+        dateRange?.endDate?.toISOString(),
+      ],
       queryFn: () => {
         const params: { startDate?: Date; endDate?: Date } = {};
         if (dateRange?.startDate) params.startDate = dateRange.startDate;
@@ -36,7 +41,13 @@ export function useNodes() {
 
   const useNodePositions = (id: number, dateRange?: DateRange): UseQueryResult<Position[]> => {
     return useQuery({
-      queryKey: ['nodes', id, 'positions', dateRange?.startDate?.toISOString(), dateRange?.endDate?.toISOString()],
+      queryKey: [
+        'nodes',
+        id,
+        'positions',
+        dateRange?.startDate?.toISOString(),
+        dateRange?.endDate?.toISOString(),
+      ],
       queryFn: () => {
         const params: { startDate?: Date; endDate?: Date } = {};
         if (dateRange?.startDate) params.startDate = dateRange.startDate;
@@ -49,7 +60,7 @@ export function useNodes() {
 
   const searchNodesMutation = useMutation({
     mutationFn: (query: string) => api.searchNodes(query),
-    onSuccess: (data) => {
+    onSuccess: data => {
       queryClient.setQueryData(['nodes', 'search'], data);
     },
   });

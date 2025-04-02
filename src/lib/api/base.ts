@@ -38,9 +38,7 @@ export abstract class BaseApi {
               break;
             case 'basic':
               if (this.authConfig.username && this.authConfig.password) {
-                const credentials = btoa(
-                  `${this.authConfig.username}:${this.authConfig.password}`
-                );
+                const credentials = btoa(`${this.authConfig.username}:${this.authConfig.password}`);
                 config.headers.Authorization = `Basic ${credentials}`;
               }
               break;
@@ -56,15 +54,15 @@ export abstract class BaseApi {
         }
         return config;
       },
-      (error) => {
+      error => {
         return Promise.reject(error);
       }
     );
 
     // Add response interceptor for error handling
     this.axios.interceptors.response.use(
-      (response) => response,
-      (error) => {
+      response => response,
+      error => {
         const apiError: ApiError = {
           message: error.message || 'An error occurred',
           status: error.response?.status,
@@ -81,10 +79,7 @@ export abstract class BaseApi {
     );
   }
 
-  protected async request<T>(
-    endpoint: string,
-    options: AxiosRequestConfig = {}
-  ): Promise<T> {
+  protected async request<T>(endpoint: string, options: AxiosRequestConfig = {}): Promise<T> {
     try {
       const response: AxiosResponse<T> = await this.axios({
         url: endpoint,
@@ -106,19 +101,11 @@ export abstract class BaseApi {
     return this.request<T>(endpoint, { ...config, method: 'GET' });
   }
 
-  protected async post<T>(
-    endpoint: string,
-    data?: unknown,
-    config?: AxiosRequestConfig
-  ): Promise<T> {
+  protected async post<T>(endpoint: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
     return this.request<T>(endpoint, { ...config, method: 'POST', data });
   }
 
-  protected async put<T>(
-    endpoint: string,
-    data?: unknown,
-    config?: AxiosRequestConfig
-  ): Promise<T> {
+  protected async put<T>(endpoint: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
     return this.request<T>(endpoint, { ...config, method: 'PUT', data });
   }
 
@@ -126,11 +113,7 @@ export abstract class BaseApi {
     return this.request<T>(endpoint, { ...config, method: 'DELETE' });
   }
 
-  protected async patch<T>(
-    endpoint: string,
-    data?: unknown,
-    config?: AxiosRequestConfig
-  ): Promise<T> {
+  protected async patch<T>(endpoint: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
     return this.request<T>(endpoint, { ...config, method: 'PATCH', data });
   }
-} 
+}

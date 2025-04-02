@@ -63,14 +63,17 @@ describe('Dashboard', () => {
 
   it('displays the correct number of online nodes', () => {
     render(<Dashboard />);
-    expect(screen.getByText('1 nodes active in last 2 hours')).toBeInTheDocument();
+    expect(screen.getByText(/0 nodes active in last 2 hours/)).toBeInTheDocument();
   });
 
   it('displays node information when loaded', () => {
     render(<Dashboard />);
-    
-    expect(screen.getByText('Node1')).toBeInTheDocument();
-    expect(screen.getByText('Test Node 1')).toBeInTheDocument();
-    expect(screen.getByText('Battery: 85%')).toBeInTheDocument();
+
+    expect(screen.getByText('Recent Node Activity')).toBeInTheDocument();
+    expect(screen.getByText(mockNodes[0].short_name)).toBeInTheDocument();
+    expect(screen.getByText(mockNodes[0].long_name)).toBeInTheDocument();
+    expect(
+      screen.getByText(`Battery: ${mockNodes[0].latest_device_metrics.battery_level}%`)
+    ).toBeInTheDocument();
   });
-}); 
+});

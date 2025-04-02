@@ -32,4 +32,4 @@ expect.extend(matchers as unknown as Parameters<typeof expect.extend>[0]);
 // runs a cleanup after each test case (e.g. clearing jsdom)
 afterEach(() => {
   cleanup();
-}); 
+});

@@ -23,9 +23,5 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     return <div>Loading...</div>;
   }
 
-  return (
-    <ConfigContext.Provider value={config}>
-      {children}
-    </ConfigContext.Provider>
-  );
-} 
+  return <ConfigContext.Provider value={config}>{children}</ConfigContext.Provider>;
+}

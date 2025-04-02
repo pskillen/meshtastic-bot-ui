@@ -27,7 +27,7 @@ export interface AppConfig {
     defaultZoom: number;
   };
   refresh: {
-    nodesList: number;  // milliseconds
+    nodesList: number; // milliseconds
     nodeDetails: number;
   };
 }

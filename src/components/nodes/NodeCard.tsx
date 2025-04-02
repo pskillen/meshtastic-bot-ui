@@ -32,4 +32,4 @@ export function NodeCard({ node }: NodeCardProps) {
       </div>
     </Link>
   );
-} 
+}

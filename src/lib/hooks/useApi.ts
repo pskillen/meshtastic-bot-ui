@@ -6,7 +6,7 @@ export function useMeshBotApi() {
   const config = useConfig();
   const api = useMemo(() => {
     return new MeshtasticApi(config.apis.meshBot);
-  }, []);
+  }, [config.apis.meshBot]);
 
   return api;
-} 
+}

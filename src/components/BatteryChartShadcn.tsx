@@ -1,36 +1,22 @@
-"use client"
+'use client';
 
-import * as React from "react"
-import {Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend} from "recharts"
-import {subHours, startOfDay} from "date-fns"
+import * as React from 'react';
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from 'recharts';
+import { subHours, startOfDay } from 'date-fns';
 
-import {useIsMobile} from "@/hooks/use-mobile"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart"
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@/components/ui/toggle-group"
-import {useNodes} from '@/lib/hooks/useNodes'
-import {Formatter, NameType, ValueType} from "recharts/types/component/DefaultTooltipContent"
+} from '@/components/ui/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { useNodes } from '@/lib/hooks/useNodes';
+import { Formatter, NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 
 interface TimeRange {
   label: string;
@@ -38,12 +24,12 @@ interface TimeRange {
 }
 
 const timeRanges: TimeRange[] = [
-  {label: '24 hours', value: '24h'},
-  {label: '48 hours', value: '48h'},
-  {label: 'Today', value: '1d'},
-  {label: '2 days', value: '2d'},
-  {label: '7 days', value: '7d'},
-  {label: '14 days', value: '14d'},
+  { label: '24 hours', value: '24h' },
+  { label: '48 hours', value: '48h' },
+  { label: 'Today', value: '1d' },
+  { label: '2 days', value: '2d' },
+  { label: '7 days', value: '7d' },
+  { label: '14 days', value: '14d' },
 ];
 
 interface BatteryChartShadcnProps {
@@ -63,29 +49,29 @@ function getDateRangeFromTimeRange(timeRange: string): { startDate: Date; endDat
     start = subHours(now, timeNumber);
   }
 
-  return {startDate: start, endDate: now};
+  return { startDate: start, endDate: now };
 }
 
-export function BatteryChartShadcn({nodeId}: BatteryChartShadcnProps) {
-  const isMobile = useIsMobile()
-  const [timeRange, setTimeRange] = React.useState("48h")
-  const {useNodeMetrics} = useNodes();
+export function BatteryChartShadcn({ nodeId }: BatteryChartShadcnProps) {
+  const isMobile = useIsMobile();
+  const [timeRange, setTimeRange] = React.useState('48h');
+  const { useNodeMetrics } = useNodes();
 
   const dateRange = React.useMemo(() => getDateRangeFromTimeRange(timeRange), [timeRange]);
   const metricsQuery = useNodeMetrics(nodeId, dateRange);
 
   React.useEffect(() => {
     if (isMobile) {
-      setTimeRange("24h")
+      setTimeRange('24h');
     }
-  }, [isMobile])
+  }, [isMobile]);
 
   const chartConfig: ChartConfig = {
     value: {
-      color: "var(--color-value)",
-      label: "Value",
+      color: 'var(--color-value)',
+      label: 'Value',
     },
-  }
+  };
 
   const data = React.useMemo(() => {
     if (!metricsQuery.data) return [];
@@ -105,18 +91,17 @@ export function BatteryChartShadcn({nodeId}: BatteryChartShadcnProps) {
 
     switch (name) {
       case 'voltage':
-        return [`${numValue.toFixed(2)}V`, "Voltage"];
+        return [`${numValue.toFixed(2)}V`, 'Voltage'];
       case 'batteryLevel':
-        return [`${numValue.toFixed(1)}%`, "Battery Level"];
+        return [`${numValue.toFixed(1)}%`, 'Battery Level'];
       case 'chUtil':
-        return [`${numValue.toFixed(1)}%`, "Channel Utilization"];
+        return [`${numValue.toFixed(1)}%`, 'Channel Utilization'];
       case 'airUtil':
-        return [`${numValue.toFixed(1)}%`, "Air Utilization"];
+        return [`${numValue.toFixed(1)}%`, 'Air Utilization'];
       default:
         return [String(value), name];
     }
-  }
-
+  };
 
   return (
     <Card className="@container/card">
@@ -135,7 +120,7 @@ export function BatteryChartShadcn({nodeId}: BatteryChartShadcnProps) {
             variant="outline"
             className="@[767px]/card:flex hidden"
           >
-            {timeRanges.map((range) => (
+            {timeRanges.map(range => (
               <ToggleGroupItem key={range.value} value={range.value} className="h-8 px-2.5">
                 {range.label}
               </ToggleGroupItem>
@@ -146,10 +131,10 @@ export function BatteryChartShadcn({nodeId}: BatteryChartShadcnProps) {
               className="@[767px]/card:hidden flex w-40"
               aria-label="Select time range"
             >
-              <SelectValue placeholder="Select range"/>
+              <SelectValue placeholder="Select range" />
             </SelectTrigger>
             <SelectContent className="rounded-xl">
-              {timeRanges.map((range) => (
+              {timeRanges.map(range => (
                 <SelectItem key={range.value} value={range.value} className="rounded-lg">
                   {range.label}
                 </SelectItem>
@@ -168,28 +153,25 @@ export function BatteryChartShadcn({nodeId}: BatteryChartShadcnProps) {
             Failed to load battery data
           </div>
         ) : (
-          <ChartContainer
-            config={chartConfig}
-            className="aspect-auto h-[250px] w-full"
-          >
+          <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
             <AreaChart data={data}>
               <defs>
                 <linearGradient id="voltageGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#d0a8ff" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#d0a8ff" stopOpacity={0.1}/>
+                  <stop offset="5%" stopColor="#d0a8ff" stopOpacity={0.8} />
+                  <stop offset="95%" stopColor="#d0a8ff" stopOpacity={0.1} />
                 </linearGradient>
                 <linearGradient id="batteryLevelGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#76d9c4" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#76d9c4" stopOpacity={0.1}/>
+                  <stop offset="5%" stopColor="#76d9c4" stopOpacity={0.8} />
+                  <stop offset="95%" stopColor="#76d9c4" stopOpacity={0.1} />
                 </linearGradient>
               </defs>
-              <CartesianGrid vertical={false}/>
+              <CartesianGrid vertical={false} />
               <Legend
                 verticalAlign="bottom"
                 height={36}
                 iconType="circle"
                 iconSize={8}
-                formatter={(value) => {
+                formatter={value => {
                   switch (value) {
                     case 'voltage':
                       return 'Voltage (V)';
@@ -210,37 +192,33 @@ export function BatteryChartShadcn({nodeId}: BatteryChartShadcnProps) {
                 axisLine={false}
                 tickMargin={8}
                 minTickGap={32}
-                tickFormatter={(value) => {
-                  const date = new Date(value)
-                  return date.toLocaleDateString("en-GB", {
-                    month: "short",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "numeric",
-                  })
+                tickFormatter={value => {
+                  const date = new Date(value);
+                  return date.toLocaleDateString('en-GB', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: 'numeric',
+                  });
                 }}
               />
               <YAxis
                 yAxisId="voltage"
                 orientation="right"
                 domain={[3.0, 4.2]}
-                tickFormatter={(value) => `${value}V`}
+                tickFormatter={value => `${value}V`}
               />
-              <YAxis
-                yAxisId="battery"
-                domain={[0, 100]}
-                tickFormatter={(value) => `${value}%`}
-              />
+              <YAxis yAxisId="battery" domain={[0, 100]} tickFormatter={value => `${value}%`} />
               <Tooltip
                 content={
                   <ChartTooltipContent
                     labelFormatter={(value: string | number) => {
                       const date = new Date(value);
-                      return date.toLocaleDateString("en-GB", {
-                        month: "short",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "numeric",
+                      return date.toLocaleDateString('en-GB', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: 'numeric',
                       });
                     }}
                     formatter={formatter}
@@ -269,7 +247,7 @@ export function BatteryChartShadcn({nodeId}: BatteryChartShadcnProps) {
                 dataKey="chUtil"
                 stroke="#ff7b72"
                 fill="none"
-                dot={{r: 4}}
+                dot={{ r: 4 }}
               />
               <Area
                 yAxisId="battery"
@@ -277,12 +255,12 @@ export function BatteryChartShadcn({nodeId}: BatteryChartShadcnProps) {
                 dataKey="airUtil"
                 stroke="#ffa657"
                 fill="none"
-                dot={{r: 4}}
+                dot={{ r: 4 }}
               />
             </AreaChart>
           </ChartContainer>
         )}
       </CardContent>
     </Card>
-  )
+  );
 }
