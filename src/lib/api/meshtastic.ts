@@ -17,7 +17,7 @@ export class MeshtasticApi extends BaseApi {
 
   async getNodes(): Promise<NodeData[]> {
     const nodes = await this.get<NodeData[]>('/nodes/');
-    return nodes.map(node => ({
+    return nodes.map((node) => ({
       ...node,
       last_heard: node.last_heard ? new Date(node.last_heard) : null,
       last_position: node.last_position
@@ -66,7 +66,7 @@ export class MeshtasticApi extends BaseApi {
     const metrics = await this.get<DeviceMetrics[]>(
       `/nodes/${id}/device_metrics/${queryString ? `?${queryString}` : ''}`
     );
-    return metrics.map(metric => ({
+    return metrics.map((metric) => ({
       ...metric,
       time: new Date(metric.time),
     }));
@@ -78,10 +78,8 @@ export class MeshtasticApi extends BaseApi {
     if (params?.endDate) searchParams.append('endDate', params.endDate.toISOString());
 
     const queryString = searchParams.toString();
-    const positions = await this.get<Position[]>(
-      `/nodes/${id}/positions/${queryString ? `?${queryString}` : ''}`
-    );
-    return positions.map(position => ({
+    const positions = await this.get<Position[]>(`/nodes/${id}/positions/${queryString ? `?${queryString}` : ''}`);
+    return positions.map((position) => ({
       ...position,
       time: new Date(position.time),
       reported_time: new Date(position.reported_time),
@@ -101,12 +99,10 @@ export class MeshtasticApi extends BaseApi {
     if (params?.channel) searchParams.append('channel', params.channel.toString());
 
     const queryString = searchParams.toString();
-    const stats = await this.get<PacketStatsResponse>(
-      `/stats/${queryString ? `?${queryString}` : ''}`
-    );
+    const stats = await this.get<PacketStatsResponse>(`/stats/${queryString ? `?${queryString}` : ''}`);
     return {
       ...stats,
-      hourly_stats: stats.hourly_stats.map(stat => ({
+      hourly_stats: stats.hourly_stats.map((stat) => ({
         ...stat,
         timestamp: new Date(stat.timestamp),
       })),

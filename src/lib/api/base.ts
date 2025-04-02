@@ -54,15 +54,15 @@ export abstract class BaseApi {
         }
         return config;
       },
-      error => {
+      (error) => {
         return Promise.reject(error);
       }
     );
 
     // Add response interceptor for error handling
     this.axios.interceptors.response.use(
-      response => response,
-      error => {
+      (response) => response,
+      (error) => {
         const apiError: ApiError = {
           message: error.message || 'An error occurred',
           status: error.response?.status,

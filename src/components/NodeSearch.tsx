@@ -39,7 +39,7 @@ export function NodeSearch() {
           placeholder="Search nodes..."
           className="h-9 w-full"
           value={query}
-          onChange={e => {
+          onChange={(e) => {
             setQuery(e.target.value);
             setIsOpen(true);
           }}
@@ -58,7 +58,7 @@ export function NodeSearch() {
             <div className="p-2 text-muted-foreground">No nodes found</div>
           ) : (
             <ul className="py-1">
-              {searchResults?.map(node => (
+              {searchResults?.map((node) => (
                 <li key={node.id}>
                   <Link
                     to={`/nodes/${node.id}`}

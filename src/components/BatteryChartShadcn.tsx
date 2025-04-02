@@ -7,13 +7,7 @@ import { subHours, startOfDay } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useNodes } from '@/lib/hooks/useNodes';
 import { Formatter, NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
@@ -76,7 +70,7 @@ export function BatteryChartShadcn({ nodeId }: BatteryChartShadcnProps) {
   const data = React.useMemo(() => {
     if (!metricsQuery.data) return [];
 
-    return metricsQuery.data.map(d => ({
+    return metricsQuery.data.map((d) => ({
       timestamp: d.time,
       voltage: d.voltage,
       batteryLevel: d.battery_level,
@@ -108,9 +102,7 @@ export function BatteryChartShadcn({ nodeId }: BatteryChartShadcnProps) {
       <CardHeader className="relative">
         <CardTitle>Battery & Utilization</CardTitle>
         <CardDescription>
-          <span className="@[540px]/card:block hidden">
-            Battery voltage, level, and channel utilization over time
-          </span>
+          <span className="@[540px]/card:block hidden">Battery voltage, level, and channel utilization over time</span>
         </CardDescription>
         <div className="absolute right-4 top-4">
           <ToggleGroup
@@ -120,21 +112,18 @@ export function BatteryChartShadcn({ nodeId }: BatteryChartShadcnProps) {
             variant="outline"
             className="@[767px]/card:flex hidden"
           >
-            {timeRanges.map(range => (
+            {timeRanges.map((range) => (
               <ToggleGroupItem key={range.value} value={range.value} className="h-8 px-2.5">
                 {range.label}
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
           <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger
-              className="@[767px]/card:hidden flex w-40"
-              aria-label="Select time range"
-            >
+            <SelectTrigger className="@[767px]/card:hidden flex w-40" aria-label="Select time range">
               <SelectValue placeholder="Select range" />
             </SelectTrigger>
             <SelectContent className="rounded-xl">
-              {timeRanges.map(range => (
+              {timeRanges.map((range) => (
                 <SelectItem key={range.value} value={range.value} className="rounded-lg">
                   {range.label}
                 </SelectItem>
@@ -171,7 +160,7 @@ export function BatteryChartShadcn({ nodeId }: BatteryChartShadcnProps) {
                 height={36}
                 iconType="circle"
                 iconSize={8}
-                formatter={value => {
+                formatter={(value) => {
                   switch (value) {
                     case 'voltage':
                       return 'Voltage (V)';
@@ -192,7 +181,7 @@ export function BatteryChartShadcn({ nodeId }: BatteryChartShadcnProps) {
                 axisLine={false}
                 tickMargin={8}
                 minTickGap={32}
-                tickFormatter={value => {
+                tickFormatter={(value) => {
                   const date = new Date(value);
                   return date.toLocaleDateString('en-GB', {
                     month: 'short',
@@ -202,13 +191,8 @@ export function BatteryChartShadcn({ nodeId }: BatteryChartShadcnProps) {
                   });
                 }}
               />
-              <YAxis
-                yAxisId="voltage"
-                orientation="right"
-                domain={[3.0, 4.2]}
-                tickFormatter={value => `${value}V`}
-              />
-              <YAxis yAxisId="battery" domain={[0, 100]} tickFormatter={value => `${value}%`} />
+              <YAxis yAxisId="voltage" orientation="right" domain={[3.0, 4.2]} tickFormatter={(value) => `${value}V`} />
+              <YAxis yAxisId="battery" domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
               <Tooltip
                 content={
                   <ChartTooltipContent
@@ -225,14 +209,7 @@ export function BatteryChartShadcn({ nodeId }: BatteryChartShadcnProps) {
                   />
                 }
               />
-              <Area
-                yAxisId="voltage"
-                type="monotone"
-                dataKey="voltage"
-                stroke="#d0a8ff"
-                fill="none"
-                strokeWidth={2}
-              />
+              <Area yAxisId="voltage" type="monotone" dataKey="voltage" stroke="#d0a8ff" fill="none" strokeWidth={2} />
               <Area
                 yAxisId="battery"
                 type="monotone"
@@ -241,22 +218,8 @@ export function BatteryChartShadcn({ nodeId }: BatteryChartShadcnProps) {
                 fill="none"
                 strokeWidth={2}
               />
-              <Area
-                yAxisId="battery"
-                type="monotone"
-                dataKey="chUtil"
-                stroke="#ff7b72"
-                fill="none"
-                dot={{ r: 4 }}
-              />
-              <Area
-                yAxisId="battery"
-                type="monotone"
-                dataKey="airUtil"
-                stroke="#ffa657"
-                fill="none"
-                dot={{ r: 4 }}
-              />
+              <Area yAxisId="battery" type="monotone" dataKey="chUtil" stroke="#ff7b72" fill="none" dot={{ r: 4 }} />
+              <Area yAxisId="battery" type="monotone" dataKey="airUtil" stroke="#ffa657" fill="none" dot={{ r: 4 }} />
             </AreaChart>
           </ChartContainer>
         )}

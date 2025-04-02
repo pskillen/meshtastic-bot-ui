@@ -1,21 +1,10 @@
 import { useNodes } from '@/lib/hooks/useNodes';
 import { subHours } from 'date-fns';
 import { useState } from 'react';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { NodeCard } from '@/components/nodes/NodeCard';
 import { NodesMap } from '@/components/nodes/NodesMap';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
@@ -44,9 +33,7 @@ export function NodesList() {
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-red-500">
-          Error: {error instanceof Error ? error.message : 'Failed to fetch nodes'}
-        </div>
+        <div className="text-red-500">Error: {error instanceof Error ? error.message : 'Failed to fetch nodes'}</div>
       </div>
     );
   }
@@ -71,7 +58,7 @@ export function NodesList() {
 
     const query = searchQuery.toLowerCase();
     return nodes.filter(
-      node =>
+      (node) =>
         node.long_name?.toLowerCase().includes(query) ||
         node.short_name?.toLowerCase().includes(query) ||
         node.node_id?.toLowerCase().includes(query)
@@ -79,11 +66,11 @@ export function NodesList() {
   };
 
   const onlineNodes = sortNodes(
-    filterNodes(nodes?.filter(node => node.last_heard && node.last_heard > threshold) || [])
+    filterNodes(nodes?.filter((node) => node.last_heard && node.last_heard > threshold) || [])
   );
 
   const offlineNodes = sortNodes(
-    filterNodes(nodes?.filter(node => !node.last_heard || node.last_heard <= threshold) || [])
+    filterNodes(nodes?.filter((node) => !node.last_heard || node.last_heard <= threshold) || [])
   );
 
   // Get nodes to show on map based on search and offline filter
@@ -91,7 +78,7 @@ export function NodesList() {
     ? [...onlineNodes, ...offlineNodes]
     : showOfflineNodes
       ? nodes || []
-      : nodes?.filter(node => node.last_heard && node.last_heard > threshold) || [];
+      : nodes?.filter((node) => node.last_heard && node.last_heard > threshold) || [];
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -107,7 +94,7 @@ export function NodesList() {
                 <SelectValue placeholder="Select hours" />
               </SelectTrigger>
               <SelectContent>
-                {[1, 2, 4, 8, 12, 24].map(hours => (
+                {[1, 2, 4, 8, 12, 24].map((hours) => (
                   <SelectItem key={hours} value={hours.toString()}>
                     {hours} {hours === 1 ? 'hour' : 'hours'}
                   </SelectItem>
@@ -120,7 +107,7 @@ export function NodesList() {
             <ToggleGroup
               type="single"
               value={sortBy}
-              onValueChange={value => value && setSortBy(value as SortOption)}
+              onValueChange={(value) => value && setSortBy(value as SortOption)}
             >
               <ToggleGroupItem value="last_heard" aria-label="Sort by last heard">
                 Last Heard
@@ -139,7 +126,7 @@ export function NodesList() {
           type="text"
           placeholder="Search nodes by name or ID..."
           value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
+          onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-10"
         />
       </div>
@@ -148,11 +135,7 @@ export function NodesList() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Node Locations</CardTitle>
           <div className="flex items-center space-x-2">
-            <Switch
-              id="show-offline"
-              checked={showOfflineNodes}
-              onCheckedChange={setShowOfflineNodes}
-            />
+            <Switch id="show-offline" checked={showOfflineNodes} onCheckedChange={setShowOfflineNodes} />
             <Label htmlFor="show-offline">Show offline nodes</Label>
           </div>
         </CardHeader>
@@ -166,7 +149,7 @@ export function NodesList() {
           <AccordionTrigger>Online Nodes ({onlineNodes.length})</AccordionTrigger>
           <AccordionContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {onlineNodes.map(node => (
+              {onlineNodes.map((node) => (
                 <NodeCard key={node.id} node={node} />
               ))}
             </div>
@@ -177,7 +160,7 @@ export function NodesList() {
           <AccordionTrigger>Offline Nodes ({offlineNodes.length})</AccordionTrigger>
           <AccordionContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {offlineNodes.map(node => (
+              {offlineNodes.map((node) => (
                 <NodeCard key={node.id} node={node} />
               ))}
             </div>

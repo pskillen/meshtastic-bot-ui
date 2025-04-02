@@ -6,19 +6,8 @@ import { subDays } from 'date-fns';
 
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from '@/components/ui/chart';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 interface PacketStatsChartProps {
@@ -29,13 +18,7 @@ interface PacketStatsChartProps {
   onTimeRangeChange: (startDate: Date, endDate: Date) => void;
 }
 
-export function PacketStatsChart({
-  data,
-  title,
-  description,
-  config,
-  onTimeRangeChange,
-}: PacketStatsChartProps) {
+export function PacketStatsChart({ data, title, description, config, onTimeRangeChange }: PacketStatsChartProps) {
   const isMobile = useIsMobile();
   const [timeRange, setTimeRange] = React.useState('30d');
 
@@ -121,7 +104,7 @@ export function PacketStatsChart({
               axisLine={false}
               tickMargin={8}
               minTickGap={32}
-              tickFormatter={value => {
+              tickFormatter={(value) => {
                 const date = new Date(value);
                 return date.toLocaleDateString('en-GB', {
                   month: 'short',
@@ -165,12 +148,7 @@ export function PacketStatsChart({
                 />
               }
             />
-            <Area
-              dataKey="value"
-              type="monotone"
-              fill="url(#fillValue)"
-              stroke="var(--color-value)"
-            />
+            <Area dataKey="value" type="monotone" fill="url(#fillValue)" stroke="var(--color-value)" />
           </AreaChart>
         </ChartContainer>
       </CardContent>

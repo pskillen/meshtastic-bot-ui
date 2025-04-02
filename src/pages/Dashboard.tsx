@@ -36,7 +36,7 @@ export function Dashboard() {
   }, []);
 
   const onlineNodes =
-    nodes?.filter(node => {
+    nodes?.filter((node) => {
       if (!node.last_heard) return false;
       const lastHeard = node.last_heard;
       const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
@@ -44,7 +44,7 @@ export function Dashboard() {
     }) || [];
 
   const chartData =
-    packetStats?.hourly_stats.map(stat => ({
+    packetStats?.hourly_stats.map((stat) => ({
       timestamp: new Date(stat.timestamp),
       value: stat.total_packets,
     })) || [];
@@ -92,7 +92,7 @@ export function Dashboard() {
               </div>
             ) : (
               <div className="space-y-4">
-                {onlineNodes.map(node => (
+                {onlineNodes.map((node) => (
                   <div key={node.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
                     <div>
                       <h3 className="font-semibold">{node.short_name}</h3>
