@@ -1,5 +1,5 @@
-import { type LucideIcon } from "lucide-react"
-import { Link } from "react-router-dom"
+import { type LucideIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import {
   SidebarGroup,
@@ -7,16 +7,16 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar"
+} from '@/components/ui/sidebar';
 
 export function NavMain({
   items,
 }: {
   items: {
-    title: string
-    url: string
-    icon?: LucideIcon
-  }[]
+    title: string;
+    url: string;
+    icon?: LucideIcon;
+  }[];
 }) {
   return (
     <SidebarGroup>
@@ -35,5 +35,5 @@ export function NavMain({
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
-  )
+  );
 }

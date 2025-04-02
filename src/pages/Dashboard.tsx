@@ -1,23 +1,23 @@
-import { PacketStatsChart } from "@/components/PacketStatsChart"
-import { DataTable } from "@/components/data-table"
-import { useNodes } from "@/lib/hooks/useNodes"
-import { usePacketStats } from "@/lib/hooks/usePacketStats"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { NetworkIcon } from "lucide-react"
-import { formatDistanceToNow } from "date-fns"
-import { subDays } from "date-fns"
-import { ChartConfig } from "@/components/ui/chart"
-import { useCallback, useState } from "react"
+import { PacketStatsChart } from '@/components/PacketStatsChart';
+import { DataTable } from '@/components/data-table';
+import { useNodes } from '@/lib/hooks/useNodes';
+import { usePacketStats } from '@/lib/hooks/usePacketStats';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { NetworkIcon } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { subDays } from 'date-fns';
+import { ChartConfig } from '@/components/ui/chart';
+import { useCallback, useState } from 'react';
 
-import data from "../app/dashboard/data.json"
+import data from '../app/dashboard/data.json';
 
 const packetChartConfig = {
   value: {
-    label: "Packets",
-    color: "hsl(var(--chart-1))",
+    label: 'Packets',
+    color: 'hsl(var(--chart-1))',
   },
-} satisfies ChartConfig
+} satisfies ChartConfig;
 
 export function Dashboard() {
   const { nodes, isLoading } = useNodes();
@@ -27,25 +27,27 @@ export function Dashboard() {
   });
 
   const { data: packetStats } = usePacketStats({
-    startDate: dateRange.startDate.toISOString(),
-    endDate: dateRange.endDate.toISOString(),
+    startDate: dateRange.startDate,
+    endDate: dateRange.endDate,
   });
 
   const handleTimeRangeChange = useCallback((startDate: Date, endDate: Date) => {
     setDateRange({ startDate, endDate });
   }, []);
 
-  const onlineNodes = nodes?.filter(node => {
-    if (!node.last_heard) return false;
-    const lastHeard = node.last_heard;
-    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-    return lastHeard > twoHoursAgo;
-  }) || [];
+  const onlineNodes =
+    nodes?.filter((node) => {
+      if (!node.last_heard) return false;
+      const lastHeard = node.last_heard;
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+      return lastHeard > twoHoursAgo;
+    }) || [];
 
-  const chartData = packetStats?.hourly_stats.map(stat => ({
-    timestamp: new Date(stat.timestamp),
-    value: stat.total_packets,
-  })) || [];
+  const chartData =
+    packetStats?.hourly_stats.map((stat) => ({
+      timestamp: new Date(stat.timestamp),
+      value: stat.total_packets,
+    })) || [];
 
   return (
     <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
@@ -54,7 +56,7 @@ export function Dashboard() {
           <CardHeader className="relative">
             <CardDescription>Online Nodes</CardDescription>
             <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
-              {isLoading ? "..." : onlineNodes.length}
+              {isLoading ? '...' : onlineNodes.length}
             </CardTitle>
             <div className="absolute right-4 top-4">
               <Badge variant="outline" className="flex gap-1 rounded-lg text-xs">
@@ -64,12 +66,8 @@ export function Dashboard() {
             </div>
           </CardHeader>
           <CardFooter className="flex-col items-start gap-1 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium">
-              {onlineNodes.length} nodes active in last 2 hours
-            </div>
-            <div className="text-muted-foreground">
-              {nodes?.length || 0} total nodes in network
-            </div>
+            <div className="line-clamp-1 flex gap-2 font-medium">{onlineNodes.length} nodes active in last 2 hours</div>
+            <div className="text-muted-foreground">{nodes?.length || 0} total nodes in network</div>
           </CardFooter>
         </Card>
       </div>
@@ -119,5 +117,5 @@ export function Dashboard() {
       </div>
       <DataTable data={data} />
     </div>
-  )
-} 
+  );
+}

@@ -9,4 +9,4 @@ export function usePacketStats(params?: PacketStatsParams) {
     queryKey: ['packet-stats', params],
     queryFn: () => api.getPacketStats(params),
   });
-} 
+}

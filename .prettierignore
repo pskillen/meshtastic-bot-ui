@@ -1,0 +1,5 @@
+# Ignore test files to preserve line breaks in assertions
+**/__tests__/**/*.tsx
+**/__tests__/**/*.ts
+**/*.test.tsx
+**/*.test.ts 

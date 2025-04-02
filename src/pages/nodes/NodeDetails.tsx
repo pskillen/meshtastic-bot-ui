@@ -3,7 +3,7 @@ import { useNodes } from '@/lib/hooks/useNodes';
 import { formatDistanceToNow } from 'date-fns';
 import { BatteryChartShadcn } from '@/components/BatteryChartShadcn';
 import { NodesMap } from '@/components/nodes/NodesMap';
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 export function NodeDetails() {
   const { id } = useParams<{ id: string }>();
@@ -25,7 +25,9 @@ export function NodeDetails() {
   if (nodeQuery.error || !nodeQuery.data) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-red-500">Error: {nodeQuery.error instanceof Error ? nodeQuery.error.message : 'Failed to fetch node details'}</div>
+        <div className="text-red-500">
+          Error: {nodeQuery.error instanceof Error ? nodeQuery.error.message : 'Failed to fetch node details'}
+        </div>
       </div>
     );
   }
@@ -48,10 +50,19 @@ export function NodeDetails() {
           <div>
             <h2 className="text-xl font-semibold mb-4">Basic Information</h2>
             <div className="space-y-2">
-              <p><span className="font-medium">Node ID:</span> {node.node_id}</p>
-              <p><span className="font-medium">Hardware Model:</span> {node.hardware_model}</p>
-              <p><span className="font-medium">Meshtastic Version:</span> {node.meshtastic_version}</p>
-              <p><span className="font-medium">Last Heard:</span> {node.last_heard ? formatDistanceToNow(node.last_heard, { addSuffix: true }) : 'Never'}</p>
+              <p>
+                <span className="font-medium">Node ID:</span> {node.node_id}
+              </p>
+              <p>
+                <span className="font-medium">Hardware Model:</span> {node.hardware_model}
+              </p>
+              <p>
+                <span className="font-medium">Meshtastic Version:</span> {node.meshtastic_version}
+              </p>
+              <p>
+                <span className="font-medium">Last Heard:</span>{' '}
+                {node.last_heard ? formatDistanceToNow(node.last_heard, { addSuffix: true }) : 'Never'}
+              </p>
             </div>
           </div>
 
@@ -59,11 +70,21 @@ export function NodeDetails() {
             <div>
               <h2 className="text-xl font-semibold mb-4">Device Metrics</h2>
               <div className="space-y-2">
-                <p><span className="font-medium">Battery Level:</span> {metrics[0].battery_level}%</p>
-                <p><span className="font-medium">Voltage:</span> {metrics[0].voltage}V</p>
-                <p><span className="font-medium">Channel Utilization:</span> {metrics[0].chUtil}%</p>
-                <p><span className="font-medium">Air Utilization:</span> {metrics[0].airUtil}%</p>
-                <p><span className="font-medium">Uptime:</span> {Math.round(metrics[0].uptime / 3600)} hours</p>
+                <p>
+                  <span className="font-medium">Battery Level:</span> {metrics[0].battery_level}%
+                </p>
+                <p>
+                  <span className="font-medium">Voltage:</span> {metrics[0].voltage}V
+                </p>
+                <p>
+                  <span className="font-medium">Channel Utilization:</span> {metrics[0].chUtil}%
+                </p>
+                <p>
+                  <span className="font-medium">Air Utilization:</span> {metrics[0].airUtil}%
+                </p>
+                <p>
+                  <span className="font-medium">Uptime:</span> {Math.round(metrics[0].uptime / 3600)} hours
+                </p>
               </div>
             </div>
           )}
@@ -72,11 +93,22 @@ export function NodeDetails() {
             <div>
               <h2 className="text-xl font-semibold mb-4">Last Known Position</h2>
               <div className="space-y-2">
-                <p><span className="font-medium">Latitude:</span> {positions[0].latitude.toFixed(6)}°</p>
-                <p><span className="font-medium">Longitude:</span> {positions[0].longitude.toFixed(6)}°</p>
-                <p><span className="font-medium">Altitude:</span> {positions[0].altitude.toFixed(1)}m</p>
-                <p><span className="font-medium">Location Source:</span> {positions[0].location_source}</p>
-                <p><span className="font-medium">Reported:</span> {formatDistanceToNow(positions[0].reported_time, { addSuffix: true })}</p>
+                <p>
+                  <span className="font-medium">Latitude:</span> {positions[0].latitude.toFixed(6)}°
+                </p>
+                <p>
+                  <span className="font-medium">Longitude:</span> {positions[0].longitude.toFixed(6)}°
+                </p>
+                <p>
+                  <span className="font-medium">Altitude:</span> {positions[0].altitude.toFixed(1)}m
+                </p>
+                <p>
+                  <span className="font-medium">Location Source:</span> {positions[0].location_source}
+                </p>
+                <p>
+                  <span className="font-medium">Reported:</span>{' '}
+                  {formatDistanceToNow(positions[0].reported_time, { addSuffix: true })}
+                </p>
               </div>
             </div>
           )}

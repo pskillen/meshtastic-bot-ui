@@ -15,7 +15,7 @@ const createNodeIcon = (text: string) => {
     `,
     iconSize: [40, 40],
     iconAnchor: [20, 40],
-    popupAnchor: [0, -40]
+    popupAnchor: [0, -40],
   });
 };
 
@@ -35,9 +35,9 @@ export function NodesMap({ nodes }: NodesMapProps) {
   useEffect(() => {
     if (mapRef.current && !mapInstanceRef.current) {
       const map = L.map(mapRef.current).setView(DEFAULT_CENTER, 13);
-      
+
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(map);
 
       // Add CSS for custom markers
@@ -94,7 +94,7 @@ export function NodesMap({ nodes }: NodesMapProps) {
     if (!map) return;
 
     // Clear existing markers
-    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current.forEach((marker) => marker.remove());
     markersRef.current = [];
 
     if (nodes.length === 0) {
@@ -104,21 +104,20 @@ export function NodesMap({ nodes }: NodesMapProps) {
 
     const bounds = L.latLngBounds([]);
 
-    nodes.forEach(node => {
+    nodes.forEach((node) => {
       if (node.last_position?.latitude && node.last_position?.longitude) {
-        const position: L.LatLngExpression = [
-          node.last_position.latitude,
-          node.last_position.longitude
-        ];
+        const position: L.LatLngExpression = [node.last_position.latitude, node.last_position.longitude];
 
-        const marker = L.marker(position, { 
-          icon: createNodeIcon(node.short_name || node.node_id.toString())
+        const marker = L.marker(position, {
+          icon: createNodeIcon(node.short_name || node.node_id.toString()),
         })
-          .bindPopup(`
+          .bindPopup(
+            `
             <strong>Node: ${node.long_name || node.node_id}</strong><br>
             Battery: ${node.latest_device_metrics?.battery_level || 'Unknown'}%<br>
             Last Seen: ${node.last_heard?.toLocaleString() || 'Never'}
-          `)
+          `
+          )
           .addTo(map);
 
         markersRef.current.push(marker);
@@ -129,10 +128,10 @@ export function NodesMap({ nodes }: NodesMapProps) {
     if (bounds.isValid()) {
       map.fitBounds(bounds, {
         padding: [50, 50],
-        maxZoom: 15
+        maxZoom: 15,
       });
     }
   }, [nodes]);
 
   return <div ref={mapRef} style={{ height: '100%', minHeight: '400px' }} />;
-} 
+}

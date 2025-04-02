@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export function NodeMap() {
   return (
@@ -12,5 +12,5 @@ export function NodeMap() {
         </CardContent>
       </Card>
     </div>
-  )
-} 
+  );
+}

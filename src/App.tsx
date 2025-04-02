@@ -1,16 +1,16 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
-import { SiteFooter } from "@/components/site-footer"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { NodesList } from "@/pages/nodes/NodesList"
-import { NodeMap } from "@/pages/map/NodeMap"
-import { MessageHistory } from "@/pages/messages/MessageHistory"
-import { Settings } from "@/pages/settings/Settings"
-import { Dashboard } from "@/pages/Dashboard"
-import { NodeDetails } from '@/pages/nodes/NodeDetails'
-import { Suspense } from 'react'
-import { ConfigProvider } from '@/providers/ConfigProvider'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AppSidebar } from '@/components/app-sidebar';
+import { SiteHeader } from '@/components/site-header';
+import { SiteFooter } from '@/components/site-footer';
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { NodesList } from '@/pages/nodes/NodesList';
+import { NodeMap } from '@/pages/map/NodeMap';
+import { MessageHistory } from '@/pages/messages/MessageHistory';
+import { Settings } from '@/pages/settings/Settings';
+import { Dashboard } from '@/pages/Dashboard';
+import { NodeDetails } from '@/pages/nodes/NodeDetails';
+import { Suspense } from 'react';
+import { ConfigProvider } from '@/providers/ConfigProvider';
 
 function App() {
   return (
@@ -39,7 +39,7 @@ function App() {
         </Router>
       </ConfigProvider>
     </Suspense>
-  )
+  );
 }
 
-export default App
+export default App;

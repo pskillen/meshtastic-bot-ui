@@ -1,8 +1,7 @@
 import { useMutation, useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query';
 import { useMeshBotApi } from './useApi';
 import { DeviceMetrics, NodeData, Position } from '../models';
-import { DateRange } from "@/types/types.ts";
-
+import { DateRange } from '@/types/types.ts';
 
 export function useNodes() {
   const api = useMeshBotApi();

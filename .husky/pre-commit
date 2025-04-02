@@ -1,0 +1,11 @@
+# Run TypeScript build
+npx tsc -b
+
+# Run ESLint
+npm run lint
+
+# Run Prettier only on staged files (excluding ignored files)
+npx prettier --check $(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(js|jsx|ts|tsx|json|css|scss|md|html)$' | tr '\n' ' ')
+
+# Run tests
+npm test

@@ -1,6 +1,5 @@
-import { AppConfig } from "@/types/types";
+import { AppConfig } from '@/types/types';
 import axios from 'axios';
-
 
 // This var will be set to the version of the app when it is built
 const VERSION = 'development';
@@ -18,7 +17,7 @@ const defaultConfig: AppConfig = {
         token: 'd9891a1ed5541ae02392b9829cb68267bf68e06c',
       },
       headers: {
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
     },
   },

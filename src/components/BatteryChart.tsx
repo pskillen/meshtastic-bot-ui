@@ -48,54 +48,57 @@ export function BatteryChart({ nodeId }: BatteryChartProps) {
     setSelectedRange(range);
   }, []);
 
-  const chartOptions = useMemo(() => ({
-    chart: {
-      type: 'line' as const,
-      height: 400,
-      background: 'transparent',
-      foreColor: '#ccc',
-      zoom: { enabled: true },
-    },
-    stroke: {
-      width: [2, 2, 0, 0],
-      curve: 'smooth' as const,
-    },
-    markers: {
-      size: [3, 3, 5, 5],
-      opacity: 0.6,
-      strokeWidth: 0,
-    },
-    xaxis: {
-      type: 'datetime' as const,
-      title: { text: 'Time' },
-      labels: { style: { colors: '#aaa' } },
-      min: dateRange.startDate.getTime(),
-      max: dateRange.endDate.getTime(),
-    },
-    yaxis: [
-      {
-        opposite: true,
-        title: { text: 'Voltage (V)', style: { color: '#d0a8ff' } },
-        min: 3.0,
-        max: 4.2,
-        decimalsInFloat: 2,
-        labels: { style: { colors: '#aaa' } },
+  const chartOptions = useMemo(
+    () => ({
+      chart: {
+        type: 'line' as const,
+        height: 400,
+        background: 'transparent',
+        foreColor: '#ccc',
+        zoom: { enabled: true },
       },
-      {
-        title: { text: 'Battery/Util (%)', style: { color: '#76d9c4' } },
-        min: 0,
-        max: 100,
-        decimalsInFloat: 1,
-        labels: { style: { colors: '#aaa' } },
+      stroke: {
+        width: [2, 2, 0, 0],
+        curve: 'smooth' as const,
       },
-    ],
-    tooltip: {
-      theme: 'dark' as const,
-      x: { format: 'MMM d, HH:mm' },
-    },
-    legend: { labels: { colors: '#ddd' } },
-    grid: { borderColor: '#444' },
-  }), [dateRange]);
+      markers: {
+        size: [3, 3, 5, 5],
+        opacity: 0.6,
+        strokeWidth: 0,
+      },
+      xaxis: {
+        type: 'datetime' as const,
+        title: { text: 'Time' },
+        labels: { style: { colors: '#aaa' } },
+        min: dateRange.startDate.getTime(),
+        max: dateRange.endDate.getTime(),
+      },
+      yaxis: [
+        {
+          opposite: true,
+          title: { text: 'Voltage (V)', style: { color: '#d0a8ff' } },
+          min: 3.0,
+          max: 4.2,
+          decimalsInFloat: 2,
+          labels: { style: { colors: '#aaa' } },
+        },
+        {
+          title: { text: 'Battery/Util (%)', style: { color: '#76d9c4' } },
+          min: 0,
+          max: 100,
+          decimalsInFloat: 1,
+          labels: { style: { colors: '#aaa' } },
+        },
+      ],
+      tooltip: {
+        theme: 'dark' as const,
+        x: { format: 'MMM d, HH:mm' },
+      },
+      legend: { labels: { colors: '#ddd' } },
+      grid: { borderColor: '#444' },
+    }),
+    [dateRange]
+  );
 
   const series = useMemo(() => {
     if (!metricsQuery.data) return [];
@@ -104,7 +107,7 @@ export function BatteryChart({ nodeId }: BatteryChartProps) {
       {
         name: 'Voltage (V)',
         type: 'line',
-        data: metricsQuery.data.map(d => ({
+        data: metricsQuery.data.map((d) => ({
           x: new Date(d.time).getTime(),
           y: d.voltage,
         })),
@@ -113,7 +116,7 @@ export function BatteryChart({ nodeId }: BatteryChartProps) {
       {
         name: 'Battery Level (%)',
         type: 'line',
-        data: metricsQuery.data.map(d => ({
+        data: metricsQuery.data.map((d) => ({
           x: new Date(d.time).getTime(),
           y: d.battery_level,
         })),
@@ -122,7 +125,7 @@ export function BatteryChart({ nodeId }: BatteryChartProps) {
       {
         name: 'Ch Util (%)',
         type: 'scatter',
-        data: metricsQuery.data.map(d => ({
+        data: metricsQuery.data.map((d) => ({
           x: new Date(d.time).getTime(),
           y: d.chUtil,
         })),
@@ -131,7 +134,7 @@ export function BatteryChart({ nodeId }: BatteryChartProps) {
       {
         name: 'Air Util Tx (%)',
         type: 'scatter',
-        data: metricsQuery.data.map(d => ({
+        data: metricsQuery.data.map((d) => ({
           x: new Date(d.time).getTime(),
           y: d.airUtil,
         })),
@@ -146,7 +149,7 @@ export function BatteryChart({ nodeId }: BatteryChartProps) {
         {timeRanges.map((range) => (
           <Button
             key={range.value}
-            variant={selectedRange === range.value ? "default" : "outline"}
+            variant={selectedRange === range.value ? 'default' : 'outline'}
             size="sm"
             onClick={() => handleRangeChange(range.value)}
           >
@@ -164,13 +167,8 @@ export function BatteryChart({ nodeId }: BatteryChartProps) {
           Failed to load battery data
         </div>
       ) : (
-        <ReactApexChart
-          options={chartOptions}
-          series={series}
-          type="line"
-          height={400}
-        />
+        <ReactApexChart options={chartOptions} series={series} type="line" height={400} />
       )}
     </div>
   );
-} 
+}
