@@ -2,63 +2,52 @@
 
 import * as React from 'react';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from 'recharts';
-import { subHours, startOfDay } from 'date-fns';
 
-import { useIsMobile } from '@/hooks/use-mobile';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { useNodes } from '@/lib/hooks/useNodes';
+import { TimeRangeSelect, TimeRangeOption } from '@/components/TimeRangeSelect';
 import { Formatter, NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 
-interface TimeRange {
-  label: string;
-  value: string;
+interface BatteryData {
+  timestamp: Date;
+  voltage: number;
+  batteryLevel: number;
+  chUtil: number;
+  airUtil: number;
 }
-
-const timeRanges: TimeRange[] = [
-  { label: '24 hours', value: '24h' },
-  { label: '48 hours', value: '48h' },
-  { label: 'Today', value: '1d' },
-  { label: '2 days', value: '2d' },
-  { label: '7 days', value: '7d' },
-  { label: '14 days', value: '14d' },
-];
 
 interface BatteryChartShadcnProps {
-  nodeId: number;
+  data: BatteryData[];
+  isLoading?: boolean;
+  error?: Error | null;
+  onTimeRangeChange: (startDate: Date, endDate: Date) => void;
+  timeRangeOptions?: TimeRangeOption[];
+  defaultTimeRange?: string;
 }
 
-function getDateRangeFromTimeRange(timeRange: string): { startDate: Date; endDate: Date } {
-  const now = new Date();
-  let start = new Date();
-  const timeNumber = parseInt(timeRange.substring(0, timeRange.length - 1));
-  const unit = timeRange.substring(timeRange.length - 1);
+export function BatteryChartShadcn({
+  data,
+  isLoading = false,
+  error = null,
+  onTimeRangeChange,
+  timeRangeOptions = [
+    { key: '24h', label: '24 hours' },
+    { key: '48h', label: '48 hours' },
+    { key: '1d', label: 'Today' },
+    { key: '2d', label: '2 days' },
+    { key: '7d', label: '7 days' },
+    { key: '14d', label: '14 days' },
+  ],
+  defaultTimeRange = '48h',
+}: BatteryChartShadcnProps) {
+  const [timeRangeLabel, setTimeRangeLabel] = React.useState(defaultTimeRange);
 
-  if (unit === 'd') {
-    start = startOfDay(now);
-    start.setUTCDate(start.getUTCDate() - (timeNumber - 1));
-  } else {
-    start = subHours(now, timeNumber);
-  }
-
-  return { startDate: start, endDate: now };
-}
-
-export function BatteryChartShadcn({ nodeId }: BatteryChartShadcnProps) {
-  const isMobile = useIsMobile();
-  const [timeRange, setTimeRange] = React.useState('48h');
-  const { useNodeMetrics } = useNodes();
-
-  const dateRange = React.useMemo(() => getDateRangeFromTimeRange(timeRange), [timeRange]);
-  const metricsQuery = useNodeMetrics(nodeId, dateRange);
-
-  React.useEffect(() => {
-    if (isMobile) {
-      setTimeRange('24h');
-    }
-  }, [isMobile]);
+  const handleTimeRangeChange = (value: string, timeRange: { startDate: Date; endDate: Date }) => {
+    console.log('handleTimeRangeChange', value, timeRange);
+    if (value === timeRangeLabel) return;
+    setTimeRangeLabel(value);
+    onTimeRangeChange(timeRange.startDate, timeRange.endDate);
+  };
 
   const chartConfig: ChartConfig = {
     value: {
@@ -66,18 +55,6 @@ export function BatteryChartShadcn({ nodeId }: BatteryChartShadcnProps) {
       label: 'Value',
     },
   };
-
-  const data = React.useMemo(() => {
-    if (!metricsQuery.data) return [];
-
-    return metricsQuery.data.map((d) => ({
-      timestamp: d.time,
-      voltage: d.voltage,
-      batteryLevel: d.battery_level,
-      chUtil: d.chUtil,
-      airUtil: d.airUtil,
-    }));
-  }, [metricsQuery.data]);
 
   const formatter: Formatter<ValueType, NameType> = (value: ValueType, name: NameType) => {
     const numValue = typeof value === 'string' ? parseFloat(value) : value;
@@ -105,39 +82,15 @@ export function BatteryChartShadcn({ nodeId }: BatteryChartShadcnProps) {
           <span className="@[540px]/card:block hidden">Battery voltage, level, and channel utilization over time</span>
         </CardDescription>
         <div className="absolute right-4 top-4">
-          <ToggleGroup
-            type="single"
-            value={timeRange}
-            onValueChange={setTimeRange}
-            variant="outline"
-            className="@[767px]/card:flex hidden"
-          >
-            {timeRanges.map((range) => (
-              <ToggleGroupItem key={range.value} value={range.value} className="h-8 px-2.5">
-                {range.label}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-          <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="@[767px]/card:hidden flex w-40" aria-label="Select time range">
-              <SelectValue placeholder="Select range" />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl">
-              {timeRanges.map((range) => (
-                <SelectItem key={range.value} value={range.value} className="rounded-lg">
-                  {range.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <TimeRangeSelect options={timeRangeOptions} value={timeRangeLabel} onChange={handleTimeRangeChange} />
         </div>
       </CardHeader>
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
-        {metricsQuery.isLoading ? (
+        {isLoading ? (
           <div className="flex items-center justify-center h-[400px]">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
           </div>
-        ) : metricsQuery.error ? (
+        ) : error ? (
           <div className="text-red-500 text-center h-[400px] flex items-center justify-center">
             Failed to load battery data
           </div>

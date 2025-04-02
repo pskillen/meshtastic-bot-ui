@@ -4,15 +4,26 @@ import { formatDistanceToNow } from 'date-fns';
 import { BatteryChartShadcn } from '@/components/BatteryChartShadcn';
 import { NodesMap } from '@/components/nodes/NodesMap';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { useCallback, useState } from 'react';
+import { subDays } from 'date-fns';
 
 export function NodeDetails() {
   const { id } = useParams<{ id: string }>();
   const nodeId = parseInt(id || '0', 10);
   const { useNode, useNodeMetrics, useNodePositions } = useNodes();
 
+  const [dateRange, setDateRange] = useState({
+    startDate: subDays(new Date(), 2),
+    endDate: new Date(),
+  });
+
   const nodeQuery = useNode(nodeId);
-  const metricsQuery = useNodeMetrics(nodeId);
+  const metricsQuery = useNodeMetrics(nodeId, dateRange);
   const positionsQuery = useNodePositions(nodeId);
+
+  const handleTimeRangeChange = useCallback((startDate: Date, endDate: Date) => {
+    setDateRange({ startDate, endDate });
+  }, []);
 
   if (nodeQuery.isLoading || metricsQuery.isLoading || positionsQuery.isLoading) {
     return (
@@ -35,6 +46,15 @@ export function NodeDetails() {
   const node = nodeQuery.data;
   const metrics = metricsQuery.data;
   const positions = positionsQuery.data;
+
+  const chartData =
+    metrics?.map((metric) => ({
+      timestamp: new Date(metric.time),
+      voltage: metric.voltage,
+      batteryLevel: metric.battery_level,
+      chUtil: metric.chUtil,
+      airUtil: metric.airUtil,
+    })) || [];
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -129,8 +149,12 @@ export function NodeDetails() {
 
         <div className="mt-8">
           <h2 className="text-xl font-semibold mb-4">Battery History</h2>
-          <BatteryChartShadcn nodeId={nodeId} />
-          {/* <BatteryChart nodeId={nodeId} /> */}
+          <BatteryChartShadcn
+            data={chartData}
+            isLoading={metricsQuery.isLoading}
+            error={metricsQuery.error}
+            onTimeRangeChange={handleTimeRangeChange}
+          />
         </div>
       </div>
     </div>

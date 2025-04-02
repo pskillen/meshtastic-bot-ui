@@ -46,7 +46,7 @@ export function Dashboard() {
   const chartData =
     packetStats?.hourly_stats.map((stat) => ({
       timestamp: new Date(stat.timestamp),
-      value: stat.total_packets,
+      value: stat.total_packets >= 0 ? stat.total_packets : 0,
     })) || [];
 
   return (
