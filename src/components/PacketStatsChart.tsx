@@ -2,13 +2,10 @@
 
 import * as React from 'react';
 import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts';
-import { subDays } from 'date-fns';
 
-import { useIsMobile } from '@/hooks/use-mobile';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { TimeRangeSelect, TimeRangeOption } from '@/components/TimeRangeSelect';
 
 interface PacketStatsChartProps {
   data: { timestamp: Date; value: number }[];
@@ -16,29 +13,33 @@ interface PacketStatsChartProps {
   description?: string;
   config: ChartConfig;
   onTimeRangeChange: (startDate: Date, endDate: Date) => void;
+  timeRangeOptions?: TimeRangeOption[];
+  defaultTimeRange?: string;
 }
 
-export function PacketStatsChart({ data, title, description, config, onTimeRangeChange }: PacketStatsChartProps) {
-  const isMobile = useIsMobile();
-  const [timeRange, setTimeRange] = React.useState('30d');
+export function PacketStatsChart({
+  data,
+  title,
+  description,
+  config,
+  onTimeRangeChange,
+  timeRangeOptions = [
+    { key: '48h', label: 'Last 48 hours' },
+    { key: '1d', label: 'Today' },
+    { key: '2d', label: 'Last 2 days' },
+    { key: '7d', label: 'Last 7 days' },
+    { key: '30d', label: 'Last 30 days' },
+  ],
+  defaultTimeRange = '2d',
+}: PacketStatsChartProps) {
+  const [timeRangeLabel, setTimeRangeLabel] = React.useState(defaultTimeRange);
 
-  React.useEffect(() => {
-    if (isMobile) {
-      setTimeRange('7d');
-    }
-  }, [isMobile]);
-
-  React.useEffect(() => {
-    const now = new Date();
-    let daysToSubtract = 90;
-    if (timeRange === '30d') {
-      daysToSubtract = 30;
-    } else if (timeRange === '7d') {
-      daysToSubtract = 7;
-    }
-    const startDate = subDays(now, daysToSubtract);
-    onTimeRangeChange(startDate, now);
-  }, [timeRange, onTimeRangeChange]);
+  const handleTimeRangeChange = (value: string, timeRange: { startDate: Date; endDate: Date }) => {
+    console.log('handleTimeRangeChange', value, timeRange);
+    if (value === timeRangeLabel) return;
+    setTimeRangeLabel(value);
+    onTimeRangeChange(timeRange.startDate, timeRange.endDate);
+  };
 
   return (
     <Card className="@container/card">
@@ -48,44 +49,12 @@ export function PacketStatsChart({ data, title, description, config, onTimeRange
           <CardDescription>
             <span className="@[540px]/card:block hidden">{description}</span>
             <span className="@[540px]/card:hidden">
-              Last {timeRange === '90d' ? '3 months' : timeRange === '30d' ? '30 days' : '7 days'}
+              Last {timeRangeLabel === '90d' ? '3 months' : timeRangeLabel === '30d' ? '30 days' : '7 days'}
             </span>
           </CardDescription>
         )}
         <div className="absolute right-4 top-4">
-          <ToggleGroup
-            type="single"
-            value={timeRange}
-            onValueChange={setTimeRange}
-            variant="outline"
-            className="@[767px]/card:flex hidden"
-          >
-            <ToggleGroupItem value="30d" className="h-8 px-2.5">
-              Last 30 days
-            </ToggleGroupItem>
-            <ToggleGroupItem value="7d" className="h-8 px-2.5">
-              Last 7 days
-            </ToggleGroupItem>
-            <ToggleGroupItem value="1d" className="h-8 px-2.5">
-              Today
-            </ToggleGroupItem>
-          </ToggleGroup>
-          <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="@[767px]/card:hidden flex w-40" aria-label="Select a value">
-              <SelectValue placeholder="Last 3 months" />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl">
-              <SelectItem value="30d" className="rounded-lg">
-                Last 30 days
-              </SelectItem>
-              <SelectItem value="7d" className="rounded-lg">
-                Last 7 days
-              </SelectItem>
-              <SelectItem value="1d" className="rounded-lg">
-                Today
-              </SelectItem>
-            </SelectContent>
-          </Select>
+          <TimeRangeSelect options={timeRangeOptions} value={timeRangeLabel} onChange={handleTimeRangeChange} />
         </div>
       </CardHeader>
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
