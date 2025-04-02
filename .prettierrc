@@ -6,5 +6,6 @@
   "printWidth": 120,
   "bracketSpacing": true,
   "arrowParens": "always",
-  "jsxSingleLineElement": false
+  "proseWrap": "preserve",
+  "endOfLine": "lf"
 }
