@@ -72,7 +72,13 @@ export function NodeDetails() {
 
           {node.latest_device_metrics && (
             <div>
-              <h2 className="text-xl font-semibold mb-4">Device Metrics</h2>
+              <h2 className="text-xl font-semibold mb-4">
+                Device Metrics
+                <br />
+                <span className="text-sm text-muted-foreground">
+                  {formatDistanceToNow(node.latest_device_metrics.time, { addSuffix: true })}
+                </span>
+              </h2>
               <div className="space-y-2">
                 <p>
                   <span className="font-medium">Battery Level:</span> {node.latest_device_metrics.battery_level}%
