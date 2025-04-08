@@ -10,22 +10,12 @@ import { subDays } from 'date-fns';
 export function NodeDetails() {
   const { id } = useParams<{ id: string }>();
   const nodeId = parseInt(id || '0', 10);
-  const { useNode, useNodeMetrics, useNodePositions } = useNodes();
-
-  const [dateRange, setDateRange] = useState({
-    startDate: subDays(new Date(), 2),
-    endDate: new Date(),
-  });
+  const { useNode, useNodePositions } = useNodes();
 
   const nodeQuery = useNode(nodeId);
-  const metricsQuery = useNodeMetrics(nodeId, dateRange);
   const positionsQuery = useNodePositions(nodeId);
 
-  const handleTimeRangeChange = useCallback((startDate: Date, endDate: Date) => {
-    setDateRange({ startDate, endDate });
-  }, []);
-
-  if (nodeQuery.isLoading || metricsQuery.isLoading || positionsQuery.isLoading) {
+  if (nodeQuery.isLoading || positionsQuery.isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -44,17 +34,7 @@ export function NodeDetails() {
   }
 
   const node = nodeQuery.data;
-  const metrics = metricsQuery.data;
   const positions = positionsQuery.data;
-
-  const chartData =
-    metrics?.map((metric) => ({
-      timestamp: new Date(metric.time),
-      voltage: metric.voltage,
-      batteryLevel: metric.battery_level,
-      chUtil: metric.chUtil,
-      airUtil: metric.airUtil,
-    })) || [];
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -86,24 +66,24 @@ export function NodeDetails() {
             </div>
           </div>
 
-          {metrics && metrics.length > 0 && (
+          {node.latest_device_metrics && (
             <div>
               <h2 className="text-xl font-semibold mb-4">Device Metrics</h2>
               <div className="space-y-2">
                 <p>
-                  <span className="font-medium">Battery Level:</span> {metrics[0].battery_level}%
+                  <span className="font-medium">Battery Level:</span> {node.latest_device_metrics.battery_level}%
                 </p>
                 <p>
-                  <span className="font-medium">Voltage:</span> {metrics[0].voltage}V
+                  <span className="font-medium">Voltage:</span> {node.latest_device_metrics.voltage}V
                 </p>
                 <p>
-                  <span className="font-medium">Channel Utilization:</span> {metrics[0].chUtil}%
+                  <span className="font-medium">Channel Utilization:</span> {node.latest_device_metrics.chUtil}%
                 </p>
                 <p>
-                  <span className="font-medium">Air Utilization:</span> {metrics[0].airUtil}%
+                  <span className="font-medium">Air Utilization:</span> {node.latest_device_metrics.airUtil}%
                 </p>
                 <p>
-                  <span className="font-medium">Uptime:</span> {Math.round(metrics[0].uptime / 3600)} hours
+                  <span className="font-medium">Uptime:</span> {Math.round(node.latest_device_metrics.uptime / 3600)} hours
                 </p>
               </div>
             </div>
@@ -149,12 +129,7 @@ export function NodeDetails() {
 
         <div className="mt-8">
           <h2 className="text-xl font-semibold mb-4">Battery History</h2>
-          <BatteryChartShadcn
-            data={chartData}
-            isLoading={metricsQuery.isLoading}
-            error={metricsQuery.error}
-            onTimeRangeChange={handleTimeRangeChange}
-          />
+          <BatteryChartShadcn nodeId={nodeId} />
         </div>
       </div>
     </div>
