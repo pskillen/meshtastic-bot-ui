@@ -4,8 +4,6 @@ import { formatDistanceToNow } from 'date-fns';
 import { BatteryChartShadcn } from '@/components/BatteryChartShadcn';
 import { NodesMap } from '@/components/nodes/NodesMap';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { useCallback, useState } from 'react';
-import { subDays } from 'date-fns';
 
 export function NodeDetails() {
   const { id } = useParams<{ id: string }>();
@@ -83,7 +81,8 @@ export function NodeDetails() {
                   <span className="font-medium">Air Utilization:</span> {node.latest_device_metrics.airUtil}%
                 </p>
                 <p>
-                  <span className="font-medium">Uptime:</span> {Math.round(node.latest_device_metrics.uptime / 3600)} hours
+                  <span className="font-medium">Uptime:</span> {Math.round(node.latest_device_metrics.uptime / 3600)}{' '}
+                  hours
                 </p>
               </div>
             </div>

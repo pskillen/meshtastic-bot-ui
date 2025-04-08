@@ -7,14 +7,11 @@ import { useNodes } from '@/lib/hooks/useNodes';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { TimeRangeSelect, TimeRangeOption } from '@/components/TimeRangeSelect';
-import { Formatter, NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
+import { Formatter, NameType, ValueType, Payload } from 'recharts/types/component/DefaultTooltipContent';
 
-interface BatteryData {
-  timestamp: number;
-  voltage: number;
-  batteryLevel: number;
-  chUtil: number;
-  airUtil: number;
+// Extended payload type with activeLabel
+interface ExtendedPayload extends Payload<ValueType, NameType> {
+  activeLabel?: number;
 }
 
 interface BatteryChartShadcnProps {
@@ -40,10 +37,10 @@ export function BatteryChartShadcn({
     startDate: new Date(Date.now() - 48 * 60 * 60 * 1000), // Default to 48 hours ago
     endDate: new Date(),
   });
-  
+
   const { useNodeMetrics } = useNodes();
   const metricsQuery = useNodeMetrics(nodeId, dateRange);
-  
+
   const handleTimeRangeChange = (value: string, timeRange: { startDate: Date; endDate: Date }) => {
     if (value === timeRangeLabel) return;
     setTimeRangeLabel(value);
@@ -78,7 +75,7 @@ export function BatteryChartShadcn({
   // Transform metrics data to chart format
   const chartData = React.useMemo(() => {
     if (!metricsQuery.data) return [];
-    
+
     return metricsQuery.data.map((metric) => ({
       timestamp: metric.time.getTime(),
       voltage: metric.voltage,
@@ -150,7 +147,7 @@ export function BatteryChartShadcn({
                   tickMargin={8}
                   minTickGap={32}
                   domain={[dateRange.startDate.getTime(), dateRange.endDate.getTime()]}
-                  tickFormatter={(value: any) => {
+                  tickFormatter={(value: number) => {
                     const date = new Date(value);
                     return date.toLocaleDateString('en-GB', {
                       month: 'short',
@@ -162,12 +159,17 @@ export function BatteryChartShadcn({
                   scale="time"
                   type="number"
                 />
-                <YAxis yAxisId="voltage" orientation="right" domain={[3.0, 4.2]} tickFormatter={(value) => `${value}V`} />
+                <YAxis
+                  yAxisId="voltage"
+                  orientation="right"
+                  domain={[3.0, 4.2]}
+                  tickFormatter={(value) => `${value}V`}
+                />
                 <YAxis yAxisId="battery" domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
                 <Tooltip
                   content={
                     <ChartTooltipContent
-                      labelFormatter={(_, payload: any) => {
+                      labelFormatter={(_, payload: Payload<ValueType, NameType>[]) => {
                         // Extract the timestamp from the activeLabel property
                         if (payload && payload[0] && payload[0].payload && payload[0].payload.timestamp) {
                           const date = new Date(payload[0].payload.timestamp);
@@ -179,8 +181,9 @@ export function BatteryChartShadcn({
                           });
                         }
                         // If we can't find the timestamp in the payload, use the activeLabel
-                        if (payload && payload[0] && payload[0].activeLabel) {
-                          const date = new Date(payload[0].activeLabel);
+                        const extendedPayload = payload as ExtendedPayload[];
+                        if (extendedPayload && extendedPayload[0] && extendedPayload[0].activeLabel) {
+                          const date = new Date(extendedPayload[0].activeLabel);
                           return date.toLocaleDateString('en-GB', {
                             month: 'short',
                             day: 'numeric',
@@ -195,7 +198,14 @@ export function BatteryChartShadcn({
                     />
                   }
                 />
-                <Area yAxisId="voltage" type="monotone" dataKey="voltage" stroke="#d0a8ff" fill="none" strokeWidth={2} />
+                <Area
+                  yAxisId="voltage"
+                  type="monotone"
+                  dataKey="voltage"
+                  stroke="#d0a8ff"
+                  fill="none"
+                  strokeWidth={2}
+                />
                 <Area
                   yAxisId="battery"
                   type="monotone"
@@ -208,18 +218,25 @@ export function BatteryChartShadcn({
                 <Area yAxisId="battery" type="monotone" dataKey="airUtil" stroke="#ffa657" fill="none" dot={{ r: 4 }} />
               </AreaChart>
             </ChartContainer>
-            
+
             {/* Debug Information */}
             <div className="mt-8 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono overflow-auto">
               <h3 className="font-bold mb-2">Debug Information</h3>
-              
+
               <div className="mb-4">
                 <h4 className="font-semibold">Date Range:</h4>
-                <p>Start: {dateRange.startDate.toISOString()} ({dateRange.startDate.getTime()})</p>
-                <p>End: {dateRange.endDate.toISOString()} ({dateRange.endDate.getTime()})</p>
-                <p>Duration: {Math.round((dateRange.endDate.getTime() - dateRange.startDate.getTime()) / (1000 * 60 * 60))} hours</p>
+                <p>
+                  Start: {dateRange.startDate.toISOString()} ({dateRange.startDate.getTime()})
+                </p>
+                <p>
+                  End: {dateRange.endDate.toISOString()} ({dateRange.endDate.getTime()})
+                </p>
+                <p>
+                  Duration:{' '}
+                  {Math.round((dateRange.endDate.getTime() - dateRange.startDate.getTime()) / (1000 * 60 * 60))} hours
+                </p>
               </div>
-              
+
               <div className="mb-4">
                 <h4 className="font-semibold">Data Points ({chartData.length}):</h4>
                 <div className="overflow-x-auto">
@@ -253,7 +270,7 @@ export function BatteryChartShadcn({
                   </table>
                 </div>
               </div>
-              
+
               <div>
                 <h4 className="font-semibold">Raw API Response:</h4>
                 <pre className="bg-gray-200 dark:bg-gray-700 p-2 rounded overflow-auto max-h-40">
