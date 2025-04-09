@@ -1,7 +1,8 @@
 import { PacketStatsChart } from '@/components/PacketStatsChart';
 import { NodeActivityTable } from '@/components/NodeActivityTable';
+import { NodesMap } from '@/components/nodes/NodesMap';
 import { useNodes } from '@/lib/hooks/useNodes';
-import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardFooter, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { NetworkIcon } from 'lucide-react';
 import { ChartConfig } from '@/components/ui/chart';
@@ -48,6 +49,19 @@ export function Dashboard() {
       </div>
       <div className="px-4 lg:px-6">
         <PacketStatsChart title="Mesh Activity" description="Total packets per hour" config={packetChartConfig} />
+      </div>
+      <div className="px-4 lg:px-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Node Locations</CardTitle>
+            <CardDescription>Map showing the location of all nodes in the network</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[400px] w-full">
+              <NodesMap nodes={nodes || []} />
+            </div>
+          </CardContent>
+        </Card>
       </div>
       <div className="px-4 lg:px-6">
         <NodeActivityTable nodes={nodes || []} isLoading={isLoading} />
