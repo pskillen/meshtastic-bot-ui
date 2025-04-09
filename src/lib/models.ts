@@ -60,8 +60,8 @@ export interface PacketStatsSummary {
   total_packets_rx_dupe: number;
   total_packets: number;
   time_range: {
-    start: Date;
-    end: Date;
+    start: Date | null;
+    end: Date | null;
   };
 }
 

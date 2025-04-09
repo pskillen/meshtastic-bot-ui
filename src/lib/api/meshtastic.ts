@@ -109,8 +109,8 @@ export class MeshtasticApi extends BaseApi {
       summary: {
         ...stats.summary,
         time_range: {
-          start: new Date(stats.summary.time_range.start),
-          end: new Date(stats.summary.time_range.end),
+          start: stats.summary.time_range.start ? new Date(stats.summary.time_range.start) : null,
+          end: stats.summary.time_range.end ? new Date(stats.summary.time_range.end) : null,
         },
       },
     };

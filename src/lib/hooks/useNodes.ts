@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, UseQueryResult, UseQueryOptions } from '@tanstack/react-query';
 import { useMeshBotApi } from './useApi';
 import { DeviceMetrics, NodeData, Position } from '../models';
 import { DateRange } from '@/types/types.ts';
@@ -12,11 +12,15 @@ export function useNodes() {
     queryFn: () => api.getNodes(),
   });
 
-  const useNode = (id: number): UseQueryResult<NodeData> => {
+  const useNode = (
+    id: number,
+    options?: Omit<UseQueryOptions<NodeData>, 'queryKey' | 'queryFn'>
+  ): UseQueryResult<NodeData> => {
     return useQuery({
       queryKey: ['nodes', id],
       queryFn: () => api.getNode(id),
       enabled: !!id,
+      ...options,
     });
   };
 

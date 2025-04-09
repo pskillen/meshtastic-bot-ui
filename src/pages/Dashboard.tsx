@@ -1,16 +1,11 @@
 import { PacketStatsChart } from '@/components/PacketStatsChart';
-import { DataTable } from '@/components/data-table';
+import { NodeActivityTable } from '@/components/NodeActivityTable';
+import { NodesMap } from '@/components/nodes/NodesMap';
 import { useNodes } from '@/lib/hooks/useNodes';
-import { usePacketStats } from '@/lib/hooks/usePacketStats';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardFooter, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { NetworkIcon } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { subDays } from 'date-fns';
 import { ChartConfig } from '@/components/ui/chart';
-import { useCallback, useState } from 'react';
-
-import data from '../app/dashboard/data.json';
 
 const packetChartConfig = {
   value: {
@@ -21,19 +16,6 @@ const packetChartConfig = {
 
 export function Dashboard() {
   const { nodes, isLoading } = useNodes();
-  const [dateRange, setDateRange] = useState({
-    startDate: subDays(new Date(), 24),
-    endDate: new Date(),
-  });
-
-  const { data: packetStats } = usePacketStats({
-    startDate: dateRange.startDate,
-    endDate: dateRange.endDate,
-  });
-
-  const handleTimeRangeChange = useCallback((startDate: Date, endDate: Date) => {
-    setDateRange({ startDate, endDate });
-  }, []);
 
   const onlineNodes =
     nodes?.filter((node) => {
@@ -42,12 +24,6 @@ export function Dashboard() {
       const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
       return lastHeard > twoHoursAgo;
     }) || [];
-
-  const chartData =
-    packetStats?.hourly_stats.map((stat) => ({
-      timestamp: new Date(stat.timestamp),
-      value: stat.total_packets >= 0 ? stat.total_packets : 0,
-    })) || [];
 
   return (
     <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
@@ -72,50 +48,24 @@ export function Dashboard() {
         </Card>
       </div>
       <div className="px-4 lg:px-6">
-        <PacketStatsChart
-          data={chartData}
-          title="Mesh Activity"
-          description="Total packets per hour"
-          config={packetChartConfig}
-          onTimeRangeChange={handleTimeRangeChange}
-        />
+        <PacketStatsChart title="Mesh Activity" description="Total packets per hour" config={packetChartConfig} />
       </div>
       <div className="px-4 lg:px-6">
         <Card>
           <CardHeader>
-            <CardTitle>Recent Node Activity</CardTitle>
+            <CardTitle>Node Locations</CardTitle>
+            <CardDescription>Map showing the location of all nodes in the network</CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <div className="flex items-center justify-center h-32">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {onlineNodes.map((node) => (
-                  <div key={node.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                    <div>
-                      <h3 className="font-semibold">{node.short_name}</h3>
-                      <p className="text-sm text-muted-foreground">{node.long_name}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">
-                        Last heard: {formatDistanceToNow(node.last_heard!, { addSuffix: true })}
-                      </p>
-                      {node.latest_device_metrics && (
-                        <p className="text-sm text-muted-foreground">
-                          Battery: {node.latest_device_metrics.battery_level}%
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="h-[400px] w-full">
+              <NodesMap nodes={nodes || []} />
+            </div>
           </CardContent>
         </Card>
       </div>
-      <DataTable data={data} />
+      <div className="px-4 lg:px-6">
+        <NodeActivityTable nodes={nodes || []} isLoading={isLoading} />
+      </div>
     </div>
   );
 }

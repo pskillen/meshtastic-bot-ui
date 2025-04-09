@@ -3,15 +3,27 @@ import { useNodes } from '@/lib/hooks/useNodes';
 import { formatDistanceToNow } from 'date-fns';
 import { BatteryChartShadcn } from '@/components/BatteryChartShadcn';
 import { NodesMap } from '@/components/nodes/NodesMap';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { RefreshCw, Pause, Play } from 'lucide-react';
 
 export function NodeDetails() {
   const { id } = useParams<{ id: string }>();
   const nodeId = parseInt(id || '0', 10);
   const { useNode, useNodePositions } = useNodes();
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [refreshInterval] = useState<number | false>(30000); // 30 seconds
 
-  const nodeQuery = useNode(nodeId);
+  const nodeQuery = useNode(nodeId, {
+    refetchInterval: autoRefresh ? refreshInterval : false,
+  });
   const positionsQuery = useNodePositions(nodeId);
+
+  // Toggle auto-refresh
+  const toggleAutoRefresh = () => {
+    setAutoRefresh(!autoRefresh);
+  };
 
   if (nodeQuery.isLoading || positionsQuery.isLoading) {
     return (
@@ -46,13 +58,18 @@ export function NodeDetails() {
         ← Back to Nodes
       </Link>
 
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h1 className="text-3xl font-bold mb-6">{node.short_name}</h1>
-        <p className="text-gray-600 mb-8">{node.long_name}</p>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">{node.short_name}</h1>
+        <p className="text-gray-600">{node.long_name}</p>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Basic Information</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Basic Information</CardTitle>
+            <CardDescription>Static node details</CardDescription>
+          </CardHeader>
+          <CardContent>
             <div className="space-y-2">
               <p>
                 <span className="font-medium">Node ID:</span> {node.node_id}
@@ -68,11 +85,44 @@ export function NodeDetails() {
                 {node.last_heard ? formatDistanceToNow(node.last_heard, { addSuffix: true }) : 'Never'}
               </p>
             </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          {node.latest_device_metrics && (
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Device Metrics</h2>
+        {node.latest_device_metrics && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Device Metrics</CardTitle>
+                <CardDescription>
+                  {formatDistanceToNow(node.latest_device_metrics.time, { addSuffix: true })}
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={toggleAutoRefresh} className="flex items-center gap-1">
+                  {autoRefresh ? (
+                    <>
+                      <Pause className="h-4 w-4" />
+                      <span>Pause</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4" />
+                      <span>Resume</span>
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => nodeQuery.refetch()}
+                  className="flex items-center gap-1"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  <span>Refresh</span>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
               <div className="space-y-2">
                 <p>
                   <span className="font-medium">Battery Level:</span> {node.latest_device_metrics.battery_level}%
@@ -92,58 +142,59 @@ export function NodeDetails() {
                   hours
                 </p>
               </div>
-            </div>
-          )}
-
-          {!hasPositions && (
-            <div className="space-y-2">
-              <h2 className="text-xl font-semibold mb-4">Last Known Position</h2>
-              <p>No position data available</p>
-            </div>
-          )}
-
-          {hasPositions && (
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Last Known Position</h2>
-              <div className="space-y-2">
-                <p>
-                  <span className="font-medium">Latitude:</span> {positions[0].latitude.toFixed(6)}°
-                </p>
-                <p>
-                  <span className="font-medium">Longitude:</span> {positions[0].longitude.toFixed(6)}°
-                </p>
-                <p>
-                  <span className="font-medium">Altitude:</span> {positions[0].altitude.toFixed(1)}m
-                </p>
-                <p>
-                  <span className="font-medium">Location Source:</span> {positions[0].location_source}
-                </p>
-                <p>
-                  <span className="font-medium">Reported:</span>{' '}
-                  {formatDistanceToNow(positions[0].reported_time, { addSuffix: true })}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {hasPositions && (
-          <div className="mt-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Node Location</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <NodesMap nodes={[node]} />
-              </CardContent>
-            </Card>
-          </div>
+            </CardContent>
+          </Card>
         )}
+      </div>
 
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-4">Battery History</h2>
-          <BatteryChartShadcn nodeId={nodeId} />
-        </div>
+      <div className="mb-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Node Location</CardTitle>
+            {hasPositions ? (
+              <CardDescription>
+                Last position reported {formatDistanceToNow(positions[0].reported_time, { addSuffix: true })}
+              </CardDescription>
+            ) : (
+              <CardDescription>No position data available</CardDescription>
+            )}
+          </CardHeader>
+          <CardContent>
+            {hasPositions ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Latitude</p>
+                    <p className="text-lg">{positions[0].latitude.toFixed(6)}°</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Longitude</p>
+                    <p className="text-lg">{positions[0].longitude.toFixed(6)}°</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Altitude</p>
+                    <p className="text-lg">{positions[0].altitude.toFixed(1)}m</p>
+                  </div>
+                </div>
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-muted-foreground">Location Source</p>
+                  <p>{positions[0].location_source}</p>
+                </div>
+                <div className="h-[400px] w-full">
+                  <NodesMap nodes={[node]} />
+                </div>
+              </>
+            ) : (
+              <div className="h-[200px] w-full flex items-center justify-center bg-muted rounded-md">
+                <p className="text-muted-foreground">No location data available</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mb-6">
+        <BatteryChartShadcn nodeId={nodeId} defaultTimeRange={'48h'} />
       </div>
     </div>
   );
