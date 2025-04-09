@@ -1,14 +1,11 @@
 import { PacketStatsChart } from '@/components/PacketStatsChart';
 import { DataTable } from '@/components/data-table';
 import { useNodes } from '@/lib/hooks/useNodes';
-import { usePacketStats } from '@/lib/hooks/usePacketStats';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { NetworkIcon } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { subDays } from 'date-fns';
 import { ChartConfig } from '@/components/ui/chart';
-import { useCallback, useState } from 'react';
 
 import data from '../app/dashboard/data.json';
 
@@ -21,19 +18,6 @@ const packetChartConfig = {
 
 export function Dashboard() {
   const { nodes, isLoading } = useNodes();
-  const [dateRange, setDateRange] = useState({
-    startDate: subDays(new Date(), 24),
-    endDate: new Date(),
-  });
-
-  const { data: packetStats } = usePacketStats({
-    startDate: dateRange.startDate,
-    endDate: dateRange.endDate,
-  });
-
-  const handleTimeRangeChange = useCallback((startDate: Date, endDate: Date) => {
-    setDateRange({ startDate, endDate });
-  }, []);
 
   const onlineNodes =
     nodes?.filter((node) => {
@@ -42,12 +26,6 @@ export function Dashboard() {
       const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
       return lastHeard > twoHoursAgo;
     }) || [];
-
-  const chartData =
-    packetStats?.hourly_stats.map((stat) => ({
-      timestamp: new Date(stat.timestamp),
-      value: stat.total_packets >= 0 ? stat.total_packets : 0,
-    })) || [];
 
   return (
     <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
@@ -72,13 +50,7 @@ export function Dashboard() {
         </Card>
       </div>
       <div className="px-4 lg:px-6">
-        <PacketStatsChart
-          data={chartData}
-          title="Mesh Activity"
-          description="Total packets per hour"
-          config={packetChartConfig}
-          onTimeRangeChange={handleTimeRangeChange}
-        />
+        <PacketStatsChart title="Mesh Activity" description="Total packets per hour" config={packetChartConfig} />
       </div>
       <div className="px-4 lg:px-6">
         <Card>
