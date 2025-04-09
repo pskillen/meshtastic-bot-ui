@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts';
+import { CartesianGrid, XAxis, YAxis, Bar, Line, ComposedChart } from 'recharts';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
@@ -61,12 +61,49 @@ export function PacketStatsChart({
   const chartData = React.useMemo(() => {
     if (!packetStats?.hourly_stats) return [];
 
-    return packetStats.hourly_stats.map((stat) => ({
-      // Convert timestamp to number (milliseconds)
-      timestamp: stat.timestamp.getTime(),
+    // Calculate 24-hour moving average
+    const stats = packetStats.hourly_stats.map((stat) => ({
+      timestamp: new Date(stat.timestamp).getTime(),
       value: stat.total_packets >= 0 ? stat.total_packets : 0,
     }));
+
+    // Add moving average
+    const windowSize = 24; // 24-hour window
+    const withMovingAverage = stats.map((stat, index) => {
+      // Get the window of data points
+      const startIdx = Math.max(0, index - windowSize + 1);
+      const window = stats.slice(startIdx, index + 1);
+
+      // Calculate average
+      const sum = window.reduce((acc, item) => acc + item.value, 0);
+      const avg = window.length > 0 ? sum / window.length : 0;
+
+      return {
+        ...stat,
+        movingAverage: avg,
+      };
+    });
+
+    return withMovingAverage;
   }, [packetStats]);
+
+  // Calculate y-axis domain with 5 std dev clamp
+  const yAxisDomain = React.useMemo(() => {
+    if (!chartData.length) return [0, 'auto'] as [number, 'auto'];
+
+    // Calculate mean and standard deviation
+    const values = chartData.map((item) => item.value);
+    const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+
+    const squaredDiffs = values.map((val) => Math.pow(val - mean, 2));
+    const variance = squaredDiffs.reduce((sum, val) => sum + val, 0) / values.length;
+    const stdDev = Math.sqrt(variance);
+
+    // Set max to mean + 5*stdDev, but not less than the actual max
+    const maxValue = Math.max(mean + 5 * stdDev, Math.max(...values));
+
+    return [0, maxValue] as [number, number];
+  }, [chartData]);
 
   return (
     <Card className="@container/card">
@@ -76,7 +113,7 @@ export function PacketStatsChart({
           <CardDescription>
             <span className="@[540px]/card:block hidden">{description}</span>
             <span className="@[540px]/card:hidden">
-              Last {timeRangeLabel === '90d' ? '3 months' : timeRangeLabel === '30d' ? '30 days' : '7 days'}
+              {timeRangeOptions.find((option) => option.key === timeRangeLabel)?.label}
             </span>
           </CardDescription>
         )}
@@ -95,7 +132,7 @@ export function PacketStatsChart({
           </div>
         ) : (
           <ChartContainer config={config} className="aspect-auto h-[250px] w-full">
-            <AreaChart data={chartData}>
+            <ComposedChart data={chartData}>
               <defs>
                 <linearGradient id="fillValue" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="var(--color-value)" stopOpacity={1.0} />
@@ -124,6 +161,7 @@ export function PacketStatsChart({
                   });
                 }}
               />
+              <YAxis domain={yAxisDomain} tickLine={false} axisLine={false} tickMargin={8} />
               <ChartTooltip
                 cursor={false}
                 content={
@@ -147,8 +185,16 @@ export function PacketStatsChart({
                   />
                 }
               />
-              <Area dataKey="value" type="monotone" fill="url(#fillValue)" stroke="var(--color-value)" />
-            </AreaChart>
+              <Bar dataKey="value" fill="var(--color-value)" fillOpacity={0.7} barSize={8} />
+              <Line
+                type="monotone"
+                dataKey="movingAverage"
+                stroke="var(--color-value)"
+                strokeWidth={2}
+                dot={false}
+                name="24h Moving Average"
+              />
+            </ComposedChart>
           </ChartContainer>
         )}
       </CardContent>
