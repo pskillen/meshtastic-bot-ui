@@ -1,13 +1,10 @@
 import { PacketStatsChart } from '@/components/PacketStatsChart';
-import { DataTable } from '@/components/data-table';
+import { NodeActivityTable } from '@/components/NodeActivityTable';
 import { useNodes } from '@/lib/hooks/useNodes';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { NetworkIcon } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
 import { ChartConfig } from '@/components/ui/chart';
-
-import data from '../app/dashboard/data.json';
 
 const packetChartConfig = {
   value: {
@@ -53,41 +50,8 @@ export function Dashboard() {
         <PacketStatsChart title="Mesh Activity" description="Total packets per hour" config={packetChartConfig} />
       </div>
       <div className="px-4 lg:px-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Node Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center justify-center h-32">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {onlineNodes.map((node) => (
-                  <div key={node.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                    <div>
-                      <h3 className="font-semibold">{node.short_name}</h3>
-                      <p className="text-sm text-muted-foreground">{node.long_name}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">
-                        Last heard: {formatDistanceToNow(node.last_heard!, { addSuffix: true })}
-                      </p>
-                      {node.latest_device_metrics && (
-                        <p className="text-sm text-muted-foreground">
-                          Battery: {node.latest_device_metrics.battery_level}%
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <NodeActivityTable nodes={nodes || []} isLoading={isLoading} />
       </div>
-      <DataTable data={data} />
     </div>
   );
 }
