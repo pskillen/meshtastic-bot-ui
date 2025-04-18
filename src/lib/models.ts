@@ -11,6 +11,40 @@ export interface NodeData {
   last_position: Position | null;
 }
 
+// Message interfaces
+export interface MessageNode {
+  id: number;
+  node_id: string;
+  short_name: string;
+}
+
+export interface MessageReply {
+  id: string;
+  packet_id: number;
+  message_text: string;
+  rx_time: string;
+  from_node: MessageNode;
+  emoji?: string;
+}
+
+export interface Message {
+  id: string;
+  packet_id: number;
+  message_text: string;
+  channel: number;
+  rx_time: string;
+  from_node: MessageNode;
+  replies: MessageReply[];
+  emojis: Array<{ emoji: string; count: number }>;
+}
+
+export interface MessageResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: Message[];
+}
+
 export interface DeviceMetrics {
   time: Date;
   battery_level: number;
