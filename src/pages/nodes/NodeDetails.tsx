@@ -1,10 +1,11 @@
 import { useParams, Link } from 'react-router-dom';
 import { useNodes } from '@/lib/hooks/useNodes';
+import { useRecentNodes } from '@/lib/hooks/useRecentNodes';
 import { formatDistanceToNow } from 'date-fns';
 import { BatteryChartShadcn } from '@/components/BatteryChartShadcn';
 import { NodesMap } from '@/components/nodes/NodesMap';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Pause, Play } from 'lucide-react';
 
@@ -12,6 +13,7 @@ export function NodeDetails() {
   const { id } = useParams<{ id: string }>();
   const nodeId = parseInt(id || '0', 10);
   const { useNode, useNodePositions } = useNodes();
+  const { recentNodes, addRecentNode } = useRecentNodes();
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshInterval] = useState<number | false>(30000); // 30 seconds
 
@@ -19,6 +21,13 @@ export function NodeDetails() {
     refetchInterval: autoRefresh ? refreshInterval : false,
   });
   const positionsQuery = useNodePositions(nodeId);
+
+  // Add node to recently viewed list only when nodeId changes or on initial load
+  useEffect(() => {
+    if (nodeQuery.data) {
+      addRecentNode(nodeQuery.data);
+    }
+  }, [nodeId, addRecentNode]);
 
   // Toggle auto-refresh
   const toggleAutoRefresh = () => {
@@ -54,7 +63,7 @@ export function NodeDetails() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <Link to="/nodes" className="text-blue-500 hover:text-blue-700 mb-4 inline-block">
+      <Link to="/nodes" replace={true} className="text-blue-500 hover:text-blue-700 mb-4 inline-block">
         ← Back to Nodes
       </Link>
 
@@ -62,6 +71,26 @@ export function NodeDetails() {
         <h1 className="text-3xl font-bold">{node.short_name}</h1>
         <p className="text-gray-600">{node.long_name}</p>
       </div>
+
+      {recentNodes.length > 1 && (
+        <div className="mb-6">
+          <div className="text-sm text-gray-500 mb-2">Recently viewed:</div>
+          <div className="flex flex-wrap gap-2">
+            {recentNodes
+              .filter((recentNode) => recentNode.id !== nodeId) // Filter out current node
+              .map((recentNode) => (
+                <Link
+                  key={recentNode.id}
+                  to={`/nodes/${recentNode.id}`}
+                  replace={true}
+                  className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-blue-600 rounded-full text-sm"
+                >
+                  {recentNode.short_name}
+                </Link>
+              ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <Card>
