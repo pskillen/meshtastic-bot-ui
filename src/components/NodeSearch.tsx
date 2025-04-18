@@ -4,7 +4,11 @@ import { useNodes } from '@/lib/hooks/useNodes';
 import { SearchIcon } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
-export function NodeSearch() {
+interface NodeSearchProps {
+  onNodeSelect?: (nodeId: number) => void;
+}
+
+export function NodeSearch({ onNodeSelect }: NodeSearchProps) {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -61,9 +65,14 @@ export function NodeSearch() {
               {searchResults?.map((node) => (
                 <li key={node.id}>
                   <Link
-                    to={`/nodes/${node.id}`}
+                    to={onNodeSelect ? '#' : `/nodes/${node.id}`}
                     className="block px-4 py-2 hover:bg-accent"
-                    onClick={() => setIsOpen(false)}
+                    onClick={() => {
+                      setIsOpen(false);
+                      if (onNodeSelect) {
+                        onNodeSelect(node.id);
+                      }
+                    }}
                   >
                     <div className="flex flex-col">
                       <span className="font-semibold">{node.short_name}</span>
