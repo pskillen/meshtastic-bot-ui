@@ -11,6 +11,7 @@ import {
   PacketStatsParams,
   Message,
   MessageResponse,
+  PaginatedResponse,
 } from '../models';
 import { ApiConfig } from '@/types/types';
 
@@ -44,8 +45,8 @@ export class MeshtasticApi extends BaseApi {
   }
 
   async getNodes(): Promise<NodeData[]> {
-    const nodes = await this.get<ObservedNode[]>('/nodes/observed-nodes/');
-    return nodes.map((node) => this.observedNodeToNodeData(node));
+    const response = await this.get<PaginatedResponse<ObservedNode>>('/nodes/observed-nodes/');
+    return response.results.map((node) => this.observedNodeToNodeData(node));
   }
 
   async getNode(id: number): Promise<NodeData> {
@@ -54,7 +55,8 @@ export class MeshtasticApi extends BaseApi {
   }
 
   async getManagedNodes(): Promise<ManagedNode[]> {
-    return this.get<ManagedNode[]>('/nodes/managed-nodes/');
+    const response = await this.get<PaginatedResponse<ManagedNode>>('/nodes/managed-nodes/');
+    return response.results;
   }
 
   async getManagedNode(id: number): Promise<ManagedNode> {

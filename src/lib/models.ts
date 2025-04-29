@@ -128,6 +128,14 @@ export interface PacketStatsResponse {
   summary: PacketStatsSummary;
 }
 
+// Pagination interface for Django REST Framework paginated responses
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
 // API request types for packet stats
 export interface PacketStatsParams extends DateRangeParams {
   nodeId?: number;
