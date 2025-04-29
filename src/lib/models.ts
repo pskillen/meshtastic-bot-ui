@@ -69,7 +69,8 @@ export interface MessageResponse {
 }
 
 export interface DeviceMetrics {
-  time: Date;
+  reported_time: Date;
+  logged_time: Date;
   battery_level: number;
   voltage: number;
   channel_utilization: number; // Changed from chUtil
@@ -78,8 +79,8 @@ export interface DeviceMetrics {
 }
 
 export interface Position {
-  time: Date;
   reported_time: Date;
+  logged_time: Date;
   latitude: number;
   longitude: number;
   altitude: number;

@@ -123,7 +123,7 @@ export function NodeDetails() {
               <div>
                 <CardTitle>Device Metrics</CardTitle>
                 <CardDescription>
-                  {formatDistanceToNow(node.latest_device_metrics.time, { addSuffix: true })}
+                  {formatDistanceToNow(node.latest_device_metrics.reported_time, { addSuffix: true })}
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">

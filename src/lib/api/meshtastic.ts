@@ -31,14 +31,15 @@ export class MeshtasticApi extends BaseApi {
       last_position: node.last_position
         ? {
             ...node.last_position,
-            time: new Date(node.last_position.time),
+            logged_time: new Date(node.last_position.logged_time),
             reported_time: new Date(node.last_position.reported_time),
           }
         : null,
       latest_device_metrics: node.latest_device_metrics
         ? {
             ...node.latest_device_metrics,
-            time: new Date(node.latest_device_metrics.time),
+            logged_time: new Date(node.latest_device_metrics.logged_time),
+            reported_time: new Date(node.latest_device_metrics.reported_time),
           }
         : null,
     };
@@ -76,7 +77,8 @@ export class MeshtasticApi extends BaseApi {
     );
     return metrics.map((metric) => ({
       ...metric,
-      time: new Date(metric.time),
+      logged_time: new Date(metric.logged_time),
+      reported_time: new Date(metric.reported_time),
     }));
   }
 
@@ -93,7 +95,7 @@ export class MeshtasticApi extends BaseApi {
     );
     return positions.map((position) => ({
       ...position,
-      time: new Date(position.time),
+      logged_time: new Date(position.logged_time),
       reported_time: new Date(position.reported_time),
     }));
   }

@@ -108,7 +108,7 @@ export function BatteryChart({ nodeId }: BatteryChartProps) {
         name: 'Voltage (V)',
         type: 'line',
         data: metricsQuery.data.map((d) => ({
-          x: new Date(d.time).getTime(),
+          x: new Date(d.reported_time).getTime(),
           y: d.voltage,
         })),
         yAxisIndex: 0,
@@ -117,7 +117,7 @@ export function BatteryChart({ nodeId }: BatteryChartProps) {
         name: 'Battery Level (%)',
         type: 'line',
         data: metricsQuery.data.map((d) => ({
-          x: new Date(d.time).getTime(),
+          x: new Date(d.reported_time).getTime(),
           y: d.battery_level,
         })),
         yAxisIndex: 1,
@@ -126,7 +126,7 @@ export function BatteryChart({ nodeId }: BatteryChartProps) {
         name: 'Ch Util (%)',
         type: 'scatter',
         data: metricsQuery.data.map((d) => ({
-          x: new Date(d.time).getTime(),
+          x: new Date(d.reported_time).getTime(),
           y: d.channel_utilization,
         })),
         yAxisIndex: 1,
@@ -135,7 +135,7 @@ export function BatteryChart({ nodeId }: BatteryChartProps) {
         name: 'Air Util Tx (%)',
         type: 'scatter',
         data: metricsQuery.data.map((d) => ({
-          x: new Date(d.time).getTime(),
+          x: new Date(d.reported_time).getTime(),
           y: d.air_util_tx,
         })),
         yAxisIndex: 1,

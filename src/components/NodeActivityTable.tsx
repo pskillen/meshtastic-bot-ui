@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Link } from 'react-router-dom';
 import {
   ColumnDef,
   flexRender,
@@ -24,10 +25,12 @@ const columns: ColumnDef<NodeData>[] = [
     cell: ({ row }) => {
       const node = row.original;
       return (
-        <div>
-          <div className="font-medium">{node.short_name}</div>
-          <div className="text-sm text-muted-foreground">{node.long_name}</div>
-        </div>
+        <Link to={`/nodes/${node.node_id}`}>
+          <div>
+            <div className="font-medium">{node.short_name}</div>
+            <div className="text-sm text-muted-foreground">{node.long_name}</div>
+          </div>
+        </Link>
       );
     },
   },
