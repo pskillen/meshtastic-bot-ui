@@ -44,21 +44,21 @@ export class MeshtasticApi extends BaseApi {
   }
 
   async getNodes(): Promise<NodeData[]> {
-    const nodes = await this.get<ObservedNode[]>('/nodes/observed-nodes');
+    const nodes = await this.get<ObservedNode[]>('/nodes/observed-nodes/');
     return nodes.map((node) => this.observedNodeToNodeData(node));
   }
 
   async getNode(id: number): Promise<NodeData> {
-    const node = await this.get<ObservedNode>(`/nodes/observed-nodes/${id}`);
+    const node = await this.get<ObservedNode>(`/nodes/observed-nodes/${id}/`);
     return this.observedNodeToNodeData(node);
   }
 
   async getManagedNodes(): Promise<ManagedNode[]> {
-    return this.get<ManagedNode[]>('/nodes/managed-nodes');
+    return this.get<ManagedNode[]>('/nodes/managed-nodes/');
   }
 
   async getManagedNode(id: number): Promise<ManagedNode> {
-    return this.get<ManagedNode>(`/nodes/managed-nodes/${id}`);
+    return this.get<ManagedNode>(`/nodes/managed-nodes/${id}/`);
   }
 
   async getNodeDeviceMetrics(id: number, params?: DateRangeParams): Promise<DeviceMetrics[]> {
@@ -100,7 +100,7 @@ export class MeshtasticApi extends BaseApi {
     if (!query.trim()) return [];
     // Note: This endpoint might need to be updated based on the actual API implementation
     // This is a placeholder based on the current implementation
-    return this.get<NodeSearchResult[]>(`/nodes/observed-nodes/search?q=${encodeURIComponent(query)}`);
+    return this.get<NodeSearchResult[]>(`/nodes/observed-nodes/search/?q=${encodeURIComponent(query)}`);
   }
 
   async getPacketStats(params?: PacketStatsParams): Promise<PacketStatsResponse> {
