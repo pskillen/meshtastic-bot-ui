@@ -7,6 +7,8 @@ import {
   DateRangeParams,
   PacketStatsResponse,
   PacketStatsParams,
+  Message,
+  MessageResponse,
 } from '../models';
 import { ApiConfig } from '@/types/types';
 
@@ -114,5 +116,46 @@ export class MeshtasticApi extends BaseApi {
         },
       },
     };
+  }
+
+  // Message API methods
+  async getMessages(params?: {
+    channel?: number;
+    node?: number;
+    limit?: number;
+    offset?: number;
+  }): Promise<MessageResponse> {
+    const searchParams = new URLSearchParams();
+    if (params?.channel !== undefined) searchParams.append('channel', params.channel.toString());
+    if (params?.node !== undefined) searchParams.append('node', params.node.toString());
+    if (params?.limit !== undefined) searchParams.append('limit', params.limit.toString());
+    if (params?.offset !== undefined) searchParams.append('offset', params.offset.toString());
+
+    const queryString = searchParams.toString();
+    return this.get<MessageResponse>(`/messages/${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getMessage(id: string): Promise<Message> {
+    return this.get<Message>(`/messages/${id}/`);
+  }
+
+  async getMessagesByChannel(channel: number, params?: { limit?: number; offset?: number }): Promise<MessageResponse> {
+    const searchParams = new URLSearchParams();
+    searchParams.append('channel', channel.toString());
+    if (params?.limit !== undefined) searchParams.append('limit', params.limit.toString());
+    if (params?.offset !== undefined) searchParams.append('offset', params.offset.toString());
+
+    const queryString = searchParams.toString();
+    return this.get<MessageResponse>(`/messages/by_channel/?${queryString}`);
+  }
+
+  async getMessagesByNode(nodeId: number, params?: { limit?: number; offset?: number }): Promise<MessageResponse> {
+    const searchParams = new URLSearchParams();
+    searchParams.append('node', nodeId.toString());
+    if (params?.limit !== undefined) searchParams.append('limit', params.limit.toString());
+    if (params?.offset !== undefined) searchParams.append('offset', params.offset.toString());
+
+    const queryString = searchParams.toString();
+    return this.get<MessageResponse>(`/messages/by_node/?${queryString}`);
   }
 }
