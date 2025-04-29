@@ -33,7 +33,8 @@ export abstract class BaseApi {
           switch (this.authConfig.type) {
             case 'token':
               if (this.authConfig.token) {
-                config.headers.Authorization = `Token ${this.authConfig.token}`;
+                // Updated to use Bearer token for JWT authentication
+                config.headers.Authorization = `Bearer ${this.authConfig.token}`;
               }
               break;
             case 'basic':

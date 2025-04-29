@@ -48,7 +48,10 @@ export function NodesList() {
         if (!b.last_heard) return -1;
         return b.last_heard.getTime() - a.last_heard.getTime();
       } else {
-        return a.long_name.localeCompare(b.long_name);
+        // Handle null values for long_name
+        const aName = a.long_name || '';
+        const bName = b.long_name || '';
+        return aName.localeCompare(bName);
       }
     });
   };
@@ -61,7 +64,7 @@ export function NodesList() {
       (node) =>
         node.long_name?.toLowerCase().includes(query) ||
         node.short_name?.toLowerCase().includes(query) ||
-        node.node_id?.toLowerCase().includes(query)
+        node.node_id_str?.toLowerCase().includes(query)
     );
   };
 
@@ -150,7 +153,7 @@ export function NodesList() {
           <AccordionContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {onlineNodes.map((node) => (
-                <NodeCard key={node.id} node={node} />
+                <NodeCard key={node.internal_id} node={node} />
               ))}
             </div>
           </AccordionContent>
@@ -161,7 +164,7 @@ export function NodesList() {
           <AccordionContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {offlineNodes.map((node) => (
-                <NodeCard key={node.id} node={node} />
+                <NodeCard key={node.internal_id} node={node} />
               ))}
             </div>
           </AccordionContent>

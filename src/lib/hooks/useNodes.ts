@@ -1,15 +1,22 @@
 import { useMutation, useQuery, useQueryClient, UseQueryResult, UseQueryOptions } from '@tanstack/react-query';
 import { useMeshBotApi } from './useApi';
-import { DeviceMetrics, NodeData, Position } from '../models';
+import { DeviceMetrics, NodeData, Position, ManagedNode } from '../models';
 import { DateRange } from '@/types/types.ts';
 
 export function useNodes() {
   const api = useMeshBotApi();
   const queryClient = useQueryClient();
 
+  // Query for observed nodes (backward compatible with NodeData)
   const nodesQuery = useQuery({
     queryKey: ['nodes'],
     queryFn: () => api.getNodes(),
+  });
+
+  // Query for managed nodes (new in Meshflow API v2)
+  const managedNodesQuery = useQuery({
+    queryKey: ['managed-nodes'],
+    queryFn: () => api.getManagedNodes(),
   });
 
   const useNode = (
@@ -19,6 +26,18 @@ export function useNodes() {
     return useQuery({
       queryKey: ['nodes', id],
       queryFn: () => api.getNode(id),
+      enabled: !!id,
+      ...options,
+    });
+  };
+
+  const useManagedNode = (
+    id: number,
+    options?: Omit<UseQueryOptions<ManagedNode>, 'queryKey' | 'queryFn'>
+  ): UseQueryResult<ManagedNode> => {
+    return useQuery({
+      queryKey: ['managed-nodes', id],
+      queryFn: () => api.getManagedNode(id),
       enabled: !!id,
       ...options,
     });
@@ -59,9 +78,13 @@ export function useNodes() {
 
   return {
     nodes: nodesQuery.data,
+    managedNodes: managedNodesQuery.data,
     isLoading: nodesQuery.isLoading,
+    isManagedNodesLoading: managedNodesQuery.isLoading,
     error: nodesQuery.error,
+    managedNodesError: managedNodesQuery.error,
     useNode,
+    useManagedNode,
     useNodeMetrics,
     useNodePositions,
     searchNodes: searchNodesMutation.mutate,

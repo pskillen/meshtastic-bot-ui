@@ -80,8 +80,8 @@ export function BatteryChartShadcn({
       timestamp: metric.time.getTime(),
       voltage: metric.voltage,
       batteryLevel: metric.battery_level,
-      chUtil: metric.chUtil,
-      airUtil: metric.airUtil,
+      chUtil: metric.channel_utilization,
+      airUtil: metric.air_util_tx,
     }));
   }, [metricsQuery.data]);
 

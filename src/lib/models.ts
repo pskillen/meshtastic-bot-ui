@@ -1,14 +1,37 @@
 // Base interfaces for API responses
-export interface NodeData {
-  id: number;
-  node_id: string;
-  short_name: string;
-  long_name: string;
-  last_heard: Date | null;
-  hardware_model: string;
-  meshtastic_version: string;
-  latest_device_metrics: DeviceMetrics | null;
-  last_position: Position | null;
+
+// ObservedNode from Meshflow API v2
+export interface ObservedNode {
+  internal_id: number;
+  node_id: number;
+  node_id_str: string;
+  mac_addr: string;
+  long_name: string | null;
+  short_name: string | null;
+  hw_model: string | null;
+  sw_version: string | null;
+  public_key: string | null;
+  // Additional fields for UI compatibility
+  last_heard?: Date | null;
+  latest_device_metrics?: DeviceMetrics | null;
+  last_position?: Position | null;
+}
+
+// ManagedNode from Meshflow API v2
+export interface ManagedNode {
+  internal_id: string;
+  node_id: number;
+  owner: number;
+  constellation: number;
+  name: string;
+  node_id_str: string;
+}
+
+// For backward compatibility
+export interface NodeData extends ObservedNode {
+  id: number; // Maps to internal_id
+  hardware_model: string | null; // Maps to hw_model
+  meshtastic_version: string | null; // Maps to sw_version
 }
 
 // Message interfaces
@@ -49,9 +72,9 @@ export interface DeviceMetrics {
   time: Date;
   battery_level: number;
   voltage: number;
-  chUtil: number;
-  airUtil: number;
-  uptime: number;
+  channel_utilization: number; // Changed from chUtil
+  air_util_tx: number; // Changed from airUtil
+  uptime_seconds: number; // Changed from uptime
 }
 
 export interface Position {
@@ -65,10 +88,11 @@ export interface Position {
 
 // API response types
 export interface NodeSearchResult {
-  id: number;
-  node_id: string;
-  short_name: string;
-  long_name: string;
+  internal_id: number;
+  node_id: number;
+  node_id_str: string;
+  short_name: string | null;
+  long_name: string | null;
 }
 
 // API request types

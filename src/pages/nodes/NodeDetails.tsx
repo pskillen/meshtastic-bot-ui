@@ -161,14 +161,15 @@ export function NodeDetails() {
                 </p>
                 <p>
                   <span className="font-medium">Channel Utilization:</span>{' '}
-                  {node.latest_device_metrics.chUtil.toFixed(1)}%
+                  {node.latest_device_metrics.channel_utilization.toFixed(1)}%
                 </p>
                 <p>
-                  <span className="font-medium">Air Utilization:</span> {node.latest_device_metrics.airUtil.toFixed(1)}%
+                  <span className="font-medium">Air Utilization:</span>{' '}
+                  {node.latest_device_metrics.air_util_tx.toFixed(1)}%
                 </p>
                 <p>
-                  <span className="font-medium">Uptime:</span> {Math.round(node.latest_device_metrics.uptime / 3600)}{' '}
-                  hours
+                  <span className="font-medium">Uptime:</span>{' '}
+                  {Math.round(node.latest_device_metrics.uptime_seconds / 3600)} hours
                 </p>
               </div>
             </CardContent>

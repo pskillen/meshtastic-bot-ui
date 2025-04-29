@@ -127,7 +127,7 @@ export function BatteryChart({ nodeId }: BatteryChartProps) {
         type: 'scatter',
         data: metricsQuery.data.map((d) => ({
           x: new Date(d.time).getTime(),
-          y: d.chUtil,
+          y: d.channel_utilization,
         })),
         yAxisIndex: 1,
       },
@@ -136,7 +136,7 @@ export function BatteryChart({ nodeId }: BatteryChartProps) {
         type: 'scatter',
         data: metricsQuery.data.map((d) => ({
           x: new Date(d.time).getTime(),
-          y: d.airUtil,
+          y: d.air_util_tx,
         })),
         yAxisIndex: 1,
       },

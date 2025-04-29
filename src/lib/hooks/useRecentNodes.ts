@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { NodeData } from '../models';
+import { NodeData, ObservedNode } from '../models';
 
 // Type for storing recent nodes in local storage
 interface RecentNode {
-  id: number;
-  node_id: string;
-  short_name: string;
-  long_name: string;
+  id: number; // internal_id from ObservedNode
+  node_id: string; // node_id_str from ObservedNode
+  short_name: string | null;
+  long_name: string | null;
   viewed_at: string; // ISO string of when the node was viewed
 }
 
@@ -38,24 +38,27 @@ export function useRecentNodes() {
   }, [recentNodes]);
 
   // Add a node to the recent nodes list
-  const addRecentNode = (node: NodeData) => {
+  const addRecentNode = (node: NodeData | ObservedNode) => {
     setRecentNodes((prevNodes) => {
+      // Get the appropriate ID based on the node type
+      const nodeId = 'id' in node ? node.id : node.internal_id;
+
       // Check if the node already exists with the same ID
-      if (prevNodes.some((n) => n.id === node.id)) {
+      if (prevNodes.some((n) => n.id === nodeId)) {
         return prevNodes; // No change needed
       }
 
       // Create a new node entry
       const newNode: RecentNode = {
-        id: node.id,
-        node_id: node.node_id,
+        id: nodeId,
+        node_id: 'id' in node ? String(node.node_id) : node.node_id_str,
         short_name: node.short_name,
         long_name: node.long_name,
         viewed_at: new Date().toISOString(),
       };
 
       // Remove the node if it already exists in the list
-      const filteredNodes = prevNodes.filter((n) => n.id !== node.id);
+      const filteredNodes = prevNodes.filter((n) => n.id !== nodeId);
 
       // Add the new node at the beginning of the list
       return [newNode, ...filteredNodes].slice(0, MAX_RECENT_NODES);

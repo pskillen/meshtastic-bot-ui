@@ -6,7 +6,7 @@ export interface ApiAuthConfig {
   clientId?: string;
   clientSecret?: string;
   apiKey?: string;
-  apiKeyHeader?: string;
+  apiKeyHeader?: string; // Default is 'X-API-Key' for Meshflow API v2
 }
 
 export interface ApiConfig {
