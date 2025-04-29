@@ -70,7 +70,7 @@ export function NodeSearch({ onNodeSelect }: NodeSearchProps) {
                     onClick={() => {
                       setIsOpen(false);
                       if (onNodeSelect) {
-                        onNodeSelect(node.id);
+                        onNodeSelect(node.node_id);
                       }
                     }}
                   >
