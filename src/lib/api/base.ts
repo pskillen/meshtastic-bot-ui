@@ -1,9 +1,11 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { ApiAuthConfig, ApiConfig, ApiError } from '@/types/types';
+import { authService } from '@/lib/auth/authService';
 
 export abstract class BaseApi {
   protected readonly axios: AxiosInstance;
   private readonly authConfig?: ApiAuthConfig;
+  private readonly baseUrl: string;
 
   constructor(config: ApiConfig) {
     // Remove trailing slash from baseUrl and leading slash from basePath if present
@@ -12,6 +14,7 @@ export abstract class BaseApi {
 
     // Combine baseUrl and basePath
     const fullBaseUrl = basePath ? `${baseUrl}/${basePath}` : baseUrl;
+    this.baseUrl = baseUrl;
 
     this.axios = axios.create({
       baseURL: fullBaseUrl,
@@ -29,11 +32,20 @@ export abstract class BaseApi {
     // Add request interceptor for auth
     this.axios.interceptors.request.use(
       (config) => {
+        // Always check for JWT token first
+        const accessToken = authService.getAccessToken();
+        if (accessToken) {
+          config.headers.Authorization = `Bearer ${accessToken}`;
+          return config;
+        }
+
+        // Fall back to other auth methods if no JWT token
         if (this.authConfig) {
           switch (this.authConfig.type) {
             case 'token':
               if (this.authConfig.token) {
-                config.headers.Authorization = `Token ${this.authConfig.token}`;
+                // Updated to use Bearer token for JWT authentication
+                config.headers.Authorization = `Bearer ${this.authConfig.token}`;
               }
               break;
             case 'basic':
@@ -59,10 +71,41 @@ export abstract class BaseApi {
       }
     );
 
-    // Add response interceptor for error handling
+    // Add response interceptor for error handling and token refresh
     this.axios.interceptors.response.use(
       (response) => response,
-      (error) => {
+      async (error) => {
+        const originalRequest = error.config;
+
+        // Try to refresh token if we get a 401 and we haven't already tried to refresh
+        if (error.response?.status === 401 && !originalRequest._retry && authService.getRefreshToken()) {
+          originalRequest._retry = true;
+
+          try {
+            // Attempt to refresh the token
+            const newToken = await authService.refreshToken(this.baseUrl);
+
+            // Update the request with the new token
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+
+            // Retry the request
+            return this.axios(originalRequest);
+          } catch (refreshError) {
+            // If refresh fails, redirect to login
+            authService.clearTokens();
+            window.location.href = '/login';
+
+            // Create and throw an API error
+            const apiError: ApiError = {
+              message: 'Session expired. Please log in again.',
+              status: 401,
+              data: refreshError,
+            };
+            throw apiError;
+          }
+        }
+
+        // Handle other errors
         const apiError: ApiError = {
           message: error.message || 'An error occurred',
           status: error.response?.status,

@@ -10,7 +10,7 @@ export function NodeCard({ node }: NodeCardProps) {
   return (
     <Link
       key={node.id}
-      to={`/nodes/${node.id}`}
+      to={`/nodes/${node.node_id}`}
       className="block p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200"
     >
       <div className="flex justify-between items-start mb-4">

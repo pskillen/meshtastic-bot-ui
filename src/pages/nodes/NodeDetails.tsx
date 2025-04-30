@@ -77,11 +77,11 @@ export function NodeDetails() {
           <div className="text-sm text-gray-500 mb-2">Recently viewed:</div>
           <div className="flex flex-wrap gap-2">
             {recentNodes
-              .filter((recentNode) => recentNode.id !== nodeId) // Filter out current node
+              .filter((recentNode) => recentNode.node_id !== nodeId) // Filter out current node
               .map((recentNode) => (
                 <Link
-                  key={recentNode.id}
-                  to={`/nodes/${recentNode.id}`}
+                  key={recentNode.node_id}
+                  to={`/nodes/${recentNode.node_id}`}
                   replace={true}
                   className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-blue-600 rounded-full text-sm"
                 >
@@ -123,7 +123,7 @@ export function NodeDetails() {
               <div>
                 <CardTitle>Device Metrics</CardTitle>
                 <CardDescription>
-                  {formatDistanceToNow(node.latest_device_metrics.time, { addSuffix: true })}
+                  {formatDistanceToNow(node.latest_device_metrics.reported_time, { addSuffix: true })}
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
@@ -161,14 +161,15 @@ export function NodeDetails() {
                 </p>
                 <p>
                   <span className="font-medium">Channel Utilization:</span>{' '}
-                  {node.latest_device_metrics.chUtil.toFixed(1)}%
+                  {node.latest_device_metrics.channel_utilization.toFixed(1)}%
                 </p>
                 <p>
-                  <span className="font-medium">Air Utilization:</span> {node.latest_device_metrics.airUtil.toFixed(1)}%
+                  <span className="font-medium">Air Utilization:</span>{' '}
+                  {node.latest_device_metrics.air_util_tx.toFixed(1)}%
                 </p>
                 <p>
-                  <span className="font-medium">Uptime:</span> {Math.round(node.latest_device_metrics.uptime / 3600)}{' '}
-                  hours
+                  <span className="font-medium">Uptime:</span>{' '}
+                  {Math.round(node.latest_device_metrics.uptime_seconds / 3600)} hours
                 </p>
               </div>
             </CardContent>

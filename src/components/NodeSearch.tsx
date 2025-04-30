@@ -63,21 +63,21 @@ export function NodeSearch({ onNodeSelect }: NodeSearchProps) {
           ) : (
             <ul className="py-1">
               {searchResults?.map((node) => (
-                <li key={node.id}>
+                <li key={node.internal_id}>
                   <Link
-                    to={onNodeSelect ? '#' : `/nodes/${node.id}`}
+                    to={onNodeSelect ? '#' : `/nodes/${node.node_id}`}
                     className="block px-4 py-2 hover:bg-accent"
                     onClick={() => {
                       setIsOpen(false);
                       if (onNodeSelect) {
-                        onNodeSelect(node.id);
+                        onNodeSelect(node.node_id);
                       }
                     }}
                   >
                     <div className="flex flex-col">
                       <span className="font-semibold">{node.short_name}</span>
                       <span className="text-sm text-muted-foreground">{node.long_name}</span>
-                      <span className="text-sm text-muted-foreground">{node.node_id}</span>
+                      <span className="text-sm text-muted-foreground">{node.node_id_str}</span>
                     </div>
                   </Link>
                 </li>

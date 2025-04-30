@@ -77,11 +77,11 @@ export function BatteryChartShadcn({
     if (!metricsQuery.data) return [];
 
     return metricsQuery.data.map((metric) => ({
-      timestamp: metric.time.getTime(),
+      timestamp: metric.reported_time.getTime(),
       voltage: metric.voltage,
       batteryLevel: metric.battery_level,
-      chUtil: metric.chUtil,
-      airUtil: metric.airUtil,
+      chUtil: metric.channel_utilization,
+      airUtil: metric.air_util_tx,
     }));
   }, [metricsQuery.data]);
 
