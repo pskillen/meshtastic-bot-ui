@@ -6,14 +6,12 @@ import {
   DeviceMetrics,
   Position,
   NodeSearchResult,
-  DateRangeParams,
-  PacketStatsResponse,
-  PacketStatsParams,
   Message,
   MessageResponse,
   PaginatedResponse,
   GlobalStats,
 } from '../models';
+import { DateRangeParams, DateRangeIntervalParams } from '../types';
 import { ApiConfig } from '@/types/types';
 
 export class MeshtasticApi extends BaseApi {
@@ -108,33 +106,6 @@ export class MeshtasticApi extends BaseApi {
     return this.get<NodeSearchResult[]>(`/nodes/observed-nodes/search/?q=${encodeURIComponent(query)}`);
   }
 
-  async getPacketStats(params?: PacketStatsParams): Promise<PacketStatsResponse> {
-    // Note: This endpoint might need to be updated based on the actual API implementation
-    // This is a placeholder based on the current implementation
-    const searchParams = new URLSearchParams();
-    if (params?.startDate) searchParams.append('startDate', params.startDate.toISOString());
-    if (params?.endDate) searchParams.append('endDate', params.endDate.toISOString());
-    if (params?.nodeId) searchParams.append('nodeId', params.nodeId.toString());
-    if (params?.channel) searchParams.append('channel', params.channel.toString());
-
-    const queryString = searchParams.toString();
-    const stats = await this.get<PacketStatsResponse>(`/stats${queryString ? `?${queryString}` : ''}`);
-    return {
-      ...stats,
-      hourly_stats: stats.hourly_stats.map((stat) => ({
-        ...stat,
-        timestamp: new Date(stat.timestamp),
-      })),
-      summary: {
-        ...stats.summary,
-        time_range: {
-          start: stats.summary.time_range.start ? new Date(stats.summary.time_range.start) : null,
-          end: stats.summary.time_range.end ? new Date(stats.summary.time_range.end) : null,
-        },
-      },
-    };
-  }
-
   // Message API methods
   async getMessages(params?: {
     channel?: number;
@@ -176,8 +147,17 @@ export class MeshtasticApi extends BaseApi {
     return this.get<MessageResponse>(`/messages/by_node/?${queryString}`);
   }
 
-  async getGlobalStats(queryString: string): Promise<GlobalStats> {
-    const response = await this.get<GlobalStats>(`/stats/global?${queryString}`);
+  async getGlobalStats(params?: DateRangeIntervalParams): Promise<GlobalStats> {
+    const searchParams = new URLSearchParams();
+    if (params?.startDate) searchParams.append('start_date', params.startDate.toISOString());
+    if (params?.endDate) searchParams.append('end_date', params.endDate.toISOString());
+    if (params?.interval) searchParams.append('interval', params.interval.toString());
+    if (params?.intervalType) searchParams.append('interval_type', params.intervalType);
+
+    const queryString = searchParams.toString();
+    const endpoint = queryString ? `/stats/global/?${queryString}` : '/stats/global/';
+
+    const response = await this.get<GlobalStats>(endpoint);
     return {
       ...response,
       intervals: response.intervals.map((interval) => ({
@@ -192,6 +172,27 @@ export class MeshtasticApi extends BaseApi {
           end: new Date(response.summary.time_range.end).toISOString(),
         },
       },
+    };
+  }
+
+  async getNodeStats(nodeId: number, params?: DateRangeIntervalParams): Promise<GlobalStats> {
+    const searchParams = new URLSearchParams();
+    if (params?.startDate) searchParams.append('start_date', params.startDate.toISOString());
+    if (params?.endDate) searchParams.append('end_date', params.endDate.toISOString());
+    if (params?.interval) searchParams.append('interval', params.interval.toString());
+    if (params?.intervalType) searchParams.append('interval_type', params.intervalType);
+
+    const queryString = searchParams.toString();
+    const endpoint = queryString ? `/stats/nodes/${nodeId}/packets/?${queryString}` : `/stats/nodes/${nodeId}/packets/`;
+
+    const response = await this.get<GlobalStats>(endpoint);
+    return {
+      ...response,
+      intervals: response.intervals.map((interval) => ({
+        ...interval,
+        start_date: new Date(interval.start_date).toISOString(),
+        end_date: new Date(interval.end_date).toISOString(),
+      })),
     };
   }
 }

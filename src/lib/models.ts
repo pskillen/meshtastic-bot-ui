@@ -1,4 +1,9 @@
-// Base interfaces for API responses
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
 
 // ObservedNode from Meshflow API v2
 export interface ObservedNode {
@@ -94,53 +99,6 @@ export interface NodeSearchResult {
   node_id_str: string;
   short_name: string | null;
   long_name: string | null;
-}
-
-// API request types
-export interface DateRangeParams {
-  startDate?: Date;
-  endDate?: Date;
-}
-
-// Packet Statistics types
-export interface PacketStatsWindow {
-  timestamp: Date;
-  packets_tx: number;
-  packets_rx: number;
-  packets_rx_bad: number;
-  packets_rx_dupe: number;
-  total_packets: number;
-}
-
-export interface PacketStatsSummary {
-  total_packets_tx: number;
-  total_packets_rx: number;
-  total_packets_rx_bad: number;
-  total_packets_rx_dupe: number;
-  total_packets: number;
-  time_range: {
-    start: Date | null;
-    end: Date | null;
-  };
-}
-
-export interface PacketStatsResponse {
-  hourly_stats: PacketStatsWindow[];
-  summary: PacketStatsSummary;
-}
-
-// Pagination interface for Django REST Framework paginated responses
-export interface PaginatedResponse<T> {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: T[];
-}
-
-// API request types for packet stats
-export interface PacketStatsParams extends DateRangeParams {
-  nodeId?: number;
-  channel?: number;
 }
 
 // Global Stats types from Meshflow API v2
