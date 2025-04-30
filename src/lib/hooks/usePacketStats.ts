@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMeshBotApi } from './useApi';
-import { GlobalStats } from '../models';
+import { GlobalStats, PacketStats } from '../models';
 import { DateRangeIntervalParams } from '../types';
 
 interface StatsQueryParams extends DateRangeIntervalParams {
@@ -10,7 +10,7 @@ interface StatsQueryParams extends DateRangeIntervalParams {
 export function usePacketStats(params?: StatsQueryParams) {
   const api = useMeshBotApi();
 
-  return useQuery<GlobalStats>({
+  return useQuery<GlobalStats | PacketStats>({
     queryKey: ['stats', params],
     queryFn: async () => {
       const { startDate, endDate, nodeId, interval = 1, intervalType = 'hour' } = params || {};

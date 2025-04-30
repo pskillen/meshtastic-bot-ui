@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { startOfDay, subDays, subHours } from 'date-fns';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,15 +16,13 @@ interface TimeRangeSelectProps {
 }
 
 export function TimeRangeSelect({ options, value, onChange, className }: TimeRangeSelectProps) {
-  const [timeRange, setTimeRange] = React.useState(value);
-
-  React.useEffect(() => {
+  const handleTimeRangeChange = (newValue: string) => {
     const now = new Date();
     let startDate: Date;
 
     // Check if the time range is in days or hours
-    if (timeRange.endsWith('d')) {
-      const days = parseInt(timeRange);
+    if (newValue.endsWith('d')) {
+      const days = parseInt(newValue);
       if (days === 1) {
         // For 1 day, use start of today
         startDate = startOfDay(now);
@@ -33,27 +30,23 @@ export function TimeRangeSelect({ options, value, onChange, className }: TimeRan
         // For multiple days, subtract days from start of today
         startDate = subDays(startOfDay(now), days);
       }
-    } else if (timeRange.endsWith('h')) {
+    } else if (newValue.endsWith('h')) {
       // For hours, just subtract hours from now
-      const hours = parseInt(timeRange);
+      const hours = parseInt(newValue);
       startDate = subHours(now, hours);
     } else {
       // Default fallback
       startDate = subDays(now, 7);
     }
 
-    onChange(timeRange, { startDate, endDate: now });
-  }, [timeRange, onChange]);
-
-  const handleTimeRangeChange = (newValue: string) => {
-    setTimeRange(newValue);
+    onChange(newValue, { startDate, endDate: now });
   };
 
   return (
     <div className={className}>
       <ToggleGroup
         type="single"
-        value={timeRange}
+        value={value}
         onValueChange={handleTimeRangeChange}
         variant="outline"
         className="@[767px]/card:flex hidden"
@@ -64,7 +57,7 @@ export function TimeRangeSelect({ options, value, onChange, className }: TimeRan
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
-      <Select value={timeRange} onValueChange={handleTimeRangeChange}>
+      <Select value={value} onValueChange={handleTimeRangeChange}>
         <SelectTrigger className="@[767px]/card:hidden flex w-40" aria-label="Select time range">
           <SelectValue placeholder="Select range" />
         </SelectTrigger>

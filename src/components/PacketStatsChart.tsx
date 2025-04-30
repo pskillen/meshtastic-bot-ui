@@ -9,6 +9,7 @@ import { TimeRangeSelect, TimeRangeOption } from '@/components/TimeRangeSelect';
 import { usePacketStats } from '@/lib/hooks/usePacketStats';
 import { subDays } from 'date-fns';
 import { Payload, ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent';
+import { GlobalStats } from '@/lib/models';
 
 interface PacketStatsChartProps {
   nodeId?: number;
@@ -41,7 +42,7 @@ export function PacketStatsChart({
 
   // Use the usePacketStats hook to fetch data
   const {
-    data: packetStats,
+    data: stats,
     isLoading,
     error,
   } = usePacketStats({
@@ -49,6 +50,7 @@ export function PacketStatsChart({
     endDate: dateRange.endDate,
     nodeId,
   });
+  const packetStats = stats as GlobalStats;
 
   const handleTimeRangeChange = (value: string, timeRange: { startDate: Date; endDate: Date }) => {
     if (value === timeRangeLabel) return;

@@ -108,6 +108,15 @@ export interface GlobalStatsInterval {
   packets: number;
 }
 
+export interface PacketStatsInterval {
+  start_date: string;
+  end_date: string;
+  packet_types: Array<{
+    packet_type: string;
+    count: number;
+  }>;
+}
+
 export interface GlobalStats {
   start_date: string;
   end_date: string;
@@ -119,4 +128,10 @@ export interface GlobalStats {
       end: string;
     };
   };
+}
+
+export interface PacketStats {
+  start_date: string;
+  end_date: string;
+  intervals: PacketStatsInterval[];
 }
