@@ -105,15 +105,15 @@ export function NodesMap({ nodes }: NodesMapProps) {
     const bounds = L.latLngBounds([]);
 
     nodes.forEach((node) => {
-      if (node.last_position?.latitude && node.last_position?.longitude) {
-        const position: L.LatLngExpression = [node.last_position.latitude, node.last_position.longitude];
+      if (node.latest_position?.latitude && node.latest_position?.longitude) {
+        const position: L.LatLngExpression = [node.latest_position.latitude, node.latest_position.longitude];
 
         const marker = L.marker(position, {
-          icon: createNodeIcon(node.short_name || node.node_id.toString()),
+          icon: createNodeIcon(node.short_name || node.node_id_str.toString()),
         })
           .bindPopup(
             `
-            <strong>Node: ${node.long_name || node.node_id}</strong><br>
+            <strong>Node: ${node.long_name || node.node_id_str}</strong><br>
             Battery: ${node.latest_device_metrics?.battery_level || 'Unknown'}%<br>
             Last Seen: ${node.last_heard?.toLocaleString() || 'Never'}
           `

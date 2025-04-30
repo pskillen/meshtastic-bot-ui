@@ -51,7 +51,6 @@ export function PacketStatsChart({
   });
 
   const handleTimeRangeChange = (value: string, timeRange: { startDate: Date; endDate: Date }) => {
-    console.log('handleTimeRangeChange', value, timeRange);
     if (value === timeRangeLabel) return;
     setTimeRangeLabel(value);
     setDateRange(timeRange);
@@ -59,12 +58,12 @@ export function PacketStatsChart({
 
   // Transform the data for the chart
   const chartData = React.useMemo(() => {
-    if (!packetStats?.hourly_stats) return [];
+    if (!packetStats?.intervals) return [];
 
     // Calculate 24-hour moving average
-    const stats = packetStats.hourly_stats.map((stat) => ({
-      timestamp: new Date(stat.timestamp).getTime(),
-      value: stat.total_packets >= 0 ? stat.total_packets : 0,
+    const stats = packetStats.intervals.map((stat) => ({
+      timestamp: new Date(stat.start_date).getTime(),
+      value: stat.packets >= 0 ? stat.packets : 0,
     }));
 
     // Add moving average

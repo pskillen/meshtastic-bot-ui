@@ -12,6 +12,7 @@ import {
   Message,
   MessageResponse,
   PaginatedResponse,
+  GlobalStats,
 } from '../models';
 import { ApiConfig } from '@/types/types';
 
@@ -28,11 +29,11 @@ export class MeshtasticApi extends BaseApi {
       hardware_model: node.hw_model,
       meshtastic_version: node.sw_version,
       last_heard: node.last_heard ? new Date(node.last_heard) : null,
-      last_position: node.last_position
+      latest_position: node.latest_position
         ? {
-            ...node.last_position,
-            logged_time: new Date(node.last_position.logged_time),
-            reported_time: new Date(node.last_position.reported_time),
+            ...node.latest_position,
+            logged_time: new Date(node.latest_position.logged_time),
+            reported_time: new Date(node.latest_position.reported_time),
           }
         : null,
       latest_device_metrics: node.latest_device_metrics
@@ -173,5 +174,24 @@ export class MeshtasticApi extends BaseApi {
 
     const queryString = searchParams.toString();
     return this.get<MessageResponse>(`/messages/by_node/?${queryString}`);
+  }
+
+  async getGlobalStats(queryString: string): Promise<GlobalStats> {
+    const response = await this.get<GlobalStats>(`/stats/global?${queryString}`);
+    return {
+      ...response,
+      intervals: response.intervals.map((interval) => ({
+        ...interval,
+        start_date: new Date(interval.start_date).toISOString(),
+        end_date: new Date(interval.end_date).toISOString(),
+      })),
+      summary: {
+        ...response.summary,
+        time_range: {
+          start: new Date(response.summary.time_range.start).toISOString(),
+          end: new Date(response.summary.time_range.end).toISOString(),
+        },
+      },
+    };
   }
 }

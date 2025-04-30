@@ -14,7 +14,7 @@ export interface ObservedNode {
   // Additional fields for UI compatibility
   last_heard?: Date | null;
   latest_device_metrics?: DeviceMetrics | null;
-  last_position?: Position | null;
+  latest_position?: Position | null;
 }
 
 // ManagedNode from Meshflow API v2
@@ -141,4 +141,24 @@ export interface PaginatedResponse<T> {
 export interface PacketStatsParams extends DateRangeParams {
   nodeId?: number;
   channel?: number;
+}
+
+// Global Stats types from Meshflow API v2
+export interface GlobalStatsInterval {
+  start_date: string;
+  end_date: string;
+  packets: number;
+}
+
+export interface GlobalStats {
+  start_date: string;
+  end_date: string;
+  intervals: GlobalStatsInterval[];
+  summary: {
+    total_packets: number;
+    time_range: {
+      start: string;
+      end: string;
+    };
+  };
 }

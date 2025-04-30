@@ -1,14 +1,28 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMeshBotApi } from './useApi';
-import { PacketStatsParams, PacketStatsResponse } from '../models';
+import { PacketStatsParams, GlobalStats } from '../models';
 
 export function usePacketStats(params?: PacketStatsParams) {
   const api = useMeshBotApi();
 
-  // Note: The endpoint for packet stats might need to be updated in the API client
-  // based on the actual implementation of the Meshflow API v2
-  return useQuery<PacketStatsResponse>({
-    queryKey: ['packet-stats', params],
-    queryFn: () => api.getPacketStats(params),
+  return useQuery<GlobalStats>({
+    queryKey: ['global-stats', params],
+    queryFn: async () => {
+      const { startDate, endDate } = params || {};
+      const queryParams = new URLSearchParams();
+
+      if (startDate) {
+        queryParams.append('start_date', startDate.toISOString().split('T')[0]);
+      }
+      if (endDate) {
+        queryParams.append('end_date', endDate.toISOString().split('T')[0]);
+      }
+
+      // Default to hourly intervals
+      queryParams.append('interval_type', 'hour');
+      queryParams.append('interval', '1');
+
+      return await api.getGlobalStats(queryParams.toString());
+    },
   });
 }
