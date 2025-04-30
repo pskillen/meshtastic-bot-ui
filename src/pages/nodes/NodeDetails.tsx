@@ -77,11 +77,11 @@ export function NodeDetails() {
           <div className="text-sm text-gray-500 mb-2">Recently viewed:</div>
           <div className="flex flex-wrap gap-2">
             {recentNodes
-              .filter((recentNode) => recentNode.id !== nodeId) // Filter out current node
+              .filter((recentNode) => recentNode.node_id !== nodeId) // Filter out current node
               .map((recentNode) => (
                 <Link
-                  key={recentNode.id}
-                  to={`/nodes/${recentNode.id}`}
+                  key={recentNode.node_id}
+                  to={`/nodes/${recentNode.node_id}`}
                   replace={true}
                   className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-blue-600 rounded-full text-sm"
                 >

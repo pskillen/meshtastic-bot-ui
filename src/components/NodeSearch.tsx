@@ -65,7 +65,7 @@ export function NodeSearch({ onNodeSelect }: NodeSearchProps) {
               {searchResults?.map((node) => (
                 <li key={node.internal_id}>
                   <Link
-                    to={onNodeSelect ? '#' : `/nodes/${node.internal_id}`}
+                    to={onNodeSelect ? '#' : `/nodes/${node.node_id}`}
                     className="block px-4 py-2 hover:bg-accent"
                     onClick={() => {
                       setIsOpen(false);
