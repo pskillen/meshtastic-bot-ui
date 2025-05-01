@@ -1,5 +1,5 @@
 import React from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { usePacketStats } from '@/lib/hooks/usePacketStats';
 import { subDays } from 'date-fns';
 import { TimeRangeSelect, TimeRangeOption } from '@/components/TimeRangeSelect';
@@ -14,12 +14,12 @@ interface PacketTypeChartProps {
 }
 
 const PACKET_TYPE_COLORS: Record<string, string> = {
-  TEXT_MESSAGE_APP: '#3b82f6', // blue-500
-  POSITION_APP: '#10b981', // emerald-500
-  TELEMETRY_APP: '#f59e0b', // amber-500
-  NODEINFO_APP: '#8b5cf6', // violet-500
-  ROUTING_APP: '#ec4899', // pink-500
-  ADMIN_APP: '#ef4444', // red-500
+  text_message: '#3b82f6', // blue-500
+  position: '#10b981', // emerald-500
+  device_metrics: '#f59e0b', // amber-500
+  node_info: '#8b5cf6', // violet-500
+  local_stats: '#ec4899', // pink-500
+  environment_metrics: '#ef4444', // red-500
   OTHER: '#6b7280', // gray-500
 };
 
@@ -54,8 +54,17 @@ export function PacketTypeChart({ nodeId, defaultTimeRange = '24h' }: PacketType
   const chartData = React.useMemo(() => {
     if (!packetStats?.intervals) return [];
 
-    return packetStats.intervals.map((interval) => {
-      const timestamp = new Date(interval.start_date).getTime();
+    // Create an array of timestamps for the full range
+    const startTime = new Date(packetStats.start_date).getTime();
+    const endTime = new Date(packetStats.end_date).getTime();
+    const intervalMs = 60 * 60 * 1000; // 1 hour in milliseconds
+    const timestamps = [];
+
+    for (let time = startTime; time <= endTime; time += intervalMs) {
+      timestamps.push(time);
+    }
+
+    return timestamps.map((timestamp) => {
       const data: Record<string, number> = { timestamp };
 
       // Initialize all packet types to 0
@@ -63,10 +72,19 @@ export function PacketTypeChart({ nodeId, defaultTimeRange = '24h' }: PacketType
         data[type] = 0;
       });
 
-      // Set the actual counts for each packet type
-      (interval as PacketStatsInterval).packet_types.forEach(({ packet_type, count }) => {
-        data[packet_type] = count;
-      });
+      // Find the matching interval for this timestamp
+      const matchingInterval = packetStats.intervals.find((interval) => {
+        const intervalStart = new Date(interval.start_date).getTime();
+        const intervalEnd = new Date(interval.end_date).getTime();
+        return timestamp >= intervalStart && timestamp < intervalEnd;
+      }) as PacketStatsInterval | undefined;
+
+      // Set the actual counts for each packet type if we found a matching interval
+      if (matchingInterval) {
+        matchingInterval.packet_types.forEach(({ packet_type, count }) => {
+          data[packet_type] = count;
+        });
+      }
 
       return data;
     });
@@ -120,7 +138,7 @@ export function PacketTypeChart({ nodeId, defaultTimeRange = '24h' }: PacketType
       <CardContent>
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData}>
+            <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
                 dataKey="timestamp"
@@ -132,18 +150,17 @@ export function PacketTypeChart({ nodeId, defaultTimeRange = '24h' }: PacketType
                 labelFormatter={(value) => new Date(value).toLocaleString()}
                 formatter={(value, name) => [value, name]}
               />
+              <Legend />
               {Object.entries(PACKET_TYPE_COLORS).map(([type, color]) => (
-                <Area
+                <Bar
                   key={type}
-                  type="monotone"
                   dataKey={type}
                   stackId="1"
-                  stroke={color}
                   fill={color}
-                  fillOpacity={0.8}
+                  name={type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
                 />
               ))}
-            </AreaChart>
+            </BarChart>
           </ResponsiveContainer>
         </div>
       </CardContent>
