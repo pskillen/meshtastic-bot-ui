@@ -64,16 +64,11 @@ export class MeshtasticApi extends BaseApi {
   }
 
   async getNodeDeviceMetrics(id: number, params?: DateRangeParams): Promise<DeviceMetrics[]> {
-    // Note: This endpoint might need to be updated based on the actual API implementation
-    // This is a placeholder based on the current implementation
     const searchParams = new URLSearchParams();
     if (params?.startDate) searchParams.append('startDate', params.startDate.toISOString());
     if (params?.endDate) searchParams.append('endDate', params.endDate.toISOString());
 
-    const queryString = searchParams.toString();
-    const metrics = await this.get<DeviceMetrics[]>(
-      `/nodes/observed-nodes/${id}/device_metrics${queryString ? `?${queryString}` : ''}`
-    );
+    const metrics = await this.get<DeviceMetrics[]>(`/nodes/observed-nodes/${id}/device_metrics/`, searchParams);
     return metrics.map((metric) => ({
       ...metric,
       logged_time: new Date(metric.logged_time),
@@ -82,16 +77,11 @@ export class MeshtasticApi extends BaseApi {
   }
 
   async getNodePositions(id: number, params?: DateRangeParams): Promise<Position[]> {
-    // Note: This endpoint might need to be updated based on the actual API implementation
-    // This is a placeholder based on the current implementation
     const searchParams = new URLSearchParams();
     if (params?.startDate) searchParams.append('startDate', params.startDate.toISOString());
     if (params?.endDate) searchParams.append('endDate', params.endDate.toISOString());
 
-    const queryString = searchParams.toString();
-    const positions = await this.get<Position[]>(
-      `/nodes/observed-nodes/${id}/positions${queryString ? `?${queryString}` : ''}`
-    );
+    const positions = await this.get<Position[]>(`/nodes/observed-nodes/${id}/positions/`, searchParams);
     return positions.map((position) => ({
       ...position,
       logged_time: new Date(position.logged_time),
@@ -101,9 +91,9 @@ export class MeshtasticApi extends BaseApi {
 
   async searchNodes(query: string): Promise<NodeSearchResult[]> {
     if (!query.trim()) return [];
-    // Note: This endpoint might need to be updated based on the actual API implementation
-    // This is a placeholder based on the current implementation
-    return this.get<NodeSearchResult[]>(`/nodes/observed-nodes/search/?q=${encodeURIComponent(query)}`);
+    const searchParams = new URLSearchParams();
+    searchParams.append('q', query);
+    return this.get<NodeSearchResult[]>('/nodes/observed-nodes/search/', searchParams);
   }
 
   // Message API methods
@@ -119,8 +109,7 @@ export class MeshtasticApi extends BaseApi {
     if (params?.limit !== undefined) searchParams.append('limit', params.limit.toString());
     if (params?.offset !== undefined) searchParams.append('offset', params.offset.toString());
 
-    const queryString = searchParams.toString();
-    return this.get<MessageResponse>(`/messages/${queryString ? `?${queryString}` : ''}`);
+    return this.get<MessageResponse>('/messages/', searchParams);
   }
 
   async getMessage(id: string): Promise<Message> {
@@ -133,8 +122,7 @@ export class MeshtasticApi extends BaseApi {
     if (params?.limit !== undefined) searchParams.append('limit', params.limit.toString());
     if (params?.offset !== undefined) searchParams.append('offset', params.offset.toString());
 
-    const queryString = searchParams.toString();
-    return this.get<MessageResponse>(`/messages/by_channel/?${queryString}`);
+    return this.get<MessageResponse>('/messages/by_channel/', searchParams);
   }
 
   async getMessagesByNode(nodeId: number, params?: { limit?: number; offset?: number }): Promise<MessageResponse> {
@@ -143,8 +131,7 @@ export class MeshtasticApi extends BaseApi {
     if (params?.limit !== undefined) searchParams.append('limit', params.limit.toString());
     if (params?.offset !== undefined) searchParams.append('offset', params.offset.toString());
 
-    const queryString = searchParams.toString();
-    return this.get<MessageResponse>(`/messages/by_node/?${queryString}`);
+    return this.get<MessageResponse>('/messages/by_node/', searchParams);
   }
 
   async getGlobalStats(params?: DateRangeIntervalParams): Promise<GlobalStats> {
@@ -154,10 +141,7 @@ export class MeshtasticApi extends BaseApi {
     if (params?.interval) searchParams.append('interval', params.interval.toString());
     if (params?.intervalType) searchParams.append('interval_type', params.intervalType);
 
-    const queryString = searchParams.toString();
-    const endpoint = queryString ? `/stats/global/?${queryString}` : '/stats/global/';
-
-    const response = await this.get<GlobalStats>(endpoint);
+    const response = await this.get<GlobalStats>('/stats/global/', searchParams);
     return {
       ...response,
       intervals: response.intervals.map((interval) => ({
@@ -182,10 +166,7 @@ export class MeshtasticApi extends BaseApi {
     if (params?.interval) searchParams.append('interval', params.interval.toString());
     if (params?.intervalType) searchParams.append('interval_type', params.intervalType);
 
-    const queryString = searchParams.toString();
-    const endpoint = queryString ? `/stats/nodes/${nodeId}/packets/?${queryString}` : `/stats/nodes/${nodeId}/packets/`;
-
-    const response = await this.get<GlobalStats>(endpoint);
+    const response = await this.get<GlobalStats>(`/stats/nodes/${nodeId}/packets/`, searchParams);
     return {
       ...response,
       intervals: response.intervals.map((interval) => ({
