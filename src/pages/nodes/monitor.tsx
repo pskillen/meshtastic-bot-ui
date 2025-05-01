@@ -11,20 +11,29 @@ import { NodeData } from '@/lib/models';
 
 export default function MonitorNodesPage() {
   const [isAddingNode, setIsAddingNode] = useState(false);
-  const { nodes, isLoading } = useNodes();
+  const { nodes, isLoading, isLoadingMoreNodes } = useNodes();
   const { monitoredNodeIds, addNode, removeNode } = useMonitoredNodes();
 
   // Filter nodes to only show monitored ones
   const monitoredNodes = nodes?.filter((node: NodeData) => monitoredNodeIds.includes(node.node_id)) || [];
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Monitor Nodes</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold">Monitor Nodes</h1>
+          {isLoadingMoreNodes && (
+            <span className="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary"></span>
+          )}
+        </div>
         <Button onClick={() => setIsAddingNode(true)} className="flex items-center gap-2">
           <Plus className="w-4 h-4" />
           Add Node
@@ -54,7 +63,7 @@ export default function MonitorNodesPage() {
           </div>
 
           <div className="bg-background rounded-lg border">
-            <MonitoredNodesTable nodes={monitoredNodes} onRemoveNode={removeNode} />
+            <MonitoredNodesTable nodes={monitoredNodes} onRemoveNode={removeNode} isLoadingMore={isLoadingMoreNodes} />
           </div>
         </>
       ) : (

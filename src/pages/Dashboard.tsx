@@ -15,7 +15,7 @@ const packetChartConfig = {
 } satisfies ChartConfig;
 
 export function Dashboard() {
-  const { nodes, isLoading } = useNodes();
+  const { nodes, isLoading, isLoadingMoreNodes } = useNodes();
 
   const onlineNodes =
     nodes?.filter((node) => {
@@ -33,6 +33,9 @@ export function Dashboard() {
             <CardDescription>Online Nodes</CardDescription>
             <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
               {isLoading ? '...' : onlineNodes.length}
+              {isLoadingMoreNodes && (
+                <span className="ml-2 inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500"></span>
+              )}
             </CardTitle>
             <div className="absolute right-4 top-4">
               <Badge variant="outline" className="flex gap-1 rounded-lg text-xs">
@@ -42,7 +45,12 @@ export function Dashboard() {
             </div>
           </CardHeader>
           <CardFooter className="flex-col items-start gap-1 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium">{onlineNodes.length} nodes active in last 2 hours</div>
+            <div className="line-clamp-1 flex gap-2 font-medium">
+              {onlineNodes.length} nodes active in last 2 hours
+              {isLoadingMoreNodes && (
+                <span className="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500"></span>
+              )}
+            </div>
             <div className="text-muted-foreground">{nodes?.length || 0} total nodes in network</div>
           </CardFooter>
         </Card>
@@ -64,7 +72,7 @@ export function Dashboard() {
         </Card>
       </div>
       <div className="px-4 lg:px-6">
-        <NodeActivityTable nodes={nodes || []} isLoading={isLoading} />
+        <NodeActivityTable nodes={nodes || []} isLoading={isLoading} isLoadingMore={isLoadingMoreNodes} />
       </div>
     </div>
   );

@@ -16,7 +16,7 @@ import { NodeData } from '@/lib/models';
 type SortOption = 'last_heard' | 'name';
 
 export function NodesList() {
-  const { nodes, isLoading, error } = useNodes();
+  const { nodes, isLoading, isLoadingMoreNodes, nodesError: error } = useNodes();
   const [hoursThreshold, setHoursThreshold] = useState('2');
   const [sortBy, setSortBy] = useState<SortOption>('last_heard');
   const [searchQuery, setSearchQuery] = useState('');
@@ -149,7 +149,12 @@ export function NodesList() {
 
       <Accordion type="single" collapsible defaultValue="online" className="space-y-4">
         <AccordionItem value="online">
-          <AccordionTrigger>Online Nodes ({onlineNodes.length})</AccordionTrigger>
+          <AccordionTrigger>
+            Online Nodes ({onlineNodes.length})
+            {isLoadingMoreNodes && (
+              <span className="ml-2 inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary"></span>
+            )}
+          </AccordionTrigger>
           <AccordionContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {onlineNodes.map((node) => (
@@ -160,7 +165,12 @@ export function NodesList() {
         </AccordionItem>
 
         <AccordionItem value="offline">
-          <AccordionTrigger>Offline Nodes ({offlineNodes.length})</AccordionTrigger>
+          <AccordionTrigger>
+            Offline Nodes ({offlineNodes.length})
+            {isLoadingMoreNodes && (
+              <span className="ml-2 inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary"></span>
+            )}
+          </AccordionTrigger>
           <AccordionContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {offlineNodes.map((node) => (

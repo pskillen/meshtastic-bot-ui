@@ -11,7 +11,7 @@ import {
   PaginatedResponse,
   GlobalStats,
 } from '../models';
-import { DateRangeParams, DateRangeIntervalParams } from '../types';
+import { DateRangeParams, DateRangeIntervalParams, PaginationParams } from '../types';
 import { ApiConfig } from '@/types/types';
 
 export class MeshtasticApi extends BaseApi {
@@ -44,9 +44,16 @@ export class MeshtasticApi extends BaseApi {
     };
   }
 
-  async getNodes(): Promise<NodeData[]> {
-    const response = await this.get<PaginatedResponse<ObservedNode>>('/nodes/observed-nodes/');
-    return response.results.map((node) => this.observedNodeToNodeData(node));
+  async getNodes(params?: PaginationParams): Promise<PaginatedResponse<NodeData>> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+
+    const response = await this.get<PaginatedResponse<ObservedNode>>('/nodes/observed-nodes/', searchParams);
+    return {
+      ...response,
+      results: response.results.map((node) => this.observedNodeToNodeData(node)),
+    };
   }
 
   async getNode(id: number): Promise<NodeData> {

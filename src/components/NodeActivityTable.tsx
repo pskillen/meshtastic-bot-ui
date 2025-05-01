@@ -14,7 +14,7 @@ import { BatteryIcon, SignalIcon } from 'lucide-react';
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { NodeData } from '@/lib/models';
 import { meshtasticIdToHex } from '@/lib/utils';
 
@@ -85,9 +85,10 @@ const columns: ColumnDef<NodeData>[] = [
 interface NodeActivityTableProps {
   nodes: NodeData[];
   isLoading: boolean;
+  isLoadingMore?: boolean;
 }
 
-export function NodeActivityTable({ nodes, isLoading }: NodeActivityTableProps) {
+export function NodeActivityTable({ nodes, isLoading, isLoadingMore }: NodeActivityTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([{ id: 'last_heard', desc: true }]);
 
   const table = useReactTable({
@@ -108,7 +109,13 @@ export function NodeActivityTable({ nodes, isLoading }: NodeActivityTableProps) 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Node Activity</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          Node Activity
+          {isLoadingMore && (
+            <span className="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500"></span>
+          )}
+        </CardTitle>
+        <CardDescription>Recent activity from nodes in the network</CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading ? (
