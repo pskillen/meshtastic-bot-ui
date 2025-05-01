@@ -15,25 +15,42 @@ interface NodeSelectorProps {
 
 export function NodeSelector({ nodes, onSelect, onCancel, excludeNodes = [] }: NodeSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const availableNodes = nodes
-    .filter((node) => !excludeNodes.includes(node.node_id))
-    .filter((node) => {
-      if (!searchQuery) return true;
-      const query = searchQuery.toLowerCase();
-      return (
-        node.long_name?.toLowerCase().includes(query) ||
-        node.short_name?.toLowerCase().includes(query) ||
-        node.node_id_str.toLowerCase().includes(query)
-      );
-    });
+  const [showDebug, setShowDebug] = useState(false);
+
+  // First filter: exclude already selected nodes
+  const nodesAfterExclusion = nodes.filter((node) => !excludeNodes.includes(node.node_id));
+
+  // Second filter: search query
+  const availableNodes = nodesAfterExclusion.filter((node) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      node.long_name?.toLowerCase().includes(query) ||
+      node.short_name?.toLowerCase().includes(query) ||
+      node.node_id_str.toLowerCase().includes(query)
+    );
+  });
 
   return (
     <Dialog open={true} onOpenChange={() => onCancel()}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Select Node to Monitor</DialogTitle>
+          <DialogTitle className="flex justify-between items-center">
+            <span>Select Node to Monitor</span>
+            <Button variant="ghost" size="sm" onClick={() => setShowDebug(!showDebug)}>
+              {showDebug ? 'Hide Debug' : 'Show Debug'}
+            </Button>
+          </DialogTitle>
           <DialogDescription>
             Choose a node from the list below to add it to your monitoring dashboard.
+            {showDebug && (
+              <div className="mt-2 text-xs font-mono bg-muted p-2 rounded">
+                <div>Total nodes: {nodes.length}</div>
+                <div>After exclusion: {nodesAfterExclusion.length}</div>
+                <div>After search: {availableNodes.length}</div>
+                <div>Excluded IDs: {excludeNodes.join(', ')}</div>
+              </div>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -79,6 +96,17 @@ export function NodeSelector({ nodes, onSelect, onCancel, excludeNodes = [] }: N
                   </TableCell>
                 </TableRow>
               ))}
+              {availableNodes.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-4">
+                    {searchQuery ? (
+                      <span>No nodes match your search query</span>
+                    ) : (
+                      <span>No nodes available to monitor</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>
