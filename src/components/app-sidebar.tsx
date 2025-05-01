@@ -1,6 +1,14 @@
 import * as React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpCircleIcon, BarChartIcon, MapIcon, MessageSquareIcon, NetworkIcon, SettingsIcon } from 'lucide-react';
+import {
+  ArrowUpCircleIcon,
+  BarChartIcon,
+  MapIcon,
+  MessageSquareIcon,
+  NetworkIcon,
+  SettingsIcon,
+  ActivityIcon,
+} from 'lucide-react';
 
 import { NavMain } from '@/components/nav-main';
 import { NavSecondary } from '@/components/nav-secondary';
@@ -32,6 +40,11 @@ const data = {
       title: 'Nodes',
       url: '/nodes',
       icon: NetworkIcon,
+    },
+    {
+      title: 'Monitor',
+      url: '/nodes/monitor',
+      icon: ActivityIcon,
     },
     {
       title: 'Map',
