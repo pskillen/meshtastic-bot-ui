@@ -9,6 +9,7 @@ import { TimeRangeSelect, TimeRangeOption } from '@/components/TimeRangeSelect';
 import { usePacketStats } from '@/lib/hooks/usePacketStats';
 import { subDays } from 'date-fns';
 import { Payload, ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent';
+import { GlobalStats } from '@/lib/models';
 
 interface PacketStatsChartProps {
   nodeId?: number;
@@ -41,7 +42,7 @@ export function PacketStatsChart({
 
   // Use the usePacketStats hook to fetch data
   const {
-    data: packetStats,
+    data: stats,
     isLoading,
     error,
   } = usePacketStats({
@@ -49,9 +50,9 @@ export function PacketStatsChart({
     endDate: dateRange.endDate,
     nodeId,
   });
+  const packetStats = stats as GlobalStats;
 
   const handleTimeRangeChange = (value: string, timeRange: { startDate: Date; endDate: Date }) => {
-    console.log('handleTimeRangeChange', value, timeRange);
     if (value === timeRangeLabel) return;
     setTimeRangeLabel(value);
     setDateRange(timeRange);
@@ -59,12 +60,12 @@ export function PacketStatsChart({
 
   // Transform the data for the chart
   const chartData = React.useMemo(() => {
-    if (!packetStats?.hourly_stats) return [];
+    if (!packetStats?.intervals) return [];
 
     // Calculate 24-hour moving average
-    const stats = packetStats.hourly_stats.map((stat) => ({
-      timestamp: new Date(stat.timestamp).getTime(),
-      value: stat.total_packets >= 0 ? stat.total_packets : 0,
+    const stats = packetStats.intervals.map((stat) => ({
+      timestamp: new Date(stat.start_date).getTime(),
+      value: stat.packets >= 0 ? stat.packets : 0,
     }));
 
     // Add moving average

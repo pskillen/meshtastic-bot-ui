@@ -1,0 +1,18 @@
+/* Ensure modals and overlays are always on top */
+.modal-overlay,
+[role='dialog'],
+.dialog-overlay,
+.dialog-content {
+  z-index: 50 !important;
+}
+
+/* Mobile nav sidebar should be above map */
+.mobile-nav,
+.mobile-nav-overlay {
+  z-index: 40 !important;
+}
+
+/* Map container should be below overlays */
+.map-container {
+  z-index: 1;
+}

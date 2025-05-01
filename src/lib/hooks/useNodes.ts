@@ -1,22 +1,68 @@
-import { useMutation, useQuery, useQueryClient, UseQueryResult, UseQueryOptions } from '@tanstack/react-query';
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  UseQueryResult,
+  UseQueryOptions,
+  useInfiniteQuery,
+  InfiniteData,
+} from '@tanstack/react-query';
 import { useMeshBotApi } from './useApi';
 import { DeviceMetrics, NodeData, Position, ManagedNode } from '../models';
 import { DateRange } from '@/types/types.ts';
+import { PaginatedResponse } from '../models';
+import React from 'react';
 
-export function useNodes() {
+export interface UseNodesOptions {
+  pageSize?: number;
+  enabled?: boolean;
+}
+
+export function useNodes(options?: UseNodesOptions) {
   const api = useMeshBotApi();
   const queryClient = useQueryClient();
+  const pageSize = options?.pageSize || 25;
 
-  // Query for observed nodes (backward compatible with NodeData)
-  const nodesQuery = useQuery({
-    queryKey: ['nodes'],
-    queryFn: () => api.getNodes(),
+  // Query for observed nodes with automatic pagination
+  const nodesQuery = useInfiniteQuery<
+    PaginatedResponse<NodeData>,
+    Error,
+    InfiniteData<PaginatedResponse<NodeData>>,
+    [string, number],
+    number
+  >({
+    queryKey: ['nodes', pageSize],
+    queryFn: async ({ pageParam = 1 }) => {
+      return api.getNodes({
+        page: pageParam,
+        page_size: pageSize,
+      });
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage.next) return undefined;
+      return allPages.length + 1;
+    },
+    enabled: options?.enabled !== false,
   });
+
+  // Automatically fetch next pages if available
+  React.useEffect(() => {
+    if (nodesQuery.hasNextPage && !nodesQuery.isFetchingNextPage && !nodesQuery.isError) {
+      nodesQuery.fetchNextPage();
+    }
+  }, [nodesQuery.hasNextPage, nodesQuery.isFetchingNextPage, nodesQuery.isError]);
+
+  // Combine all pages of nodes into a single array
+  const allNodes = React.useMemo(() => {
+    return nodesQuery.data?.pages.flatMap((page) => page.results) || [];
+  }, [nodesQuery.data?.pages]);
 
   // Query for managed nodes (new in Meshflow API v2)
   const managedNodesQuery = useQuery({
     queryKey: ['managed-nodes'],
     queryFn: () => api.getManagedNodes(),
+    enabled: options?.enabled !== false,
   });
 
   const useNode = (
@@ -77,11 +123,16 @@ export function useNodes() {
   });
 
   return {
-    nodes: nodesQuery.data,
-    managedNodes: managedNodesQuery.data,
+    nodes: allNodes,
+    totalNodes: nodesQuery.data?.pages[0]?.count || 0,
     isLoading: nodesQuery.isLoading,
-    isManagedNodesLoading: managedNodesQuery.isLoading,
-    error: nodesQuery.error,
+    isLoadingInitialNodes: nodesQuery.isLoading,
+    isLoadingMoreNodes: nodesQuery.isFetchingNextPage,
+    isLoadingAnyNodes: nodesQuery.isLoading || nodesQuery.isFetchingNextPage,
+    hasPartialData: !nodesQuery.isLoading && nodesQuery.isFetchingNextPage,
+    nodesError: nodesQuery.error,
+    managedNodes: managedNodesQuery.data,
+    isLoadingManagedNodes: managedNodesQuery.isLoading,
     managedNodesError: managedNodesQuery.error,
     useNode,
     useManagedNode,

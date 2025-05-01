@@ -3,6 +3,7 @@ import { useNodes } from '@/lib/hooks/useNodes';
 import { useRecentNodes } from '@/lib/hooks/useRecentNodes';
 import { formatDistanceToNow } from 'date-fns';
 import { BatteryChartShadcn } from '@/components/BatteryChartShadcn';
+import { PacketTypeChart } from '@/components/PacketTypeChart';
 import { NodesMap } from '@/components/nodes/NodesMap';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useState, useEffect } from 'react';
@@ -225,6 +226,10 @@ export function NodeDetails() {
 
       <div className="mb-6">
         <BatteryChartShadcn nodeId={nodeId} defaultTimeRange={'48h'} />
+      </div>
+
+      <div className="mb-6">
+        <PacketTypeChart nodeId={nodeId} defaultTimeRange={'48h'} />
       </div>
     </div>
   );

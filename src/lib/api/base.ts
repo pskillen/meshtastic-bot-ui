@@ -122,10 +122,16 @@ export abstract class BaseApi {
     );
   }
 
-  protected async request<T>(endpoint: string, options: AxiosRequestConfig = {}): Promise<T> {
+  protected async request<T>(
+    endpoint: string,
+    options: AxiosRequestConfig = {},
+    searchParams?: URLSearchParams
+  ): Promise<T> {
     try {
+      const queryString = searchParams?.toString();
+      const url = queryString ? `${endpoint}?${queryString}` : endpoint;
       const response: AxiosResponse<T> = await this.axios({
-        url: endpoint,
+        url,
         ...options,
       });
       return response.data;
@@ -140,23 +146,38 @@ export abstract class BaseApi {
     }
   }
 
-  protected async get<T>(endpoint: string, config?: AxiosRequestConfig): Promise<T> {
-    return this.request<T>(endpoint, { ...config, method: 'GET' });
+  protected async get<T>(endpoint: string, searchParams?: URLSearchParams, config?: AxiosRequestConfig): Promise<T> {
+    return this.request<T>(endpoint, { ...config, method: 'GET' }, searchParams);
   }
 
-  protected async post<T>(endpoint: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
-    return this.request<T>(endpoint, { ...config, method: 'POST', data });
+  protected async post<T>(
+    endpoint: string,
+    data?: unknown,
+    searchParams?: URLSearchParams,
+    config?: AxiosRequestConfig
+  ): Promise<T> {
+    return this.request<T>(endpoint, { ...config, method: 'POST', data }, searchParams);
   }
 
-  protected async put<T>(endpoint: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
-    return this.request<T>(endpoint, { ...config, method: 'PUT', data });
+  protected async put<T>(
+    endpoint: string,
+    data?: unknown,
+    searchParams?: URLSearchParams,
+    config?: AxiosRequestConfig
+  ): Promise<T> {
+    return this.request<T>(endpoint, { ...config, method: 'PUT', data }, searchParams);
   }
 
-  protected async delete<T>(endpoint: string, config?: AxiosRequestConfig): Promise<T> {
-    return this.request<T>(endpoint, { ...config, method: 'DELETE' });
+  protected async delete<T>(endpoint: string, searchParams?: URLSearchParams, config?: AxiosRequestConfig): Promise<T> {
+    return this.request<T>(endpoint, { ...config, method: 'DELETE' }, searchParams);
   }
 
-  protected async patch<T>(endpoint: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
-    return this.request<T>(endpoint, { ...config, method: 'PATCH', data });
+  protected async patch<T>(
+    endpoint: string,
+    data?: unknown,
+    searchParams?: URLSearchParams,
+    config?: AxiosRequestConfig
+  ): Promise<T> {
+    return this.request<T>(endpoint, { ...config, method: 'PATCH', data }, searchParams);
   }
 }

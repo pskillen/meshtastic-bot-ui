@@ -1,4 +1,9 @@
-// Base interfaces for API responses
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
 
 // ObservedNode from Meshflow API v2
 export interface ObservedNode {
@@ -14,7 +19,7 @@ export interface ObservedNode {
   // Additional fields for UI compatibility
   last_heard?: Date | null;
   latest_device_metrics?: DeviceMetrics | null;
-  last_position?: Position | null;
+  latest_position?: Position | null;
 }
 
 // ManagedNode from Meshflow API v2
@@ -96,49 +101,37 @@ export interface NodeSearchResult {
   long_name: string | null;
 }
 
-// API request types
-export interface DateRangeParams {
-  startDate?: Date;
-  endDate?: Date;
+// Global Stats types from Meshflow API v2
+export interface GlobalStatsInterval {
+  start_date: string;
+  end_date: string;
+  packets: number;
 }
 
-// Packet Statistics types
-export interface PacketStatsWindow {
-  timestamp: Date;
-  packets_tx: number;
-  packets_rx: number;
-  packets_rx_bad: number;
-  packets_rx_dupe: number;
-  total_packets: number;
+export interface PacketStatsInterval {
+  start_date: string;
+  end_date: string;
+  packet_types: Array<{
+    packet_type: string;
+    count: number;
+  }>;
 }
 
-export interface PacketStatsSummary {
-  total_packets_tx: number;
-  total_packets_rx: number;
-  total_packets_rx_bad: number;
-  total_packets_rx_dupe: number;
-  total_packets: number;
-  time_range: {
-    start: Date | null;
-    end: Date | null;
+export interface GlobalStats {
+  start_date: string;
+  end_date: string;
+  intervals: GlobalStatsInterval[];
+  summary: {
+    total_packets: number;
+    time_range: {
+      start: string;
+      end: string;
+    };
   };
 }
 
-export interface PacketStatsResponse {
-  hourly_stats: PacketStatsWindow[];
-  summary: PacketStatsSummary;
-}
-
-// Pagination interface for Django REST Framework paginated responses
-export interface PaginatedResponse<T> {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: T[];
-}
-
-// API request types for packet stats
-export interface PacketStatsParams extends DateRangeParams {
-  nodeId?: number;
-  channel?: number;
+export interface PacketStats {
+  start_date: string;
+  end_date: string;
+  intervals: PacketStatsInterval[];
 }

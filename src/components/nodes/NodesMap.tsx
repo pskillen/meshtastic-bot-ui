@@ -40,7 +40,7 @@ export function NodesMap({ nodes }: NodesMapProps) {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(map);
 
-      // Add CSS for custom markers
+      // Add CSS for custom markers and map container
       const style = document.createElement('style');
       style.textContent = `
         .custom-node-marker {
@@ -75,6 +75,37 @@ export function NodesMap({ nodes }: NodesMapProps) {
           font-size: 12px;
           text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
         }
+        /* Fix map container z-index issues */
+        .leaflet-container {
+          z-index: 1;
+        }
+        .leaflet-pane,
+        .leaflet-tile,
+        .leaflet-marker-icon,
+        .leaflet-marker-shadow,
+        .leaflet-tile-container,
+        .leaflet-pane > svg,
+        .leaflet-pane > canvas,
+        .leaflet-zoom-box,
+        .leaflet-image-layer,
+        .leaflet-layer {
+          z-index: 1;
+        }
+        .leaflet-overlay-pane {
+          z-index: 2;
+        }
+        .leaflet-marker-pane {
+          z-index: 3;
+        }
+        .leaflet-tooltip-pane {
+          z-index: 4;
+        }
+        .leaflet-popup-pane {
+          z-index: 5;
+        }
+        .leaflet-control {
+          z-index: 6;
+        }
       `;
       document.head.appendChild(style);
 
@@ -105,15 +136,15 @@ export function NodesMap({ nodes }: NodesMapProps) {
     const bounds = L.latLngBounds([]);
 
     nodes.forEach((node) => {
-      if (node.last_position?.latitude && node.last_position?.longitude) {
-        const position: L.LatLngExpression = [node.last_position.latitude, node.last_position.longitude];
+      if (node.latest_position?.latitude && node.latest_position?.longitude) {
+        const position: L.LatLngExpression = [node.latest_position.latitude, node.latest_position.longitude];
 
         const marker = L.marker(position, {
-          icon: createNodeIcon(node.short_name || node.node_id.toString()),
+          icon: createNodeIcon(node.short_name || node.node_id_str.toString()),
         })
           .bindPopup(
             `
-            <strong>Node: ${node.long_name || node.node_id}</strong><br>
+            <strong>Node: ${node.long_name || node.node_id_str}</strong><br>
             Battery: ${node.latest_device_metrics?.battery_level || 'Unknown'}%<br>
             Last Seen: ${node.last_heard?.toLocaleString() || 'Never'}
           `
@@ -133,5 +164,16 @@ export function NodesMap({ nodes }: NodesMapProps) {
     }
   }, [nodes]);
 
-  return <div ref={mapRef} style={{ height: '100%', minHeight: '400px' }} />;
+  return (
+    <div
+      ref={mapRef}
+      style={{
+        height: '100%',
+        minHeight: '400px',
+        position: 'relative',
+        zIndex: 1,
+      }}
+      className="map-container"
+    />
+  );
 }

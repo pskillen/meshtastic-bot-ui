@@ -6,13 +6,12 @@ import {
   DeviceMetrics,
   Position,
   NodeSearchResult,
-  DateRangeParams,
-  PacketStatsResponse,
-  PacketStatsParams,
   Message,
   MessageResponse,
   PaginatedResponse,
+  GlobalStats,
 } from '../models';
+import { DateRangeParams, DateRangeIntervalParams, PaginationParams } from '../types';
 import { ApiConfig } from '@/types/types';
 
 export class MeshtasticApi extends BaseApi {
@@ -28,11 +27,11 @@ export class MeshtasticApi extends BaseApi {
       hardware_model: node.hw_model,
       meshtastic_version: node.sw_version,
       last_heard: node.last_heard ? new Date(node.last_heard) : null,
-      last_position: node.last_position
+      latest_position: node.latest_position
         ? {
-            ...node.last_position,
-            logged_time: new Date(node.last_position.logged_time),
-            reported_time: new Date(node.last_position.reported_time),
+            ...node.latest_position,
+            logged_time: new Date(node.latest_position.logged_time),
+            reported_time: new Date(node.latest_position.reported_time),
           }
         : null,
       latest_device_metrics: node.latest_device_metrics
@@ -45,9 +44,16 @@ export class MeshtasticApi extends BaseApi {
     };
   }
 
-  async getNodes(): Promise<NodeData[]> {
-    const response = await this.get<PaginatedResponse<ObservedNode>>('/nodes/observed-nodes/');
-    return response.results.map((node) => this.observedNodeToNodeData(node));
+  async getNodes(params?: PaginationParams): Promise<PaginatedResponse<NodeData>> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+
+    const response = await this.get<PaginatedResponse<ObservedNode>>('/nodes/observed-nodes/', searchParams);
+    return {
+      ...response,
+      results: response.results.map((node) => this.observedNodeToNodeData(node)),
+    };
   }
 
   async getNode(id: number): Promise<NodeData> {
@@ -65,16 +71,11 @@ export class MeshtasticApi extends BaseApi {
   }
 
   async getNodeDeviceMetrics(id: number, params?: DateRangeParams): Promise<DeviceMetrics[]> {
-    // Note: This endpoint might need to be updated based on the actual API implementation
-    // This is a placeholder based on the current implementation
     const searchParams = new URLSearchParams();
     if (params?.startDate) searchParams.append('startDate', params.startDate.toISOString());
     if (params?.endDate) searchParams.append('endDate', params.endDate.toISOString());
 
-    const queryString = searchParams.toString();
-    const metrics = await this.get<DeviceMetrics[]>(
-      `/nodes/observed-nodes/${id}/device_metrics${queryString ? `?${queryString}` : ''}`
-    );
+    const metrics = await this.get<DeviceMetrics[]>(`/nodes/observed-nodes/${id}/device_metrics/`, searchParams);
     return metrics.map((metric) => ({
       ...metric,
       logged_time: new Date(metric.logged_time),
@@ -83,16 +84,11 @@ export class MeshtasticApi extends BaseApi {
   }
 
   async getNodePositions(id: number, params?: DateRangeParams): Promise<Position[]> {
-    // Note: This endpoint might need to be updated based on the actual API implementation
-    // This is a placeholder based on the current implementation
     const searchParams = new URLSearchParams();
     if (params?.startDate) searchParams.append('startDate', params.startDate.toISOString());
     if (params?.endDate) searchParams.append('endDate', params.endDate.toISOString());
 
-    const queryString = searchParams.toString();
-    const positions = await this.get<Position[]>(
-      `/nodes/observed-nodes/${id}/positions${queryString ? `?${queryString}` : ''}`
-    );
+    const positions = await this.get<Position[]>(`/nodes/observed-nodes/${id}/positions/`, searchParams);
     return positions.map((position) => ({
       ...position,
       logged_time: new Date(position.logged_time),
@@ -102,36 +98,9 @@ export class MeshtasticApi extends BaseApi {
 
   async searchNodes(query: string): Promise<NodeSearchResult[]> {
     if (!query.trim()) return [];
-    // Note: This endpoint might need to be updated based on the actual API implementation
-    // This is a placeholder based on the current implementation
-    return this.get<NodeSearchResult[]>(`/nodes/observed-nodes/search/?q=${encodeURIComponent(query)}`);
-  }
-
-  async getPacketStats(params?: PacketStatsParams): Promise<PacketStatsResponse> {
-    // Note: This endpoint might need to be updated based on the actual API implementation
-    // This is a placeholder based on the current implementation
     const searchParams = new URLSearchParams();
-    if (params?.startDate) searchParams.append('startDate', params.startDate.toISOString());
-    if (params?.endDate) searchParams.append('endDate', params.endDate.toISOString());
-    if (params?.nodeId) searchParams.append('nodeId', params.nodeId.toString());
-    if (params?.channel) searchParams.append('channel', params.channel.toString());
-
-    const queryString = searchParams.toString();
-    const stats = await this.get<PacketStatsResponse>(`/stats${queryString ? `?${queryString}` : ''}`);
-    return {
-      ...stats,
-      hourly_stats: stats.hourly_stats.map((stat) => ({
-        ...stat,
-        timestamp: new Date(stat.timestamp),
-      })),
-      summary: {
-        ...stats.summary,
-        time_range: {
-          start: stats.summary.time_range.start ? new Date(stats.summary.time_range.start) : null,
-          end: stats.summary.time_range.end ? new Date(stats.summary.time_range.end) : null,
-        },
-      },
-    };
+    searchParams.append('q', query);
+    return this.get<NodeSearchResult[]>('/nodes/observed-nodes/search/', searchParams);
   }
 
   // Message API methods
@@ -147,8 +116,7 @@ export class MeshtasticApi extends BaseApi {
     if (params?.limit !== undefined) searchParams.append('limit', params.limit.toString());
     if (params?.offset !== undefined) searchParams.append('offset', params.offset.toString());
 
-    const queryString = searchParams.toString();
-    return this.get<MessageResponse>(`/messages/${queryString ? `?${queryString}` : ''}`);
+    return this.get<MessageResponse>('/messages/', searchParams);
   }
 
   async getMessage(id: string): Promise<Message> {
@@ -161,8 +129,7 @@ export class MeshtasticApi extends BaseApi {
     if (params?.limit !== undefined) searchParams.append('limit', params.limit.toString());
     if (params?.offset !== undefined) searchParams.append('offset', params.offset.toString());
 
-    const queryString = searchParams.toString();
-    return this.get<MessageResponse>(`/messages/by_channel/?${queryString}`);
+    return this.get<MessageResponse>('/messages/by_channel/', searchParams);
   }
 
   async getMessagesByNode(nodeId: number, params?: { limit?: number; offset?: number }): Promise<MessageResponse> {
@@ -171,7 +138,49 @@ export class MeshtasticApi extends BaseApi {
     if (params?.limit !== undefined) searchParams.append('limit', params.limit.toString());
     if (params?.offset !== undefined) searchParams.append('offset', params.offset.toString());
 
-    const queryString = searchParams.toString();
-    return this.get<MessageResponse>(`/messages/by_node/?${queryString}`);
+    return this.get<MessageResponse>('/messages/by_node/', searchParams);
+  }
+
+  async getGlobalStats(params?: DateRangeIntervalParams): Promise<GlobalStats> {
+    const searchParams = new URLSearchParams();
+    if (params?.startDate) searchParams.append('start_date', params.startDate.toISOString());
+    if (params?.endDate) searchParams.append('end_date', params.endDate.toISOString());
+    if (params?.interval) searchParams.append('interval', params.interval.toString());
+    if (params?.intervalType) searchParams.append('interval_type', params.intervalType);
+
+    const response = await this.get<GlobalStats>('/stats/global/', searchParams);
+    return {
+      ...response,
+      intervals: response.intervals.map((interval) => ({
+        ...interval,
+        start_date: new Date(interval.start_date).toISOString(),
+        end_date: new Date(interval.end_date).toISOString(),
+      })),
+      summary: {
+        ...response.summary,
+        time_range: {
+          start: new Date(response.summary.time_range.start).toISOString(),
+          end: new Date(response.summary.time_range.end).toISOString(),
+        },
+      },
+    };
+  }
+
+  async getNodeStats(nodeId: number, params?: DateRangeIntervalParams): Promise<GlobalStats> {
+    const searchParams = new URLSearchParams();
+    if (params?.startDate) searchParams.append('start_date', params.startDate.toISOString());
+    if (params?.endDate) searchParams.append('end_date', params.endDate.toISOString());
+    if (params?.interval) searchParams.append('interval', params.interval.toString());
+    if (params?.intervalType) searchParams.append('interval_type', params.intervalType);
+
+    const response = await this.get<GlobalStats>(`/stats/nodes/${nodeId}/packets/`, searchParams);
+    return {
+      ...response,
+      intervals: response.intervals.map((interval) => ({
+        ...interval,
+        start_date: new Date(interval.start_date).toISOString(),
+        end_date: new Date(interval.end_date).toISOString(),
+      })),
+    };
   }
 }
