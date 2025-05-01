@@ -1,21 +1,21 @@
 import * as React from 'react';
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from 'recharts';
+import { Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { useMultiNodeMetrics } from '@/lib/hooks/useMultiNodeMetrics';
 import { NodeData } from '@/lib/models';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { TimeRangeSelect, TimeRangeOption } from '@/components/TimeRangeSelect';
-import { Formatter, NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
+import { Formatter, NameType, ValueType, Payload } from 'recharts/types/component/DefaultTooltipContent';
+
+// Extended payload type with activeLabel
+interface ExtendedPayload extends Payload<ValueType, NameType> {
+  activeLabel?: number;
+}
 
 interface MonitoredNodesBatteryChartProps {
   nodes: NodeData[];
   timeRangeOptions?: TimeRangeOption[];
   defaultTimeRange?: string;
-}
-
-interface ChartDataPoint {
-  timestamp: number;
-  [key: string]: number | undefined;
 }
 
 export function MonitoredNodesBatteryChart({
@@ -64,42 +64,24 @@ export function MonitoredNodesBatteryChart({
 
   const formatter: Formatter<ValueType, NameType> = (value: ValueType, name: NameType) => {
     const numValue = typeof value === 'string' ? parseFloat(value) : value;
-    if (typeof numValue !== 'number') return [String(value), name];
+    if (typeof numValue !== 'number' || isNaN(numValue)) return ['-', name];
     return [`${numValue.toFixed(2)}V`, name];
   };
 
-  // Transform metrics data to chart format
+  // Transform metrics data to chart format - each node's data is kept separate
   const chartData = React.useMemo(() => {
-    const allTimestamps = new Set<number>();
-    const nodeData = new Map<number, Map<number, number>>();
-
-    // Collect all timestamps and node data
-    nodeInfo.forEach(({ nodeId }) => {
+    return nodeInfo.map(({ nodeId, shortName }) => {
       const metrics = metricsMap[nodeId] || [];
-      const nodeVoltages = new Map<number, number>();
-
-      metrics.forEach((metric) => {
-        const timestamp = metric.reported_time.getTime();
-        allTimestamps.add(timestamp);
-        nodeVoltages.set(timestamp, metric.voltage);
-      });
-
-      nodeData.set(nodeId, nodeVoltages);
+      return {
+        name: shortName,
+        data: metrics
+          .map((metric) => ({
+            timestamp: new Date(metric.reported_time).getTime(),
+            value: metric.voltage,
+          }))
+          .sort((a, b) => a.timestamp - b.timestamp),
+      };
     });
-
-    // Create chart data points
-    return Array.from(allTimestamps)
-      .sort((a, b) => a - b)
-      .map((timestamp) => {
-        const dataPoint: ChartDataPoint = { timestamp };
-        nodeInfo.forEach(({ nodeId, shortName }) => {
-          const voltage = nodeData.get(nodeId)?.get(timestamp);
-          if (voltage !== undefined) {
-            dataPoint[shortName] = voltage;
-          }
-        });
-        return dataPoint;
-      });
   }, [nodeInfo, metricsMap]);
 
   const colors = ['#d0a8ff', '#76d9c4', '#ff7b72', '#7ee787', '#a371f7', '#f778ba', '#79c0ff'];
@@ -126,17 +108,9 @@ export function MonitoredNodesBatteryChart({
           </div>
         ) : (
           <ChartContainer config={chartConfig} className="aspect-auto h-[400px] w-full">
-            <AreaChart data={chartData}>
-              <defs>
-                {nodeInfo.map(({ shortName }, index) => (
-                  <linearGradient key={shortName} id={`gradient-${shortName}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={colors[index % colors.length]} stopOpacity={0.8} />
-                    <stop offset="95%" stopColor={colors[index % colors.length]} stopOpacity={0.1} />
-                  </linearGradient>
-                ))}
-              </defs>
+            <LineChart>
               <CartesianGrid vertical={false} />
-              <Legend verticalAlign="bottom" height={36} iconType="circle" iconSize={8} />
+              <Legend verticalAlign="bottom" height={36} iconType="line" iconSize={8} />
               <XAxis
                 dataKey="timestamp"
                 tickLine={false}
@@ -146,7 +120,7 @@ export function MonitoredNodesBatteryChart({
                 domain={[dateRange.startDate.getTime(), dateRange.endDate.getTime()]}
                 tickFormatter={(value: number) => {
                   const date = new Date(value);
-                  return date.toLocaleDateString('en-GB', {
+                  return date.toLocaleString('en-GB', {
                     month: 'short',
                     day: 'numeric',
                     hour: 'numeric',
@@ -160,30 +134,49 @@ export function MonitoredNodesBatteryChart({
               <Tooltip
                 content={
                   <ChartTooltipContent
-                    labelFormatter={(value) => {
-                      const date = new Date(value as number);
-                      return date.toLocaleDateString('en-GB', {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: 'numeric',
-                        minute: 'numeric',
-                      });
+                    labelFormatter={(_, payload: Payload<ValueType, NameType>[]) => {
+                      // Extract the timestamp from the payload
+                      if (payload && payload[0] && payload[0].payload && payload[0].payload.timestamp) {
+                        const date = new Date(payload[0].payload.timestamp);
+                        return date.toLocaleString('en-GB', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: 'numeric',
+                        });
+                      }
+                      // If we can't find the timestamp in the payload, use the activeLabel
+                      const extendedPayload = payload as ExtendedPayload[];
+                      if (extendedPayload && extendedPayload[0] && extendedPayload[0].activeLabel) {
+                        const date = new Date(extendedPayload[0].activeLabel);
+                        return date.toLocaleString('en-GB', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: 'numeric',
+                        });
+                      }
+                      // Fallback if we can't find any timestamp
+                      return 'Unknown time';
                     }}
                     formatter={formatter}
                   />
                 }
               />
-              {nodeInfo.map(({ shortName }, index) => (
-                <Area
-                  key={shortName}
-                  type="monotone"
-                  dataKey={shortName}
+              {chartData.map((series, index) => (
+                <Line
+                  key={series.name}
+                  name={series.name}
+                  data={series.data}
+                  dataKey="value"
                   stroke={colors[index % colors.length]}
-                  fill={`url(#gradient-${shortName})`}
                   strokeWidth={2}
+                  dot={false}
+                  connectNulls={false}
+                  type="monotone"
                 />
               ))}
-            </AreaChart>
+            </LineChart>
           </ChartContainer>
         )}
       </CardContent>
