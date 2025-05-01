@@ -1,16 +1,21 @@
-import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+'use client';
+
+import * as React from 'react';
+import { CartesianGrid, XAxis, YAxis, Bar, BarChart, Legend } from 'recharts';
 import { usePacketStats } from '@/lib/hooks/usePacketStats';
 import { subDays } from 'date-fns';
 import { TimeRangeSelect, TimeRangeOption } from '@/components/TimeRangeSelect';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { PacketStatsInterval } from '@/lib/models';
+import { Payload, ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent';
 
 interface PacketTypeChartProps {
   nodeId: number;
   defaultTimeRange?: string;
+  config?: ChartConfig;
 }
 
 const PACKET_TYPE_COLORS: Record<string, string> = {
@@ -24,9 +29,9 @@ const PACKET_TYPE_COLORS: Record<string, string> = {
 };
 
 const TIME_RANGE_OPTIONS: TimeRangeOption[] = [
-  { key: '24h', label: '24h' },
-  { key: '48h', label: '48h' },
-  { key: '7d', label: '7d' },
+  { key: '24h', label: 'Last 24 hours' },
+  { key: '48h', label: 'Last 48 hours' },
+  { key: '7d', label: 'Last 7 days' },
 ];
 
 const getInitialDateRange = () => {
@@ -35,7 +40,18 @@ const getInitialDateRange = () => {
   return { startDate, endDate };
 };
 
-export function PacketTypeChart({ nodeId, defaultTimeRange = '24h' }: PacketTypeChartProps) {
+export function PacketTypeChart({
+  nodeId,
+  defaultTimeRange = '24h',
+  config = {
+    value: {
+      theme: {
+        light: 'var(--color-value)',
+        dark: 'var(--color-value)',
+      },
+    },
+  },
+}: PacketTypeChartProps) {
   const [timeRange, setTimeRange] = React.useState(defaultTimeRange);
   const [dateRange, setDateRange] = React.useState(getInitialDateRange);
 
@@ -102,8 +118,8 @@ export function PacketTypeChart({ nodeId, defaultTimeRange = '24h' }: PacketType
           <CardTitle>Packet Types</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-[300px]">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+          <div className="flex items-center justify-center h-[250px]">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
           </div>
         </CardContent>
       </Card>
@@ -117,17 +133,23 @@ export function PacketTypeChart({ nodeId, defaultTimeRange = '24h' }: PacketType
           <CardTitle>Packet Types</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-[300px] text-red-500">Error loading packet statistics</div>
+          <div className="flex items-center justify-center h-[250px] text-red-500">Error loading packet statistics</div>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+    <Card className="@container/card">
+      <CardHeader className="relative">
         <CardTitle>Packet Types</CardTitle>
-        <div className="flex items-center gap-2">
+        <CardDescription>
+          <span className="@[540px]/card:block hidden">Distribution of packet types over time</span>
+          <span className="@[540px]/card:hidden">
+            {TIME_RANGE_OPTIONS.find((option) => option.key === timeRange)?.label}
+          </span>
+        </CardDescription>
+        <div className="absolute right-4 top-4 flex items-center gap-2">
           <TimeRangeSelect options={TIME_RANGE_OPTIONS} value={timeRange} onChange={handleTimeRangeChange} />
           <Button variant="outline" size="sm" onClick={() => refetch()} className="flex items-center gap-1">
             <RefreshCw className="h-4 w-4" />
@@ -135,34 +157,64 @@ export function PacketTypeChart({ nodeId, defaultTimeRange = '24h' }: PacketType
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="timestamp"
-                tickFormatter={(value) => new Date(value).toLocaleTimeString()}
-                minTickGap={50}
-              />
-              <YAxis />
-              <Tooltip
-                labelFormatter={(value) => new Date(value).toLocaleString()}
-                formatter={(value, name) => [value, name]}
-              />
-              <Legend />
-              {Object.entries(PACKET_TYPE_COLORS).map(([type, color]) => (
-                <Bar
-                  key={type}
-                  dataKey={type}
-                  stackId="1"
-                  fill={color}
-                  name={type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+      <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
+        <ChartContainer className="aspect-auto h-[250px] w-full" config={config}>
+          <BarChart data={chartData}>
+            <CartesianGrid vertical={false} />
+            <XAxis
+              dataKey="timestamp"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              minTickGap={80}
+              tickCount={6}
+              scale="time"
+              type="number"
+              domain={[dateRange.startDate.getTime(), dateRange.endDate.getTime()]}
+              tickFormatter={(value) => {
+                const date = new Date(value);
+                return date.toLocaleDateString('en-GB', {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: 'numeric',
+                });
+              }}
+            />
+            <YAxis tickLine={false} axisLine={false} tickMargin={8} />
+            <ChartTooltip
+              cursor={false}
+              content={
+                <ChartTooltipContent
+                  labelFormatter={(_, payload: Payload<ValueType, NameType>[]) => {
+                    if (payload && payload[0] && payload[0].payload) {
+                      const timestamp = payload[0].payload.timestamp;
+                      const date = new Date(timestamp);
+                      return date.toLocaleDateString('en-GB', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: 'numeric',
+                      });
+                    }
+                    return 'Unknown time';
+                  }}
+                  indicator="dot"
                 />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+              }
+            />
+            <Legend />
+            {Object.entries(PACKET_TYPE_COLORS).map(([type, color]) => (
+              <Bar
+                key={type}
+                dataKey={type}
+                stackId="1"
+                fill={color}
+                name={type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+              />
+            ))}
+          </BarChart>
+        </ChartContainer>
       </CardContent>
     </Card>
   );
