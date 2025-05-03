@@ -1,50 +1,66 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Message, MessageResponse } from '@/lib/models';
+import { TextMessage, TextMessageResponse } from '@/lib/models';
 import { MeshtasticApi } from '@/lib/api/meshtastic';
 import { useConfig } from '@/providers/ConfigProvider';
 import { MessageItem } from './MessageItem';
 import { Button } from '@/components/ui/button';
 
 interface MessageListProps {
-  channel?: number;
+  channel?: number; // channelId
+  constellationId?: number;
   nodeId?: number;
 }
 
-export function MessageList({ channel, nodeId }: MessageListProps) {
+export function MessageList({ channel, constellationId, nodeId }: MessageListProps) {
   const config = useConfig();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<TextMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [nextUrl, setNextUrl] = useState<string | null>(null);
+  const [nextPage, setNextPage] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  // Create API instance - memoized to prevent recreation on every render
   const api = useMemo(() => new MeshtasticApi(config.apis.meshBot), [config.apis.meshBot]);
 
+  // Helper to extract next page number from nextUrl
+  function getNextPageFromUrl(url: string | null): number | null {
+    if (!url) return null;
+    try {
+      const u = new URL(url, window.location.origin);
+      const page = u.searchParams.get('page');
+      return page ? parseInt(page, 10) : null;
+    } catch {
+      return null;
+    }
+  }
+
   useEffect(() => {
-    // Reset state when channel or nodeId changes
     setMessages([]);
     setLoading(true);
     setError(null);
     setNextUrl(null);
+    setNextPage(null);
 
     const fetchMessages = async () => {
       try {
-        let response: MessageResponse;
-
-        if (channel !== undefined) {
-          response = await api.getMessagesByChannel(channel, { limit: 25 });
+        let response: TextMessageResponse;
+        if (channel !== undefined && constellationId !== undefined) {
+          response = await api.getTextMessagesByChannelAndConstellation({
+            channelId: channel,
+            constellationId,
+            page: 1,
+            page_size: 25,
+          });
         } else if (nodeId !== undefined) {
           response = await api.getMessagesByNode(nodeId, { limit: 25 });
         } else {
-          // If neither channel nor nodeId is provided, don't fetch anything
           setLoading(false);
-          setError('Please select a channel or node to view messages');
+          setError('Please select a channel and constellation or a node to view messages');
           return;
         }
-
         setMessages(response.results);
         setNextUrl(response.next);
+        setNextPage(getNextPageFromUrl(response.next));
       } catch (err) {
         console.error('Error fetching messages:', err);
         setError('Failed to load messages. Please try again later.');
@@ -52,29 +68,27 @@ export function MessageList({ channel, nodeId }: MessageListProps) {
         setLoading(false);
       }
     };
-
     fetchMessages();
-  }, [channel, nodeId, api]);
+  }, [channel, constellationId, nodeId, api]);
 
   const loadMoreMessages = async () => {
-    if (!nextUrl || loadingMore) return;
-
+    if (!nextUrl || !nextPage || loadingMore) return;
     setLoadingMore(true);
     try {
-      // Extract the query parameters from the nextUrl
-      const url = new URL(nextUrl);
-      const params: Record<string, string> = {};
-      url.searchParams.forEach((value, key) => {
-        params[key] = value;
-      });
-
-      let response: MessageResponse;
-      if (channel !== undefined) {
-        response = await api.getMessagesByChannel(channel, {
-          limit: Math.min(parseInt(params.limit || '25'), 25),
-          offset: parseInt(params.offset || '0'),
+      let response: TextMessageResponse;
+      if (channel !== undefined && constellationId !== undefined) {
+        response = await api.getTextMessagesByChannelAndConstellation({
+          channelId: channel,
+          constellationId,
+          page: nextPage,
+          page_size: 25,
         });
       } else if (nodeId !== undefined) {
+        const url = new URL(nextUrl, window.location.origin);
+        const params: Record<string, string> = {};
+        url.searchParams.forEach((value, key) => {
+          params[key] = value;
+        });
         response = await api.getMessagesByNode(nodeId, {
           limit: Math.min(parseInt(params.limit || '25'), 25),
           offset: parseInt(params.offset || '0'),
@@ -82,9 +96,9 @@ export function MessageList({ channel, nodeId }: MessageListProps) {
       } else {
         return;
       }
-
       setMessages((prev) => [...prev, ...response.results]);
       setNextUrl(response.next);
+      setNextPage(getNextPageFromUrl(response.next));
     } catch (err) {
       console.error('Error loading more messages:', err);
       setError('Failed to load more messages. Please try again later.');
