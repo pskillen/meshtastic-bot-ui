@@ -40,10 +40,16 @@ export interface NodeData extends ObservedNode {
 }
 
 // Message interfaces (API v2)
+export interface TextMessageSender {
+  node_id_str: string;
+  long_name: string | null;
+  short_name: string | null;
+}
+
 export interface TextMessage {
   id: string; // UUID
   packet_id: number;
-  sender: number; // ObservedNode ID
+  sender: TextMessageSender;
   recipient_node_id: number | null;
   channel: number;
   sent_at: string; // ISO date string
