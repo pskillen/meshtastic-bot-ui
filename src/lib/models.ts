@@ -39,38 +39,24 @@ export interface NodeData extends ObservedNode {
   meshtastic_version: string | null; // Maps to sw_version
 }
 
-// Message interfaces
-export interface MessageNode {
-  id: number;
-  node_id: string;
-  short_name: string;
-}
-
-export interface MessageReply {
-  id: string;
+// Message interfaces (API v2)
+export interface TextMessage {
+  id: string; // UUID
   packet_id: number;
-  message_text: string;
-  rx_time: string;
-  from_node: MessageNode;
-  emoji?: string;
-}
-
-export interface Message {
-  id: string;
-  packet_id: number;
-  message_text: string;
+  sender: number; // ObservedNode ID
+  recipient_node_id: number | null;
   channel: number;
-  rx_time: string;
-  from_node: MessageNode;
-  replies: MessageReply[];
-  emojis: Array<{ emoji: string; count: number }>;
+  sent_at: string; // ISO date string
+  message_text: string;
+  is_emoji: boolean;
+  reply_to_message_id: number | null;
 }
 
-export interface MessageResponse {
+export interface TextMessageResponse {
   count: number;
   next: string | null;
   previous: string | null;
-  results: Message[];
+  results: TextMessage[];
 }
 
 export interface DeviceMetrics {
@@ -134,4 +120,18 @@ export interface PacketStats {
   start_date: string;
   end_date: string;
   intervals: PacketStatsInterval[];
+}
+
+export interface MessageChannel {
+  id: number;
+  name: string;
+  constellation: number;
+}
+
+export interface Constellation {
+  id: number;
+  name: string;
+  description: string;
+  created_by: number;
+  channels: MessageChannel[];
 }

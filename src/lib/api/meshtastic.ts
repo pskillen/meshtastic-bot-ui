@@ -6,10 +6,12 @@ import {
   DeviceMetrics,
   Position,
   NodeSearchResult,
-  Message,
-  MessageResponse,
   PaginatedResponse,
   GlobalStats,
+  Constellation,
+  MessageChannel,
+  TextMessage,
+  TextMessageResponse,
 } from '../models';
 import { DateRangeParams, DateRangeIntervalParams, PaginationParams } from '../types';
 import { ApiConfig } from '@/types/types';
@@ -109,36 +111,39 @@ export class MeshtasticApi extends BaseApi {
     node?: number;
     limit?: number;
     offset?: number;
-  }): Promise<MessageResponse> {
+  }): Promise<TextMessageResponse> {
     const searchParams = new URLSearchParams();
     if (params?.channel !== undefined) searchParams.append('channel', params.channel.toString());
     if (params?.node !== undefined) searchParams.append('node', params.node.toString());
     if (params?.limit !== undefined) searchParams.append('limit', params.limit.toString());
     if (params?.offset !== undefined) searchParams.append('offset', params.offset.toString());
 
-    return this.get<MessageResponse>('/messages/', searchParams);
+    return this.get<TextMessageResponse>('/messages/', searchParams);
   }
 
-  async getMessage(id: string): Promise<Message> {
-    return this.get<Message>(`/messages/${id}/`);
+  async getMessage(id: string): Promise<TextMessage> {
+    return this.get<TextMessage>(`/messages/${id}/`);
   }
 
-  async getMessagesByChannel(channel: number, params?: { limit?: number; offset?: number }): Promise<MessageResponse> {
+  async getMessagesByChannel(
+    channel: number,
+    params?: { limit?: number; offset?: number }
+  ): Promise<TextMessageResponse> {
     const searchParams = new URLSearchParams();
     searchParams.append('channel', channel.toString());
     if (params?.limit !== undefined) searchParams.append('limit', params.limit.toString());
     if (params?.offset !== undefined) searchParams.append('offset', params.offset.toString());
 
-    return this.get<MessageResponse>('/messages/by_channel/', searchParams);
+    return this.get<TextMessageResponse>('/messages/by_channel/', searchParams);
   }
 
-  async getMessagesByNode(nodeId: number, params?: { limit?: number; offset?: number }): Promise<MessageResponse> {
+  async getMessagesByNode(nodeId: number, params?: { limit?: number; offset?: number }): Promise<TextMessageResponse> {
     const searchParams = new URLSearchParams();
     searchParams.append('node', nodeId.toString());
     if (params?.limit !== undefined) searchParams.append('limit', params.limit.toString());
     if (params?.offset !== undefined) searchParams.append('offset', params.offset.toString());
 
-    return this.get<MessageResponse>('/messages/by_node/', searchParams);
+    return this.get<TextMessageResponse>('/messages/by_node/', searchParams);
   }
 
   async getGlobalStats(params?: DateRangeIntervalParams): Promise<GlobalStats> {
@@ -182,5 +187,32 @@ export class MeshtasticApi extends BaseApi {
         end_date: new Date(interval.end_date).toISOString(),
       })),
     };
+  }
+
+  async getConstellations(): Promise<Constellation[]> {
+    const response = await this.get<PaginatedResponse<Constellation>>('/constellations');
+    return response.results;
+  }
+
+  async getConstellationChannels(constellationId: number): Promise<MessageChannel[]> {
+    return this.get<MessageChannel[]>(`/constellations/${constellationId}/channels`);
+  }
+
+  /**
+   * Fetch messages using the v2 endpoint: /messages/text?channel_id=...&constellation_id=...
+   * Supports pagination via page and page_size.
+   */
+  async getTextMessagesByChannelAndConstellation(params: {
+    channelId: number;
+    constellationId: number;
+    page?: number;
+    page_size?: number;
+  }): Promise<TextMessageResponse> {
+    const searchParams = new URLSearchParams();
+    searchParams.append('channel_id', params.channelId.toString());
+    searchParams.append('constellation_id', params.constellationId.toString());
+    if (params.page) searchParams.append('page', params.page.toString());
+    if (params.page_size) searchParams.append('page_size', params.page_size.toString());
+    return this.get<TextMessageResponse>('/messages/text/', searchParams);
   }
 }
