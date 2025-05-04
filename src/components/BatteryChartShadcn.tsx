@@ -1,8 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from 'recharts';
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ReferenceArea } from 'recharts';
 import { useNodes } from '@/lib/hooks/useNodes';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
@@ -37,6 +39,7 @@ export function BatteryChartShadcn({
     startDate: new Date(Date.now() - 48 * 60 * 60 * 1000), // Default to 48 hours ago
     endDate: new Date(),
   });
+  const [displayMode, setDisplayMode] = React.useState<'voltage' | 'percentage'>('voltage');
 
   const { useNodeMetrics } = useNodes();
   const metricsQuery = useNodeMetrics(nodeId, dateRange);
@@ -54,22 +57,38 @@ export function BatteryChartShadcn({
     },
   };
 
+  // Helper for ReferenceArea shading
+  const getShadingAreas = () => {
+    if (displayMode === 'voltage') {
+      return [
+        { y1: 3.0, y2: 3.3, color: 'rgba(255,0,0,0.15)' },
+        { y1: 3.3, y2: 3.6, color: 'rgba(255,255,0,0.10)' },
+        { y1: 3.6, y2: 4.2, color: 'rgba(0,255,0,0.08)' },
+        { y1: 4.2, y2: 4.3, color: 'rgba(255,0,0,0.10)' },
+      ];
+    } else {
+      return [
+        { y1: 0, y2: 20, color: 'rgba(255,0,0,0.15)' },
+        { y1: 20, y2: 40, color: 'rgba(255,255,0,0.10)' },
+        { y1: 40, y2: 100, color: 'rgba(0,255,0,0.08)' },
+      ];
+    }
+  };
+
+  // Formatter for tooltip and axis
   const formatter: Formatter<ValueType, NameType> = (value: ValueType, name: NameType) => {
     const numValue = typeof value === 'string' ? parseFloat(value) : value;
     if (typeof numValue !== 'number') return [String(value), name];
-
-    switch (name) {
-      case 'voltage':
-        return [`${numValue.toFixed(2)}V`, 'Voltage'];
-      case 'batteryLevel':
-        return [`${numValue.toFixed(1)}%`, 'Battery Level'];
-      case 'chUtil':
-        return [`${numValue.toFixed(1)}%`, 'Channel Utilization'];
-      case 'airUtil':
-        return [`${numValue.toFixed(1)}%`, 'Air Utilization'];
-      default:
-        return [String(value), name];
+    if (displayMode === 'voltage' && name === 'voltage') {
+      return [`${numValue.toFixed(2)}V`, 'Voltage'];
+    } else if (displayMode === 'percentage' && name === 'batteryLevel') {
+      return [`${numValue.toFixed(1)}%`, 'Battery Level'];
+    } else if (name === 'chUtil') {
+      return [`${numValue.toFixed(1)}%`, 'Channel Utilization'];
+    } else if (name === 'airUtil') {
+      return [`${numValue.toFixed(1)}%`, 'Air Utilization'];
     }
+    return [String(value), name];
   };
 
   // Transform metrics data to chart format
@@ -94,6 +113,14 @@ export function BatteryChartShadcn({
         </CardDescription>
         <div className="absolute right-4 top-4">
           <TimeRangeSelect options={timeRangeOptions} value={timeRangeLabel} onChange={handleTimeRangeChange} />
+        </div>
+        <div className="absolute right-4 top-16 flex items-center gap-2">
+          <Switch
+            id="display-mode"
+            checked={displayMode === 'percentage'}
+            onCheckedChange={(checked) => setDisplayMode(checked ? 'percentage' : 'voltage')}
+          />
+          <Label htmlFor="display-mode">Show as {displayMode === 'voltage' ? 'Voltage' : 'Percentage'}</Label>
         </div>
       </CardHeader>
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
@@ -120,6 +147,18 @@ export function BatteryChartShadcn({
                   </linearGradient>
                 </defs>
                 <CartesianGrid vertical={false} />
+                {/* Shading bands */}
+                {getShadingAreas().map((area, idx) => (
+                  <ReferenceArea
+                    key={idx}
+                    yAxisId={displayMode === 'voltage' ? 'voltage' : 'battery'}
+                    y1={area.y1}
+                    y2={area.y2}
+                    stroke={undefined}
+                    fill={area.color}
+                    ifOverflow="extendDomain"
+                  />
+                ))}
                 <Legend
                   verticalAlign="bottom"
                   height={36}
@@ -164,8 +203,14 @@ export function BatteryChartShadcn({
                   orientation="right"
                   domain={[3.0, 4.2]}
                   tickFormatter={(value) => `${value}V`}
+                  hide={displayMode !== 'voltage'}
                 />
-                <YAxis yAxisId="battery" domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+                <YAxis
+                  yAxisId="battery"
+                  domain={[0, 100]}
+                  tickFormatter={(value) => `${value}%`}
+                  hide={displayMode !== 'percentage'}
+                />
                 <Tooltip
                   content={
                     <ChartTooltipContent
@@ -198,86 +243,44 @@ export function BatteryChartShadcn({
                     />
                   }
                 />
+                {displayMode === 'voltage' && (
+                  <Area
+                    yAxisId="voltage"
+                    type="monotone"
+                    dataKey="voltage"
+                    stroke="#d0a8ff"
+                    fill="none"
+                    strokeWidth={2}
+                  />
+                )}
+                {displayMode === 'percentage' && (
+                  <Area
+                    yAxisId="battery"
+                    type="monotone"
+                    dataKey="batteryLevel"
+                    stroke="#76d9c4"
+                    fill="none"
+                    strokeWidth={2}
+                  />
+                )}
                 <Area
-                  yAxisId="voltage"
+                  yAxisId={displayMode === 'voltage' ? 'battery' : 'battery'}
                   type="monotone"
-                  dataKey="voltage"
-                  stroke="#d0a8ff"
+                  dataKey="chUtil"
+                  stroke="#ff7b72"
                   fill="none"
-                  strokeWidth={2}
+                  dot={{ r: 4 }}
                 />
                 <Area
-                  yAxisId="battery"
+                  yAxisId={displayMode === 'voltage' ? 'battery' : 'battery'}
                   type="monotone"
-                  dataKey="batteryLevel"
-                  stroke="#76d9c4"
+                  dataKey="airUtil"
+                  stroke="#ffa657"
                   fill="none"
-                  strokeWidth={2}
+                  dot={{ r: 4 }}
                 />
-                <Area yAxisId="battery" type="monotone" dataKey="chUtil" stroke="#ff7b72" fill="none" dot={{ r: 4 }} />
-                <Area yAxisId="battery" type="monotone" dataKey="airUtil" stroke="#ffa657" fill="none" dot={{ r: 4 }} />
               </AreaChart>
             </ChartContainer>
-
-            {/* Debug Information */}
-            <div className="mt-8 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono overflow-auto">
-              <h3 className="font-bold mb-2">Debug Information</h3>
-
-              <div className="mb-4">
-                <h4 className="font-semibold">Date Range:</h4>
-                <p>
-                  Start: {dateRange.startDate.toISOString()} ({dateRange.startDate.getTime()})
-                </p>
-                <p>
-                  End: {dateRange.endDate.toISOString()} ({dateRange.endDate.getTime()})
-                </p>
-                <p>
-                  Duration:{' '}
-                  {Math.round((dateRange.endDate.getTime() - dateRange.startDate.getTime()) / (1000 * 60 * 60))} hours
-                </p>
-              </div>
-
-              <div className="mb-4">
-                <h4 className="font-semibold">Data Points ({chartData.length}):</h4>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full border-collapse">
-                    <thead>
-                      <tr className="bg-gray-200 dark:bg-gray-700">
-                        <th className="border p-1 text-left">Index</th>
-                        <th className="border p-1 text-left">Raw timestamp</th>
-                        <th className="border p-1 text-left">Timestamp</th>
-                        <th className="border p-1 text-left">Timestamp (ms)</th>
-                        <th className="border p-1 text-left">Voltage</th>
-                        <th className="border p-1 text-left">Battery Level</th>
-                        <th className="border p-1 text-left">Ch Util</th>
-                        <th className="border p-1 text-left">Air Util</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {chartData.map((point, index) => (
-                        <tr key={index} className={index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-900' : ''}>
-                          <td className="border p-1">{index}</td>
-                          <td className="border p-1">{point.timestamp}</td>
-                          <td className="border p-1">{new Date(point.timestamp).toISOString()}</td>
-                          <td className="border p-1">{new Date(point.timestamp).getTime()}</td>
-                          <td className="border p-1">{point.voltage}</td>
-                          <td className="border p-1">{point.batteryLevel}</td>
-                          <td className="border p-1">{point.chUtil}</td>
-                          <td className="border p-1">{point.airUtil}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-semibold">Raw API Response:</h4>
-                <pre className="bg-gray-200 dark:bg-gray-700 p-2 rounded overflow-auto max-h-40">
-                  {JSON.stringify(metricsQuery.data, null, 2)}
-                </pre>
-              </div>
-            </div>
           </>
         )}
       </CardContent>
