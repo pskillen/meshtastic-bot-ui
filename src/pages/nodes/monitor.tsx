@@ -8,14 +8,46 @@ import { Plus } from 'lucide-react';
 import { NodeSelector } from '@/components/nodes/NodeSelector';
 import { useState } from 'react';
 import { NodeData } from '@/lib/models';
+import { authService } from '@/lib/auth/authService';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+// View mode configuration for easy expansion
+const VIEW_MODES = {
+  monitored: {
+    label: 'Monitored Nodes',
+    editable: true,
+    tableTitle: 'Monitored Nodes',
+    tableDescription: 'List of nodes being actively monitored',
+  },
+  mine: {
+    label: 'My Nodes',
+    editable: false,
+    tableTitle: 'My Nodes',
+    tableDescription: 'List of nodes you own',
+  },
+  // Add more modes here as needed
+} as const;
+
+type ViewMode = keyof typeof VIEW_MODES;
 
 export default function MonitorNodesPage() {
   const [isAddingNode, setIsAddingNode] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('monitored');
   const { nodes, isLoading, isLoadingMoreNodes } = useNodes();
   const { monitoredNodeIds, addNode, removeNode } = useMonitoredNodes();
 
+  // Get current user ID
+  const currentUser = authService.getCurrentUser();
+  const currentUserId = currentUser?.id;
+
   // Filter nodes to only show monitored ones
   const monitoredNodes = nodes?.filter((node: NodeData) => monitoredNodeIds.includes(node.node_id)) || [];
+  // Filter nodes to only show those owned by the current user
+  const myNodes = nodes?.filter((node: NodeData) => node.owner?.id === currentUserId) || [];
+
+  const nodesToDisplay = viewMode === 'monitored' ? monitoredNodes : myNodes;
+
+  const { editable, tableTitle, tableDescription } = VIEW_MODES[viewMode];
 
   if (isLoading) {
     return (
@@ -34,10 +66,24 @@ export default function MonitorNodesPage() {
             <span className="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary"></span>
           )}
         </div>
-        <Button onClick={() => setIsAddingNode(true)} className="flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          Add Node
-        </Button>
+        <div className="flex items-center gap-2">
+          <Select value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(VIEW_MODES).map(([key, config]) => (
+                <SelectItem key={key} value={key}>
+                  {config.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={() => setIsAddingNode(true)} className="flex items-center gap-2" disabled={!editable}>
+            <Plus className="w-4 h-4" />
+            Add Node
+          </Button>
+        </div>
       </div>
 
       {isAddingNode && (
@@ -52,24 +98,33 @@ export default function MonitorNodesPage() {
         />
       )}
 
-      {monitoredNodes.length > 0 ? (
+      {nodesToDisplay.length > 0 ? (
         <>
           <div className="h-[400px] bg-background rounded-lg border">
-            <NodesMap nodes={monitoredNodes} />
+            <NodesMap nodes={nodesToDisplay} />
           </div>
 
           <div className="bg-background rounded-lg border">
-            <MonitoredNodesBatteryChart nodes={monitoredNodes} />
+            <MonitoredNodesBatteryChart nodes={nodesToDisplay} />
           </div>
 
           <div className="bg-background rounded-lg border">
-            <MonitoredNodesTable nodes={monitoredNodes} onRemoveNode={removeNode} isLoadingMore={isLoadingMoreNodes} />
+            <MonitoredNodesTable
+              nodes={nodesToDisplay}
+              onRemoveNode={removeNode}
+              isLoadingMore={isLoadingMoreNodes}
+              editable={editable}
+              title={tableTitle}
+              description={tableDescription}
+            />
           </div>
         </>
       ) : (
         <div className="text-center py-12 bg-background rounded-lg border">
-          <h3 className="text-lg font-medium">No nodes being monitored</h3>
-          <p className="text-muted-foreground mt-2">Add nodes to monitor their status and metrics</p>
+          <h3 className="text-lg font-medium">No nodes to display</h3>
+          <p className="text-muted-foreground mt-2">
+            {viewMode === 'monitored' ? 'Add nodes to monitor their status and metrics' : 'You do not own any nodes.'}
+          </p>
         </div>
       )}
     </div>

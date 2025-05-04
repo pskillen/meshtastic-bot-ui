@@ -5,6 +5,11 @@ export interface PaginatedResponse<T> {
   results: T[];
 }
 
+export interface NodeOwnerInfo {
+  id: number;
+  username: string;
+}
+
 // ObservedNode from Meshflow API v2
 export interface ObservedNode {
   internal_id: number;
@@ -20,6 +25,7 @@ export interface ObservedNode {
   last_heard?: Date | null;
   latest_device_metrics?: DeviceMetrics | null;
   latest_position?: Position | null;
+  owner?: NodeOwnerInfo | null;
 }
 
 // ManagedNode from Meshflow API v2
@@ -33,6 +39,7 @@ export interface ManagedNode {
 }
 
 // For backward compatibility
+// TODO: We need to get rid of this and use ObservedNode everywhere
 export interface NodeData extends ObservedNode {
   id: number; // Maps to internal_id
   hardware_model: string | null; // Maps to hw_model
@@ -91,6 +98,7 @@ export interface NodeSearchResult {
   node_id_str: string;
   short_name: string | null;
   long_name: string | null;
+  owner?: NodeOwnerInfo | null;
 }
 
 // Global Stats types from Meshflow API v2
