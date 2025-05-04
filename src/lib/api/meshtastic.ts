@@ -74,8 +74,8 @@ export class MeshtasticApi extends BaseApi {
 
   async getNodeDeviceMetrics(id: number, params?: DateRangeParams): Promise<DeviceMetrics[]> {
     const searchParams = new URLSearchParams();
-    if (params?.startDate) searchParams.append('startDate', params.startDate.toISOString());
-    if (params?.endDate) searchParams.append('endDate', params.endDate.toISOString());
+    if (params?.startDate) searchParams.append('start_date', params.startDate.toISOString());
+    if (params?.endDate) searchParams.append('end_date', params.endDate.toISOString());
 
     const metrics = await this.get<DeviceMetrics[]>(`/nodes/observed-nodes/${id}/device_metrics/`, searchParams);
     return metrics.map((metric) => ({
@@ -87,8 +87,8 @@ export class MeshtasticApi extends BaseApi {
 
   async getNodePositions(id: number, params?: DateRangeParams): Promise<Position[]> {
     const searchParams = new URLSearchParams();
-    if (params?.startDate) searchParams.append('startDate', params.startDate.toISOString());
-    if (params?.endDate) searchParams.append('endDate', params.endDate.toISOString());
+    if (params?.startDate) searchParams.append('start_date', params.startDate.toISOString());
+    if (params?.endDate) searchParams.append('end_date', params.endDate.toISOString());
 
     const positions = await this.get<Position[]>(`/nodes/observed-nodes/${id}/positions/`, searchParams);
     return positions.map((position) => ({

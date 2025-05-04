@@ -110,4 +110,25 @@ export const authService = {
 
     return config;
   },
+
+  // Decode JWT access token and extract user info
+  getCurrentUser(): { id: number; username: string } | null {
+    const token = this.getAccessToken();
+    if (!token) return null;
+    try {
+      // JWT format: header.payload.signature
+      const payload = token.split('.')[1];
+      if (!payload) return null;
+      const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+      // Typical JWT user fields: user_id or id, and username
+      const id = decoded.user_id || decoded.id;
+      const username = decoded.username;
+      if (typeof id === 'number' && typeof username === 'string') {
+        return { id, username };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  },
 };

@@ -8,19 +8,29 @@ interface MonitoredNodesTableProps {
   nodes: NodeData[];
   onRemoveNode: (nodeId: number) => void;
   isLoadingMore?: boolean;
+  editable?: boolean;
+  title?: string;
+  description?: string;
 }
 
-export function MonitoredNodesTable({ nodes, onRemoveNode, isLoadingMore }: MonitoredNodesTableProps) {
+export function MonitoredNodesTable({
+  nodes,
+  onRemoveNode,
+  isLoadingMore,
+  editable = true,
+  title = 'Monitored Nodes',
+  description = 'List of nodes being actively monitored',
+}: MonitoredNodesTableProps) {
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          Monitored Nodes
+          {title}
           {isLoadingMore && (
             <span className="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary"></span>
           )}
         </CardTitle>
-        <CardDescription>List of nodes being actively monitored</CardDescription>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <div className="p-4">
         <Table>
@@ -77,9 +87,11 @@ export function MonitoredNodesTable({ nodes, onRemoveNode, isLoadingMore }: Moni
                   )}
                 </TableCell>
                 <TableCell>
-                  <Button variant="ghost" size="icon" onClick={() => onRemoveNode(node.node_id)} className="h-8 w-8">
-                    <X className="h-4 w-4" />
-                  </Button>
+                  {editable && (
+                    <Button variant="ghost" size="icon" onClick={() => onRemoveNode(node.node_id)} className="h-8 w-8">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
