@@ -77,7 +77,7 @@ const columns: ColumnDef<NodeData>[] = [
     accessorKey: 'id',
     header: 'Node ID',
     cell: ({ row }) => {
-      return <span className="font-mono text-sm">{meshtasticIdToHex(row.original.id)}</span>;
+      return <span className="font-mono text-sm">{meshtasticIdToHex(row.original.node_id)}</span>;
     },
   },
 ];
