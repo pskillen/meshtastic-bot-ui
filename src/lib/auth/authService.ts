@@ -3,6 +3,7 @@ import { ApiConfig } from '@/types/types';
 // Token storage keys
 const ACCESS_TOKEN_KEY = 'meshflow_access_token';
 const REFRESH_TOKEN_KEY = 'meshflow_refresh_token';
+const AUTH_PROVIDER_KEY = 'meshflow_auth_provider';
 
 // Token interface
 export interface AuthTokens {
@@ -10,12 +11,16 @@ export interface AuthTokens {
   refresh: string;
 }
 
+// Auth provider type
+export type AuthProvider = 'password' | 'google' | null;
+
 // Authentication service
 export const authService = {
   // Store tokens in local storage
-  setTokens(tokens: AuthTokens): void {
+  setTokens(tokens: AuthTokens, provider: AuthProvider = 'password'): void {
     localStorage.setItem(ACCESS_TOKEN_KEY, tokens.access);
     localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh);
+    localStorage.setItem(AUTH_PROVIDER_KEY, provider || '');
   },
 
   // Get access token from local storage
@@ -28,10 +33,17 @@ export const authService = {
     return localStorage.getItem(REFRESH_TOKEN_KEY);
   },
 
+  // Get auth provider from local storage
+  getAuthProvider(): AuthProvider {
+    const provider = localStorage.getItem(AUTH_PROVIDER_KEY);
+    return (provider as AuthProvider) || null;
+  },
+
   // Clear tokens from local storage
   clearTokens(): void {
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_PROVIDER_KEY);
   },
 
   // Check if user is authenticated
@@ -91,6 +103,43 @@ export const authService = {
   // Logout user
   logout(): void {
     this.clearTokens();
+  },
+
+  // Login with Google
+  async loginWithGoogle(baseUrl: string, googleToken: string): Promise<AuthTokens> {
+    const response = await fetch(`${baseUrl}/api/auth/social/google/token/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ access_token: googleToken }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Google login failed');
+    }
+
+    const tokens = await response.json();
+    this.setTokens(tokens, 'google');
+    return tokens;
+  },
+
+  // Get Google auth URL and redirect
+  async getGoogleAuthUrl(baseUrl: string): Promise<string> {
+    const response = await fetch(`${baseUrl}/api/auth/social/google/`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get Google authorization URL');
+    }
+
+    const data = await response.json();
+    return data.authorization_url;
   },
 
   // Update API config with current token
