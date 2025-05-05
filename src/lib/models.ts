@@ -30,12 +30,24 @@ export interface ObservedNode {
 
 // ManagedNode from Meshflow API v2
 export interface ManagedNode {
-  internal_id: string;
   node_id: number;
-  owner: number;
-  constellation: number;
-  name: string;
+  long_name: string | null;
+  short_name: string | null;
+  last_heard: Date | null;
   node_id_str: string;
+  owner: {
+    id: number;
+    username: string;
+  };
+  constellation: {
+    id: number;
+    name: string;
+    map_color: string;
+  };
+  position: {
+    latitude: number | null;
+    longitude: number | null;
+  };
 }
 
 // For backward compatibility

@@ -1,6 +1,6 @@
 import { PacketStatsChart } from '@/components/PacketStatsChart';
 import { NodeActivityTable } from '@/components/NodeActivityTable';
-import { NodesMap } from '@/components/nodes/NodesMap';
+import { ConstellationsMap } from '@/components/nodes/ConstellationsMap';
 import { useNodes } from '@/lib/hooks/useNodes';
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +15,7 @@ const packetChartConfig = {
 } satisfies ChartConfig;
 
 export function Dashboard() {
-  const { nodes, isLoading, isLoadingMoreNodes } = useNodes();
+  const { nodes, managedNodes, isLoading, isLoadingMoreNodes, isLoadingManagedNodes } = useNodes();
 
   const onlineNodes =
     nodes?.filter((node) => {
@@ -56,20 +56,28 @@ export function Dashboard() {
         </Card>
       </div>
       <div className="px-4 lg:px-6">
-        <PacketStatsChart title="Mesh Activity" description="Total packets per hour" config={packetChartConfig} />
-      </div>
-      <div className="px-4 lg:px-6">
         <Card>
           <CardHeader>
-            <CardTitle>Node Locations</CardTitle>
-            <CardDescription>Map showing the location of all nodes in the network</CardDescription>
+            <CardTitle>Constellation Map</CardTitle>
+            <CardDescription>
+              Constellations represent local regions on the mesh. Below is a map of nodes which report into Meshflow.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[400px] w-full">
-              <NodesMap nodes={nodes || []} />
+              {isLoadingManagedNodes ? (
+                <div className="flex h-full items-center justify-center">
+                  <span className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></span>
+                </div>
+              ) : (
+                <ConstellationsMap nodes={managedNodes || []} />
+              )}
             </div>
           </CardContent>
         </Card>
+      </div>
+      <div className="px-4 lg:px-6">
+        <PacketStatsChart title="Mesh Activity" description="Total packets per hour" config={packetChartConfig} />
       </div>
       <div className="px-4 lg:px-6">
         <NodeActivityTable nodes={nodes || []} isLoading={isLoading} isLoadingMore={isLoadingMoreNodes} />
