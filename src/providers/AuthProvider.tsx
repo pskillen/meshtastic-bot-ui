@@ -82,10 +82,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
             setIsLoading(true);
             switch (provider) {
               case 'github':
-                // await handleGitHubCallback(code);
+                await handleGitHubCallback(code);
                 break;
               case 'google':
-                // await handleGoogleCallback(code);
+                await handleGoogleCallback(code);
                 break;
               default:
                 throw new Error(`Unsupported provider: ${provider}`);
@@ -149,7 +149,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  /*  // Handle Google callback
+  // Handle Google callback
   const handleGoogleCallback = async (code: string) => {
     setError(null);
     setIsLoading(true);
@@ -185,7 +185,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } finally {
       setIsLoading(false);
     }
-  }; */
+  };
 
   // Logout function
   const logout = () => {
