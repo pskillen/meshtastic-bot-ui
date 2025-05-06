@@ -12,7 +12,7 @@ export interface AuthTokens {
 }
 
 // Auth provider type
-export type AuthProvider = 'password' | 'google' | null;
+export type AuthProvider = 'password' | 'google' | 'github' | null;
 
 // Authentication service
 export const authService = {
@@ -125,6 +125,26 @@ export const authService = {
     return tokens;
   },
 
+  // Login with GitHub
+  async loginWithGitHub(baseUrl: string, githubToken: string): Promise<AuthTokens> {
+    const response = await fetch(`${baseUrl}/api/auth/social/github/token/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ access_token: githubToken }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'GitHub login failed');
+    }
+
+    const tokens = await response.json();
+    this.setTokens(tokens, 'github');
+    return tokens;
+  },
+
   // Get Google auth URL and redirect
   async getGoogleAuthUrl(baseUrl: string): Promise<string> {
     const response = await fetch(`${baseUrl}/api/auth/social/google/`, {
@@ -136,6 +156,23 @@ export const authService = {
 
     if (!response.ok) {
       throw new Error('Failed to get Google authorization URL');
+    }
+
+    const data = await response.json();
+    return data.authorization_url;
+  },
+
+  // Get GitHub auth URL and redirect
+  async getGitHubAuthUrl(baseUrl: string): Promise<string> {
+    const response = await fetch(`${baseUrl}/api/auth/social/github/`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get GitHub authorization URL');
     }
 
     const data = await response.json();

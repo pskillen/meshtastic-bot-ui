@@ -9,7 +9,9 @@ interface AuthContextType {
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
+  loginWithGitHub: () => Promise<void>;
   handleGoogleCallback: (code: string) => Promise<void>;
+  handleGitHubCallback: (code: string) => Promise<void>;
   logout: () => void;
   error: string | null;
   authProvider: AuthProviderType;
@@ -49,20 +51,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
     checkAuth();
   }, []);
 
-  // Handle Google OAuth callback
+  // Handle OAuth callback
   useEffect(() => {
     const handleCallback = async () => {
-      // Check if this is a callback from Google OAuth
+      // Check if this is a callback from OAuth
       if (location.pathname === '/auth/callback' && location.search) {
         const params = new URLSearchParams(location.search);
         const code = params.get('code');
+        const state = params.get('state');
+        const provider = state ? state.split(':')[0] : 'google'; // Default to google if no state
 
         if (code) {
           try {
             setIsLoading(true);
-            await handleGoogleCallback(code);
+            if (provider === 'github') {
+              await handleGitHubCallback(code);
+            } else {
+              await handleGoogleCallback(code);
+            }
           } catch (err) {
-            setError(err instanceof Error ? err.message : 'Google authentication failed');
+            setError(err instanceof Error ? err.message : `${provider} authentication failed`);
           } finally {
             setIsLoading(false);
           }
@@ -106,6 +114,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  // Login with GitHub
+  const loginWithGitHub = async () => {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      // Get the GitHub auth URL and redirect to it
+      const githubAuthUrl = await authService.getGitHubAuthUrl(config.apis.meshBot.baseUrl);
+      window.location.href = githubAuthUrl;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to get GitHub authorization URL');
+      setIsLoading(false);
+    }
+  };
+
   // Handle Google callback
   const handleGoogleCallback = async (code: string) => {
     setError(null);
@@ -125,6 +148,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  // Handle GitHub callback
+  const handleGitHubCallback = async (code: string) => {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      // Exchange the code for tokens
+      await authService.loginWithGitHub(config.apis.meshBot.baseUrl, code);
+      setIsAuthenticated(true);
+      setAuthProvider('github');
+      navigate('/'); // Redirect to home page after login
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'GitHub login failed');
+      setIsAuthenticated(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Logout function
   const logout = () => {
     authService.logout();
@@ -138,7 +180,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isLoading,
     login,
     loginWithGoogle,
+    loginWithGitHub,
     handleGoogleCallback,
+    handleGitHubCallback,
     logout,
     error,
     authProvider,

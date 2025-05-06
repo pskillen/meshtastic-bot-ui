@@ -11,6 +11,7 @@ import { Settings } from '@/pages/settings/Settings';
 import { Dashboard } from '@/pages/Dashboard';
 import { NodeDetails } from '@/pages/nodes/NodeDetails';
 import { LoginPage } from '@/pages/auth/LoginPage';
+import { OAuthCallback } from '@/pages/auth/OAuthCallback';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import MonitorNodes from '@/pages/nodes/monitor';
@@ -24,6 +25,7 @@ function App() {
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/auth/callback" element={<OAuthCallback />} />
 
               {/* Protected routes with AppLayout */}
               <Route
