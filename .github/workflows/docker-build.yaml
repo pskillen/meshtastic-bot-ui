@@ -10,11 +10,9 @@ on:
         required: true
         type: string
 
-
 permissions:
   contents: read
   packages: write
-
 
 jobs:
   extract-tag:
@@ -22,7 +20,7 @@ jobs:
 
     outputs:
       LATEST_TAG: ${{ steps.set_tags.outputs.LATEST_TAG }}
-      
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -43,7 +41,6 @@ jobs:
           fi
           echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
           echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_OUTPUT
-
 
   build:
     needs:

@@ -32,4 +32,4 @@ jobs:
     uses: ./.github/workflows/docker-build.yaml
     with:
       VERSION_LABEL: ${{ needs.extract-tag.outputs.VERSION_LABEL }}
-      ENVIRONMENT: ${{ needs.extract-tag.outputs.ENVIRONMENT }} 
+      ENVIRONMENT: ${{ needs.extract-tag.outputs.ENVIRONMENT }}
