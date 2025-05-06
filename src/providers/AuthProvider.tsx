@@ -10,8 +10,8 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   loginWithGitHub: () => Promise<void>;
-  handleGoogleCallback: (code: string) => Promise<void>;
-  handleGitHubCallback: (code: string) => Promise<void>;
+  // handleGoogleCallback: (code: string) => Promise<void>;
+  // handleGitHubCallback: (code: string) => Promise<void>;
   logout: () => void;
   error: string | null;
   authProvider: AuthProviderType;
@@ -54,20 +54,41 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Handle OAuth callback
   useEffect(() => {
     const handleCallback = async () => {
-      // Check if this is a callback from OAuth
-      if (location.pathname === '/auth/callback' && location.search) {
+      // Handle /auth/callback (code+state) and /oauth/callback (token)
+      if ((location.pathname === '/auth/callback' || location.pathname === '/oauth/callback') && location.search) {
         const params = new URLSearchParams(location.search);
+        const token = params.get('token');
+        if (token) {
+          // Direct JWT token from backend (e.g. /oauth/callback?token=...)
+          try {
+            setIsLoading(true);
+            authService.setTokens({ access: token, refresh: '' }, null); // No refresh token, provider unknown
+            setIsAuthenticated(true);
+            setAuthProvider(null);
+            navigate('/');
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'OAuth token handling failed');
+          } finally {
+            setIsLoading(false);
+          }
+          return;
+        }
+        // Existing code-based OAuth flow
         const code = params.get('code');
         const state = params.get('state');
-        const provider = state ? state.split(':')[0] : 'google'; // Default to google if no state
-
+        const provider = state?.split(':')[0];
         if (code) {
           try {
             setIsLoading(true);
-            if (provider === 'github') {
-              await handleGitHubCallback(code);
-            } else {
-              await handleGoogleCallback(code);
+            switch (provider) {
+              case 'github':
+                // await handleGitHubCallback(code);
+                break;
+              case 'google':
+                // await handleGoogleCallback(code);
+                break;
+              default:
+                throw new Error(`Unsupported provider: ${provider}`);
             }
           } catch (err) {
             setError(err instanceof Error ? err.message : `${provider} authentication failed`);
@@ -77,7 +98,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }
     };
-
     handleCallback();
   }, [location]);
 
@@ -129,7 +149,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  // Handle Google callback
+  /*  // Handle Google callback
   const handleGoogleCallback = async (code: string) => {
     setError(null);
     setIsLoading(true);
@@ -165,7 +185,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }; */
 
   // Logout function
   const logout = () => {
@@ -181,8 +201,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     login,
     loginWithGoogle,
     loginWithGitHub,
-    handleGoogleCallback,
-    handleGitHubCallback,
+    // handleGoogleCallback,
+    // handleGitHubCallback,
     logout,
     error,
     authProvider,

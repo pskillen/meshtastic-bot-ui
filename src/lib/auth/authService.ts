@@ -127,12 +127,13 @@ export const authService = {
 
   // Login with GitHub
   async loginWithGitHub(baseUrl: string, githubToken: string): Promise<AuthTokens> {
-    const response = await fetch(`${baseUrl}/api/auth/social/github/token/`, {
+    // const response = await fetch(`${baseUrl}/api/auth/social/github/token/`, {
+    const response = await fetch(`${baseUrl}/api/auth/github/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ access_token: githubToken }),
+      body: JSON.stringify({ code: githubToken }),
     });
 
     if (!response.ok) {
