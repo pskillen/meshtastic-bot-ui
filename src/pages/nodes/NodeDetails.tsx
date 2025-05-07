@@ -68,9 +68,19 @@ export function NodeDetails() {
         ← Back to Nodes
       </Link>
 
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">{node.short_name}</h1>
-        <p className="text-gray-600">{node.long_name}</p>
+      <div className="mb-6 flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold">{node.short_name}</h1>
+          <p className="text-gray-600">{node.long_name}</p>
+        </div>
+        {!node.owner && (
+          <Link
+            to={`/nodes/${nodeId}/claim`}
+            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+          >
+            Claim Node
+          </Link>
+        )}
       </div>
 
       {recentNodes.length > 1 && (
