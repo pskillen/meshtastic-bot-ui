@@ -75,6 +75,52 @@ export const authService = {
     }
   },
 
+  // Update user details
+  async updateUserDetails(baseUrl: string, userData: { email?: string; display_name?: string }): Promise<User> {
+    const accessToken = this.getAccessToken();
+    if (!accessToken) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${baseUrl}/api/auth/user/`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userData),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update user details');
+    }
+
+    const user = await response.json();
+    this.setUserDetails(user);
+    return user;
+  },
+
+  // Change password
+  async changePassword(baseUrl: string, passwords: { new_password1: string; new_password2: string }): Promise<void> {
+    const accessToken = this.getAccessToken();
+    if (!accessToken) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${baseUrl}/api/auth/password/change/`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(passwords),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to change password');
+    }
+  },
+
   // Fetch user details from the server
   async fetchUserDetails(baseUrl: string): Promise<User> {
     const accessToken = this.getAccessToken();

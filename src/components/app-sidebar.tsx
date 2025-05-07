@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import {
   ArrowUpCircleIcon,
   BarChartIcon,
-  MapIcon,
   MessageSquareIcon,
   NetworkIcon,
   SettingsIcon,
@@ -14,6 +13,7 @@ import { NavMain } from '@/components/nav-main';
 import { NavSecondary } from '@/components/nav-secondary';
 import { NavUser } from '@/components/nav-user';
 import { NodeSearch } from '@/components/NodeSearch';
+import { authService } from '@/lib/auth/authService';
 import {
   Sidebar,
   SidebarContent,
@@ -25,11 +25,6 @@ import {
 } from '@/components/ui/sidebar';
 
 const data = {
-  user: {
-    name: 'Meshtastic User',
-    email: 'user@example.com',
-    avatar: '/avatars/default.jpg',
-  },
   navMain: [
     {
       title: 'Dashboard',
@@ -47,11 +42,6 @@ const data = {
       icon: ActivityIcon,
     },
     {
-      title: 'Map',
-      url: '/map',
-      icon: MapIcon,
-    },
-    {
       title: 'Messages',
       url: '/messages',
       icon: MessageSquareIcon,
@@ -67,6 +57,9 @@ const data = {
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  // Get user details from authService
+  const currentUser = authService.getCurrentUser();
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -89,7 +82,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={currentUser} />
       </SidebarFooter>
     </Sidebar>
   );
