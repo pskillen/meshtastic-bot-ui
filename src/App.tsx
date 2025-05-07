@@ -12,6 +12,7 @@ import { Dashboard } from '@/pages/Dashboard';
 import { NodeDetails } from '@/pages/nodes/NodeDetails';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { OAuthCallback } from '@/pages/auth/OAuthCallback';
+import { UserPage } from '@/pages/user/UserPage';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import MonitorNodes from '@/pages/nodes/monitor';
@@ -42,6 +43,7 @@ function App() {
                 <Route path="/map" element={<NodeMap />} />
                 <Route path="/messages" element={<MessageHistory />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/user" element={<UserPage />} />
               </Route>
 
               {/* Catch all route */}

@@ -34,22 +34,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Check authentication status on mount
+  // Check authentication status on mount and initialize user if authenticated
   useEffect(() => {
-    const checkAuth = () => {
+    const checkAuth = async () => {
       const isAuth = authService.isAuthenticated();
       setIsAuthenticated(isAuth);
 
       if (isAuth) {
         const provider = authService.getAuthProvider();
         setAuthProvider(provider);
+
+        // Initialize user details
+        try {
+          await authService.initializeUser(config.apis.meshBot.baseUrl);
+        } catch (error) {
+          console.error('Failed to initialize user details:', error);
+        }
       }
 
       setIsLoading(false);
     };
 
     checkAuth();
-  }, []);
+  }, [config.apis.meshBot.baseUrl]);
 
   // Handle OAuth callback
   useEffect(() => {
