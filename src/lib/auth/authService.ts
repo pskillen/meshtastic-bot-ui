@@ -4,11 +4,23 @@ import { ApiConfig } from '@/types/types';
 const ACCESS_TOKEN_KEY = 'meshflow_access_token';
 const REFRESH_TOKEN_KEY = 'meshflow_refresh_token';
 const AUTH_PROVIDER_KEY = 'meshflow_auth_provider';
+const USER_DETAILS_KEY = 'meshflow_user_details';
 
 // Token interface
 export interface AuthTokens {
   access: string;
   refresh: string;
+}
+
+// User interface
+export interface User {
+  id: number;
+  username: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any; // For any additional fields
 }
 
 // Auth provider type
@@ -44,6 +56,47 @@ export const authService = {
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(AUTH_PROVIDER_KEY);
+    localStorage.removeItem(USER_DETAILS_KEY);
+  },
+
+  // Store user details in local storage
+  setUserDetails(user: User): void {
+    localStorage.setItem(USER_DETAILS_KEY, JSON.stringify(user));
+  },
+
+  // Get user details from local storage
+  getUserDetails(): User | null {
+    const userJson = localStorage.getItem(USER_DETAILS_KEY);
+    if (!userJson) return null;
+    try {
+      return JSON.parse(userJson) as User;
+    } catch {
+      return null;
+    }
+  },
+
+  // Fetch user details from the server
+  async fetchUserDetails(baseUrl: string): Promise<User> {
+    const accessToken = this.getAccessToken();
+    if (!accessToken) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${baseUrl}/api/auth/user/`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch user details');
+    }
+
+    const user = await response.json();
+    this.setUserDetails(user);
+    return user;
   },
 
   // Check if user is authenticated
@@ -68,6 +121,14 @@ export const authService = {
 
     const tokens = await response.json();
     this.setTokens(tokens);
+
+    // Fetch user details after successful login
+    try {
+      await this.fetchUserDetails(baseUrl);
+    } catch (error) {
+      console.error('Failed to fetch user details:', error);
+    }
+
     return tokens;
   },
 
@@ -105,6 +166,27 @@ export const authService = {
     this.clearTokens();
   },
 
+  // Initialize user details if authenticated
+  async initializeUser(baseUrl: string): Promise<User | null> {
+    if (!this.isAuthenticated()) {
+      return null;
+    }
+
+    // If we already have user details, return them
+    const storedUser = this.getUserDetails();
+    if (storedUser) {
+      return storedUser;
+    }
+
+    // Otherwise fetch user details from the server
+    try {
+      return await this.fetchUserDetails(baseUrl);
+    } catch (error) {
+      console.error('Failed to initialize user details:', error);
+      return null;
+    }
+  },
+
   // Login with Google
   async loginWithGoogle(baseUrl: string, googleToken: string): Promise<AuthTokens> {
     const response = await fetch(`${baseUrl}/api/auth/social/google/token/`, {
@@ -122,6 +204,14 @@ export const authService = {
 
     const tokens = await response.json();
     this.setTokens(tokens, 'google');
+
+    // Fetch user details after successful login
+    try {
+      await this.fetchUserDetails(baseUrl);
+    } catch (error) {
+      console.error('Failed to fetch user details:', error);
+    }
+
     return tokens;
   },
 
@@ -142,6 +232,14 @@ export const authService = {
 
     const tokens = await response.json();
     this.setTokens(tokens, 'github');
+
+    // Fetch user details after successful login
+    try {
+      await this.fetchUserDetails(baseUrl);
+    } catch (error) {
+      console.error('Failed to fetch user details:', error);
+    }
+
     return tokens;
   },
 
@@ -197,8 +295,15 @@ export const authService = {
     return config;
   },
 
-  // Decode JWT access token and extract user info
-  getCurrentUser(): { id: number; username: string } | null {
+  // Get current user from stored user details or decode JWT as fallback
+  getCurrentUser(): User | null {
+    // First try to get user from stored details
+    const storedUser = this.getUserDetails();
+    if (storedUser) {
+      return storedUser;
+    }
+
+    // Fallback to decoding JWT if no stored user details
     const token = this.getAccessToken();
     if (!token) return null;
     try {
