@@ -12,6 +12,7 @@ import {
   MessageChannel,
   TextMessage,
   TextMessageResponse,
+  NodeClaim,
 } from '../models';
 import { DateRangeParams, DateRangeIntervalParams, PaginationParams } from '../types';
 import { ApiConfig } from '@/types/types';
@@ -214,5 +215,31 @@ export class MeshtasticApi extends BaseApi {
     if (params.page) searchParams.append('page', params.page.toString());
     if (params.page_size) searchParams.append('page_size', params.page_size.toString());
     return this.get<TextMessageResponse>('/messages/text/', searchParams);
+  }
+
+  /**
+   * Initiate a claim for a node
+   * @param nodeId The ID of the node to claim
+   * @returns A response containing the claim key
+   */
+  async claimNode(nodeId: number): Promise<NodeClaim> {
+    return this.post<NodeClaim>(`/nodes/observed-nodes/${nodeId}/claim/`);
+  }
+
+  /**
+   * Check the status of a node claim
+   * @param nodeId The ID of the node being claimed
+   * @returns The current status of the claim
+   */
+  async getClaimStatus(nodeId: number): Promise<NodeClaim | undefined> {
+    try {
+      const response = await this.get<NodeClaim>(`/nodes/observed-nodes/${nodeId}/claim/`);
+      return response;
+    } catch (error) {
+      if (error instanceof Error && error.message === 'No data returned from server') {
+        return undefined;
+      }
+      throw error;
+    }
   }
 }

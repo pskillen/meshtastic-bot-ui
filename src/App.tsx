@@ -10,6 +10,7 @@ import { MessageHistory } from '@/pages/messages/MessageHistory';
 import { Settings } from '@/pages/settings/Settings';
 import { Dashboard } from '@/pages/Dashboard';
 import { NodeDetails } from '@/pages/nodes/NodeDetails';
+import { ClaimNode } from '@/pages/nodes/ClaimNode';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { OAuthCallback } from '@/pages/auth/OAuthCallback';
 import { UserPage } from '@/pages/user/UserPage';
@@ -38,8 +39,9 @@ function App() {
               >
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/nodes" element={<NodesList />} />
-                <Route path="/nodes/:id" element={<NodeDetails />} />
                 <Route path="/nodes/monitor" element={<MonitorNodes />} />
+                <Route path="/nodes/:id/claim" element={<ClaimNode />} />
+                <Route path="/nodes/:id" element={<NodeDetails />} />
                 <Route path="/map" element={<NodeMap />} />
                 <Route path="/messages" element={<MessageHistory />} />
                 <Route path="/settings" element={<Settings />} />

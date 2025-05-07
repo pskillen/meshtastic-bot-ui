@@ -161,3 +161,11 @@ export interface Constellation {
   created_by: number;
   channels: MessageChannel[];
 }
+
+export interface NodeClaim {
+  node: string;
+  user: number;
+  claim_key: string;
+  created_at: string;
+  accepted_at: string | null;
+}
