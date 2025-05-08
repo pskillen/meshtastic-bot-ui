@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import configPromise from '../../config';
-import { AppConfig } from '@/types/types';
+import { AppConfig } from '@/lib/types';
 
 const ConfigContext = createContext<AppConfig | null>(null);
 

@@ -156,7 +156,7 @@ export function ConstellationsMap({ nodes }: ConstellationsMapProps) {
         const constellationId = node.constellation.id;
         if (!constellations[constellationId]) {
           constellations[constellationId] = {
-            name: node.constellation.name,
+            name: node.constellation.name || 'Unknown',
             color: node.constellation.map_color || '', // We'll assign color below
             nodes: [],
           };

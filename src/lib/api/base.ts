@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import { ApiAuthConfig, ApiConfig, ApiError } from '@/types/types';
+import { ApiAuthConfig, ApiConfig, ApiError } from '@/lib/types';
 import { authService } from '@/lib/auth/authService';
 
 export abstract class BaseApi {

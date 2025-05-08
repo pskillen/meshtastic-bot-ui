@@ -7,6 +7,7 @@ import {
   NetworkIcon,
   SettingsIcon,
   ActivityIcon,
+  RadioIcon,
 } from 'lucide-react';
 
 import { NavMain } from '@/components/nav-main';
@@ -35,6 +36,11 @@ const data = {
       title: 'Nodes',
       url: '/nodes',
       icon: NetworkIcon,
+    },
+    {
+      title: 'My Nodes',
+      url: '/nodes/my-nodes',
+      icon: RadioIcon,
     },
     {
       title: 'Monitor',

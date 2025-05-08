@@ -15,10 +15,10 @@ import { BatteryIcon, SignalIcon } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { NodeData } from '@/lib/models';
+import { ObservedNode } from '@/lib/models';
 import { meshtasticIdToHex } from '@/lib/utils';
 
-const columns: ColumnDef<NodeData>[] = [
+const columns: ColumnDef<ObservedNode>[] = [
   {
     accessorKey: 'short_name',
     header: 'Node Name',
@@ -83,12 +83,12 @@ const columns: ColumnDef<NodeData>[] = [
 ];
 
 interface NodeActivityTableProps {
-  nodes: NodeData[];
-  isLoading: boolean;
+  nodes: ObservedNode[];
+  isLoading?: boolean;
   isLoadingMore?: boolean;
 }
 
-export function NodeActivityTable({ nodes, isLoading, isLoadingMore }: NodeActivityTableProps) {
+export function NodeActivityTable({ nodes, isLoading = false, isLoadingMore = false }: NodeActivityTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([{ id: 'last_heard', desc: true }]);
 
   const table = useReactTable({

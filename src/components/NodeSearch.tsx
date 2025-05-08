@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { useNodes } from '@/lib/hooks/useNodes';
+import { useNodes } from '@/hooks/api/useNodes';
 import { SearchIcon } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 

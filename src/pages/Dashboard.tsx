@@ -1,11 +1,13 @@
-import { PacketStatsChart } from '@/components/PacketStatsChart';
+// import { PacketStatsChart } from '@/components/PacketStatsChart';
 import { NodeActivityTable } from '@/components/NodeActivityTable';
 import { ConstellationsMap } from '@/components/nodes/ConstellationsMap';
-import { useNodes } from '@/lib/hooks/useNodes';
+import { useNodesSuspense, useManagedNodesSuspense } from '@/hooks/api/useNodes';
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { NetworkIcon } from 'lucide-react';
 import { ChartConfig } from '@/components/ui/chart';
+import { Suspense } from 'react';
+import { PacketStatsChart } from '@/components/PacketStatsChart';
 
 const packetChartConfig = {
   value: {
@@ -14,8 +16,9 @@ const packetChartConfig = {
   },
 } satisfies ChartConfig;
 
-export function Dashboard() {
-  const { nodes, managedNodes, isLoading, isLoadingMoreNodes, isLoadingManagedNodes } = useNodes();
+function DashboardContent() {
+  const { nodes } = useNodesSuspense();
+  const { managedNodes } = useManagedNodesSuspense();
 
   const onlineNodes =
     nodes?.filter((node) => {
@@ -32,10 +35,7 @@ export function Dashboard() {
           <CardHeader className="relative">
             <CardDescription>Online Nodes</CardDescription>
             <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
-              {isLoading ? '...' : onlineNodes.length}
-              {isLoadingMoreNodes && (
-                <span className="ml-2 inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500"></span>
-              )}
+              {onlineNodes.length}
             </CardTitle>
             <div className="absolute right-4 top-4">
               <Badge variant="outline" className="flex gap-1 rounded-lg text-xs">
@@ -45,12 +45,7 @@ export function Dashboard() {
             </div>
           </CardHeader>
           <CardFooter className="flex-col items-start gap-1 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium">
-              {onlineNodes.length} nodes active in last 2 hours
-              {isLoadingMoreNodes && (
-                <span className="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500"></span>
-              )}
-            </div>
+            <div className="line-clamp-1 flex gap-2 font-medium">{onlineNodes.length} nodes active in last 2 hours</div>
             <div className="text-muted-foreground">{nodes?.length || 0} total nodes in network</div>
           </CardFooter>
         </Card>
@@ -65,13 +60,7 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="h-[400px] w-full">
-              {isLoadingManagedNodes ? (
-                <div className="flex h-full items-center justify-center">
-                  <span className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></span>
-                </div>
-              ) : (
-                <ConstellationsMap nodes={managedNodes || []} />
-              )}
+              <ConstellationsMap nodes={managedNodes || []} />
             </div>
           </CardContent>
         </Card>
@@ -80,8 +69,22 @@ export function Dashboard() {
         <PacketStatsChart title="Mesh Activity" description="Total packets per hour" config={packetChartConfig} />
       </div>
       <div className="px-4 lg:px-6">
-        <NodeActivityTable nodes={nodes || []} isLoading={isLoading} isLoadingMore={isLoadingMoreNodes} />
+        <NodeActivityTable nodes={nodes || []} />
       </div>
     </div>
+  );
+}
+
+export function Dashboard() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      }
+    >
+      <DashboardContent />
+    </Suspense>
   );
 }

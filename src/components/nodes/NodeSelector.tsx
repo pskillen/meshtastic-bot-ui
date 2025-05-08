@@ -1,4 +1,4 @@
-import { NodeData } from '@/lib/models';
+import { ObservedNode } from '@/lib/models';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Search } from 'lucide-react';
 import { useState } from 'react';
 
 interface NodeSelectorProps {
-  nodes: NodeData[];
+  nodes: ObservedNode[];
   onSelect: (nodeId: number) => void;
   onCancel: () => void;
   excludeNodes?: number[];

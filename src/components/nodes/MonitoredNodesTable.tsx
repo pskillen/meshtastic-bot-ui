@@ -1,11 +1,11 @@
-import { NodeData } from '@/lib/models';
+import { ObservedNode } from '@/lib/models';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 interface MonitoredNodesTableProps {
-  nodes: NodeData[];
+  nodes: ObservedNode[];
   onRemoveNode: (nodeId: number) => void;
   isLoadingMore?: boolean;
   editable?: boolean;

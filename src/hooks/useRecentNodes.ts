@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { NodeData, ObservedNode } from '../models';
+import { ObservedNode } from '@/lib/models';
 
 // Type for storing recent nodes in local storage
 interface RecentNode {
@@ -14,6 +14,10 @@ interface RecentNode {
 const STORAGE_KEY = 'meshtastic-recent-nodes';
 const MAX_RECENT_NODES = 10; // Maximum number of recent nodes to store
 
+/**
+ * Hook to manage a list of recently viewed nodes in localStorage
+ * @returns Object with recentNodes array and addRecentNode method
+ */
 export function useRecentNodes() {
   const [recentNodes, setRecentNodes] = useState<RecentNode[]>([]);
 
@@ -39,7 +43,7 @@ export function useRecentNodes() {
   }, [recentNodes]);
 
   // Add a node to the recent nodes list
-  const addRecentNode = (node: NodeData | ObservedNode) => {
+  const addRecentNode = (node: ObservedNode | ObservedNode) => {
     setRecentNodes((prevNodes) => {
       // Check if the node already exists with the same ID
       if (prevNodes.some((n) => n.internal_id === node.internal_id)) {
