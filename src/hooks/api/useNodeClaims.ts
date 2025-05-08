@@ -1,0 +1,77 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMeshtasticApi } from './useApi';
+import { NodeClaim } from '@/lib/models';
+
+/**
+ * Hook to fetch claim status for a node
+ * @param nodeId ID of the node
+ * @param enabled Whether the query is enabled
+ * @returns Query result with claim status and loading/error states
+ */
+export function useNodeClaimStatus(nodeId: number, enabled = true) {
+  const api = useMeshtasticApi();
+
+  return useQuery<NodeClaim | undefined, Error>({
+    queryKey: ['nodes', nodeId, 'claim'],
+    queryFn: () => api.getClaimStatus(nodeId),
+    enabled: !!nodeId && enabled,
+  });
+}
+
+/**
+ * Hook to claim a node
+ * @returns Mutation for claiming a node
+ */
+export function useClaimNode() {
+  const api = useMeshtasticApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (nodeId: number) => api.claimNode(nodeId),
+    onSuccess: (_, nodeId) => {
+      // Invalidate the claim status query for the specific node
+      queryClient.invalidateQueries({ queryKey: ['nodes', nodeId, 'claim'] });
+
+      // Also invalidate the user's claimed nodes list
+      queryClient.invalidateQueries({ queryKey: ['observed-nodes', 'mine'] });
+    },
+  });
+}
+
+/**
+ * Hook to create a managed node from a claimed node
+ * @returns Mutation for creating a managed node
+ */
+export function useCreateManagedNode() {
+  const api = useMeshtasticApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      nodeId: number;
+      constellationId: number;
+      name: string;
+      options?: {
+        defaultLocationLatitude?: number;
+        defaultLocationLongitude?: number;
+        channels?: {
+          channel_0?: number | null;
+          channel_1?: number | null;
+          channel_2?: number | null;
+          channel_3?: number | null;
+          channel_4?: number | null;
+          channel_5?: number | null;
+          channel_6?: number | null;
+          channel_7?: number | null;
+        };
+      };
+    }) => {
+      return api.createManagedNode(data.nodeId, data.constellationId, data.name, data.options);
+    },
+    onSuccess: () => {
+      // Invalidate the managed nodes queries
+      queryClient.invalidateQueries({ queryKey: ['managed-nodes'] });
+      queryClient.invalidateQueries({ queryKey: ['managed-nodes', 'mine'] });
+    },
+  });
+}
