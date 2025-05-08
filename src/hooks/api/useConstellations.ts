@@ -42,7 +42,7 @@ export function useConstellations(pageSize = 25, enabled = true) {
  * Use inside a <Suspense> boundary. No isLoading or error states are returned.
  * Note: Suspense hooks do not support the 'enabled' option.
  */
-export function useConstellationsSuspense(pageSize = 25) {
+export function useConstellationsSuspense(pageSize = 500) {
   const api = useMeshtasticApi();
 
   const query = useSuspenseInfiniteQuery<PaginatedResponse<Constellation>, Error>({

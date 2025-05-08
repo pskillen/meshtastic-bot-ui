@@ -82,7 +82,7 @@ export function useMessage(id: string, enabled = true) {
  */
 export function useMessagesSuspense(options?: UseMessagesOptions) {
   const api = useMeshtasticApi();
-  const pageSize = options?.pageSize || 25;
+  const pageSize = options?.pageSize || 250;
 
   const messagesQuery = useSuspenseInfiniteQuery<TextMessageResponse, Error>({
     queryKey: ['messages', options?.channelId, options?.constellationId, pageSize],

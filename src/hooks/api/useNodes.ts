@@ -250,7 +250,7 @@ export function useNodeSearch() {
  */
 export function useNodesSuspense(options?: UseNodesOptions) {
   const api = useMeshtasticApi();
-  const pageSize = options?.pageSize || 25;
+  const pageSize = options?.pageSize || 500;
 
   const nodesQuery = useSuspenseInfiniteQuery<PaginatedResponse<ObservedNode>, Error>({
     refetchInterval: 1000 * 60, // 1 minute
@@ -282,7 +282,7 @@ export function useNodesSuspense(options?: UseNodesOptions) {
 /**
  * Suspense-enabled hook to fetch managed nodes with pagination
  */
-export function useManagedNodesSuspense(pageSize = 25) {
+export function useManagedNodesSuspense(pageSize = 500) {
   const api = useMeshtasticApi();
   const managedNodesQuery = useSuspenseInfiniteQuery<PaginatedResponse<ManagedNode>, Error>({
     refetchInterval: 1000 * 60, // 1 minute
@@ -311,7 +311,7 @@ export function useManagedNodesSuspense(pageSize = 25) {
 /**
  * Suspense-enabled hook to fetch user's managed nodes with pagination
  */
-export function useMyManagedNodesSuspense(pageSize = 25) {
+export function useMyManagedNodesSuspense(pageSize = 500) {
   const api = useMeshtasticApi();
   const myManagedNodesQuery = useSuspenseInfiniteQuery<PaginatedResponse<OwnedManagedNode>, Error>({
     refetchInterval: 1000 * 60, // 1 minute
@@ -340,7 +340,7 @@ export function useMyManagedNodesSuspense(pageSize = 25) {
 /**
  * Suspense-enabled hook to fetch user's claimed nodes with pagination
  */
-export function useMyClaimedNodesSuspense(pageSize = 25) {
+export function useMyClaimedNodesSuspense(pageSize = 500) {
   const api = useMeshtasticApi();
   const myClaimedNodesQuery = useSuspenseInfiniteQuery<PaginatedResponse<ObservedNode>, Error>({
     refetchInterval: 1000 * 60, // 1 minute
