@@ -59,6 +59,11 @@ export class MeshtasticApi extends BaseApi {
     };
   }
 
+  async getMyClaimedNodes(): Promise<NodeData[]> {
+    const nodes = await this.get<ObservedNode[]>('/nodes/observed-nodes/mine/');
+    return nodes.map((node) => this.observedNodeToNodeData(node));
+  }
+
   async getNode(id: number): Promise<NodeData> {
     const node = await this.get<ObservedNode>(`/nodes/observed-nodes/${id}/`);
     return this.observedNodeToNodeData(node);
@@ -67,6 +72,11 @@ export class MeshtasticApi extends BaseApi {
   async getManagedNodes(): Promise<ManagedNode[]> {
     const response = await this.get<PaginatedResponse<ManagedNode>>('/nodes/managed-nodes/');
     return response.results;
+  }
+
+  async getMyManagedNodes(): Promise<ManagedNode[]> {
+    const response = await this.get<ManagedNode[]>('/nodes/managed-nodes/mine/');
+    return response;
   }
 
   async getManagedNode(id: number): Promise<ManagedNode> {
@@ -241,5 +251,60 @@ export class MeshtasticApi extends BaseApi {
       }
       throw error;
     }
+  }
+
+  /**
+   * Create a managed node from a claimed node
+   * @param nodeId The ID of the claimed node
+   * @param constellationId The ID of the constellation to add the node to
+   * @param name The name for the managed node
+   * @returns The created managed node
+   */
+  async createManagedNode(nodeId: number, constellationId: number, name: string): Promise<ManagedNode> {
+    const data = {
+      node_id: nodeId,
+      constellation: constellationId,
+      name: name,
+    };
+    return this.post<ManagedNode>('/nodes/managed-nodes/', data);
+  }
+
+  /**
+   * Get API keys owned by the current user
+   * @returns List of API keys
+   */
+  async getApiKeys(): Promise<any[]> {
+    const response = await this.get<any>('/nodes/api-keys/');
+    return response.results || [];
+  }
+
+  /**
+   * Create a new API key
+   * @param name The name for the API key
+   * @param constellationId The ID of the constellation for the API key
+   * @param nodeIds Optional list of node IDs to associate with the API key
+   * @returns The created API key
+   */
+  async createApiKey(name: string, constellationId: number, nodeIds?: number[]): Promise<any> {
+    const data: any = {
+      name,
+      constellation: constellationId,
+    };
+
+    if (nodeIds && nodeIds.length > 0) {
+      data.nodes = nodeIds;
+    }
+
+    return this.post<any>('/nodes/api-keys/', data);
+  }
+
+  /**
+   * Add a node to an API key
+   * @param apiKeyId The ID of the API key
+   * @param nodeId The ID of the node to add
+   * @returns Success response
+   */
+  async addNodeToApiKey(apiKeyId: string, nodeId: number): Promise<any> {
+    return this.post<any>(`/nodes/api-keys/${apiKeyId}/add_node/`, { node_id: nodeId });
   }
 }

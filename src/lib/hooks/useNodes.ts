@@ -65,6 +65,20 @@ export function useNodes(options?: UseNodesOptions) {
     enabled: options?.enabled !== false,
   });
 
+  // Query for user's managed nodes
+  const myManagedNodesQuery = useQuery({
+    queryKey: ['managed-nodes', 'mine'],
+    queryFn: () => api.getMyManagedNodes(),
+    enabled: options?.enabled !== false,
+  });
+
+  // Query for user's claimed nodes
+  const myClaimedNodesQuery = useQuery({
+    queryKey: ['observed-nodes', 'mine'],
+    queryFn: () => api.getMyClaimedNodes(),
+    enabled: options?.enabled !== false,
+  });
+
   const useNode = (
     id: number,
     options?: Omit<UseQueryOptions<NodeData>, 'queryKey' | 'queryFn'>
@@ -134,6 +148,12 @@ export function useNodes(options?: UseNodesOptions) {
     managedNodes: managedNodesQuery.data,
     isLoadingManagedNodes: managedNodesQuery.isLoading,
     managedNodesError: managedNodesQuery.error,
+    myManagedNodes: myManagedNodesQuery.data,
+    isLoadingMyManagedNodes: myManagedNodesQuery.isLoading,
+    myManagedNodesError: myManagedNodesQuery.error,
+    myClaimedNodes: myClaimedNodesQuery.data,
+    isLoadingMyClaimedNodes: myClaimedNodesQuery.isLoading,
+    myClaimedNodesError: myClaimedNodesQuery.error,
     useNode,
     useManagedNode,
     useNodeMetrics,
