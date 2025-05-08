@@ -19,6 +19,9 @@ function MyNodesContent() {
   const [isSetupDialogOpen, setIsSetupDialogOpen] = useState(false);
   const [error] = useState<string | null>(null);
 
+  // Create a Set of managed node IDs for quick lookup
+  const managedNodeIds = new Set(myManagedNodes.map((n) => n.node_id));
+
   const handleRunAsManagedNode = (node: ObservedNode) => {
     setSelectedNode(node);
     setIsSetupDialogOpen(true);
@@ -79,10 +82,21 @@ function MyNodesContent() {
                               {node.last_heard ? formatDistanceToNow(node.last_heard, { addSuffix: true }) : 'Never'}
                             </p>
                           </div>
-                          <Button onClick={() => handleRunAsManagedNode(node)} size="sm" className="flex items-center">
-                            <Radio className="mr-2 h-4 w-4" />
-                            Run as Managed Node
-                          </Button>
+                          {managedNodeIds.has(node.node_id) ? (
+                            <Button size="sm" className="flex items-center" disabled>
+                              <Radio className="mr-2 h-4 w-4" />
+                              Already Managed
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={() => handleRunAsManagedNode(node)}
+                              size="sm"
+                              className="flex items-center"
+                            >
+                              <Radio className="mr-2 h-4 w-4" />
+                              Run as Managed Node
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </Card>

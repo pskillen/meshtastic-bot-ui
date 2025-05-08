@@ -22,6 +22,7 @@ import { Loader2, AlertCircle, CheckCircle2, Download } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useConstellations } from '@/hooks/api/useConstellations';
 
 interface SetupManagedNodeProps {
   node: ObservedNode;
@@ -75,18 +76,8 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
     channel_7: null,
   });
 
-  // Fetch constellations
-  const constellationsQuery = useQuery({
-    queryKey: ['constellations'],
-    queryFn: () => api.getConstellations(),
-  });
-
-  // Fetch constellation channels when a constellation is selected
-  const channelsQuery = useQuery({
-    queryKey: ['constellation-channels', selectedConstellation],
-    queryFn: () => (selectedConstellation ? api.getConstellationChannels(selectedConstellation) : Promise.resolve([])),
-    enabled: !!selectedConstellation,
-  });
+  // Fetch constellations using the custom hook
+  const { constellations, isLoading: isConstellationsLoading, error: constellationsError } = useConstellations();
 
   // Fetch API keys
   const apiKeysQuery = useQuery({
@@ -272,6 +263,11 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
     }
   };
 
+  // Find the selected constellation object
+  const selectedConstellationObj =
+    selectedConstellation != null ? constellations.find((c) => c.id === selectedConstellation) : null;
+  const selectedConstellationChannels = selectedConstellationObj?.channels || [];
+
   const renderConstellationStep = () => (
     <>
       <DialogHeader>
@@ -294,12 +290,12 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
 
         <div className="space-y-2">
           <Label htmlFor="constellation">Constellation</Label>
-          {constellationsQuery.isLoading ? (
+          {isConstellationsLoading ? (
             <div className="flex items-center space-x-2">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>Loading constellations...</span>
             </div>
-          ) : constellationsQuery.error ? (
+          ) : constellationsError ? (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Error</AlertTitle>
@@ -311,7 +307,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
                 <SelectValue placeholder="Select a constellation" />
               </SelectTrigger>
               <SelectContent>
-                {constellationsQuery.data?.results.map((constellation) => (
+                {constellations.map((constellation) => (
                   <SelectItem key={constellation.id} value={constellation.id.toString()}>
                     {constellation.name}
                   </SelectItem>
@@ -369,18 +365,12 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
             Map your node's channels to known message channels in this constellation.
           </p>
 
-          {channelsQuery.isLoading ? (
+          {selectedConstellation && !selectedConstellationObj ? (
             <div className="flex items-center space-x-2">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>Loading channels...</span>
             </div>
-          ) : channelsQuery.error ? (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>Failed to load channels. Please try again.</AlertDescription>
-            </Alert>
-          ) : channelsQuery.data && channelsQuery.data.length > 0 ? (
+          ) : selectedConstellationObj && selectedConstellationChannels.length > 0 ? (
             <div className="space-y-3">
               {[0, 1, 2, 3, 4, 5, 6, 7].map((channelIndex) => (
                 <div key={channelIndex} className="flex items-center space-x-2">
@@ -396,7 +386,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">None</SelectItem>
-                      {channelsQuery.data.map((channel) => (
+                      {selectedConstellationChannels.map((channel) => (
                         <SelectItem key={channel.id} value={channel.id.toString()}>
                           {channel.name}
                         </SelectItem>
@@ -461,7 +451,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
                     <SelectValue placeholder="Select an API key" />
                   </SelectTrigger>
                   <SelectContent>
-                    {apiKeysQuery.data.map((key) => (
+                    {apiKeysQuery.data.map((key: NodeApiKey) => (
                       <SelectItem key={key.id} value={key.id}>
                         {key.name}
                       </SelectItem>
