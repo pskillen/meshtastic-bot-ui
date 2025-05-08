@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMeshBotApi } from '@/lib/hooks/useApi';
 import { NodeData, OwnedManagedNode } from '@/lib/models';
-import { useNodes } from '@/lib/hooks/useNodes';
+import { useNode } from '@/lib/hooks/useNodes';
 import {
   Dialog,
   DialogContent,
@@ -95,7 +95,6 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
   });
 
   // Get the node's observed node data to check for existing location
-  const { useNode } = useNodes();
   const observedNodeQuery = useNode(node.node_id);
 
   // Reset state when dialog opens

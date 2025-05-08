@@ -37,12 +37,6 @@ export function MyNodes() {
     setSelectedNode(null);
   };
 
-  // Check if a claimed node is also managed (based on node_id)
-  const isNodeManaged = (nodeId: number): boolean => {
-    if (!myManagedNodes) return false;
-    return myManagedNodes.some(managedNode => managedNode.node_id === nodeId);
-  };
-
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6">My Nodes</h1>
@@ -105,16 +99,10 @@ export function MyNodes() {
                               {node.last_heard ? formatDistanceToNow(node.last_heard, { addSuffix: true }) : 'Never'}
                             </p>
                           </div>
-                          {!isNodeManaged(node.node_id) ? (
-                            <Button onClick={() => handleRunAsManagedNode(node)} size="sm" className="flex items-center">
-                              <Radio className="mr-2 h-4 w-4" />
-                              Run as Managed Node
-                            </Button>
-                          ) : (
-                            <Badge className="bg-green-500">
-                              Already Managed
-                            </Badge>
-                          )}
+                          <Button onClick={() => handleRunAsManagedNode(node)} size="sm" className="flex items-center">
+                            <Radio className="mr-2 h-4 w-4" />
+                            Run as Managed Node
+                          </Button>
                         </div>
                       </div>
                     </Card>
