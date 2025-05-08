@@ -30,7 +30,7 @@ interface SetupManagedNodeProps {
   onClose: () => void;
 }
 
-type SetupStep = 'constellation' | 'location-channels' | 'api-key' | 'instructions';
+type SetupStep = 'constellation' | 'location' | 'channels' | 'api-key' | 'instructions';
 
 export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProps) {
   const navigate = useNavigate();
@@ -128,8 +128,10 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
 
   const handleNextStep = () => {
     if (currentStep === 'constellation') {
-      setCurrentStep('location-channels');
-    } else if (currentStep === 'location-channels') {
+      setCurrentStep('location');
+    } else if (currentStep === 'location') {
+      setCurrentStep('channels');
+    } else if (currentStep === 'channels') {
       setCurrentStep('api-key');
     } else if (currentStep === 'api-key') {
       handleCreateManagedNode();
@@ -137,10 +139,12 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
   };
 
   const handlePreviousStep = () => {
-    if (currentStep === 'location-channels') {
+    if (currentStep === 'location') {
       setCurrentStep('constellation');
+    } else if (currentStep === 'channels') {
+      setCurrentStep('location');
     } else if (currentStep === 'api-key') {
-      setCurrentStep('location-channels');
+      setCurrentStep('channels');
     } else if (currentStep === 'instructions') {
       setCurrentStep('api-key');
     }
@@ -148,7 +152,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
 
   // Initialize map when location-channels step is active
   useEffect(() => {
-    if (currentStep === 'location-channels' && mapRef.current && !mapInstanceRef.current) {
+    if (currentStep === 'location' && mapRef.current && !mapInstanceRef.current) {
       // Try to get location from observed node first
       let initialLocation = GLASGOW_COORDS; // Default to Glasgow
 
@@ -189,6 +193,11 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
       // Store references
       mapInstanceRef.current = map;
       markerRef.current = marker;
+
+      // Fix: Invalidate map size after a short delay to ensure all tiles load
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 100);
 
       // Add CSS for map container
       const style = document.createElement('style');
@@ -316,12 +325,12 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
     </>
   );
 
-  const renderLocationChannelsStep = () => (
+  const renderLocationStep = () => (
     <>
       <DialogHeader>
-        <DialogTitle>Node Location & Channels</DialogTitle>
+        <DialogTitle>Node Location</DialogTitle>
         <DialogDescription>
-          Set the default location for your node and map its channels to known message channels.
+          Set the default location for your node. Click on the map or drag the marker to set the location.
         </DialogDescription>
       </DialogHeader>
 
@@ -345,7 +354,25 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
             </div>
           )}
         </div>
+      </div>
 
+      <DialogFooter>
+        <Button variant="outline" onClick={handlePreviousStep}>
+          Back
+        </Button>
+        <Button onClick={handleNextStep}>Next</Button>
+      </DialogFooter>
+    </>
+  );
+
+  const renderChannelsStep = () => (
+    <>
+      <DialogHeader>
+        <DialogTitle>Channel Mappings</DialogTitle>
+        <DialogDescription>Map your node's channels to known message channels in this constellation.</DialogDescription>
+      </DialogHeader>
+
+      <div className="space-y-4 py-4">
         <div className="space-y-2 mt-4">
           <Label>Channel Mappings</Label>
           <p className="text-sm text-gray-500 mb-2">
@@ -372,7 +399,6 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
                       <SelectValue placeholder="Select a channel" />
                     </SelectTrigger>
                     <SelectContent>
-                      {/* <SelectItem value="">None</SelectItem> */}
                       {selectedConstellationChannels.map((channel: MessageChannel) => (
                         <SelectItem key={channel.id} value={channel.id.toString()}>
                           {channel.name}
@@ -539,7 +565,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         {error && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
@@ -555,8 +581,10 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
           </div>
         ) : currentStep === 'constellation' ? (
           renderConstellationStep()
-        ) : currentStep === 'location-channels' ? (
-          renderLocationChannelsStep()
+        ) : currentStep === 'location' ? (
+          renderLocationStep()
+        ) : currentStep === 'channels' ? (
+          renderChannelsStep()
         ) : currentStep === 'api-key' ? (
           renderApiKeyStep()
         ) : (
