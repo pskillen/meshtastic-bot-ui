@@ -212,6 +212,20 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
 
       return () => {
         style.remove();
+        // Enhanced cleanup: remove map, marker, and all controls/attribution
+        if (markerRef.current) {
+          markerRef.current.remove();
+          markerRef.current = null;
+        }
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.off();
+          mapInstanceRef.current.remove();
+          mapInstanceRef.current = null;
+        }
+        // Remove any leftover Leaflet controls/attribution from the DOM
+        if (mapRef.current) {
+          mapRef.current.innerHTML = '';
+        }
       };
     }
   }, [currentStep, observedNode]);
