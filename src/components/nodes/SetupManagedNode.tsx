@@ -553,17 +553,44 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
           </ol>
 
           <div className="mt-4">
-            <h4 className="text-md font-medium">Your API Key:</h4>
-            <div className="bg-gray-100 p-2 rounded mt-1 font-mono text-sm">
+            <h4 className="text-md font-medium flex items-center gap-2">
+              Your API Key:
+              {createdApiKey && (
+                <button
+                  className="ml-2 px-2 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300"
+                  onClick={() => {
+                    navigator.clipboard.writeText(createdApiKey.key);
+                  }}
+                  title="Copy API Key"
+                  type="button"
+                >
+                  Copy
+                </button>
+              )}
+            </h4>
+            <div
+              className="bg-gray-100 p-2 rounded mt-1 font-mono text-sm break-all select-all whitespace-pre-wrap"
+              style={{ wordBreak: 'break-all' }}
+            >
               {createdApiKey ? createdApiKey.key : 'Use your selected API key'}
             </div>
+            {createdApiKey && (
+              <div className="mt-2 text-xs text-red-600">
+                <b>Warning:</b> This API key cannot be recovered. Please copy and store it securely now.
+              </div>
+            )}
           </div>
 
           <div className="mt-4">
-            <Button className="flex items-center">
+            <a
+              href="https://github.com/pskillen/meshtastic-bot"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            >
               <Download className="mr-2 h-4 w-4" />
               Download Bot Software
-            </Button>
+            </a>
           </div>
         </div>
       </div>
