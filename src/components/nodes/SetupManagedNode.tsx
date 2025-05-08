@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMeshBotApi } from '@/lib/hooks/useApi';
-import { NodeData, ManagedNode } from '@/lib/models';
+import { NodeData, OwnedManagedNode } from '@/lib/models';
+import { useNodes } from '@/lib/hooks/useNodes';
 import {
   Dialog,
   DialogContent,
@@ -18,6 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, AlertCircle, CheckCircle2, Download } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 interface SetupManagedNodeProps {
   node: NodeData;
@@ -25,11 +28,14 @@ interface SetupManagedNodeProps {
   onClose: () => void;
 }
 
-type SetupStep = 'constellation' | 'api-key' | 'instructions';
+type SetupStep = 'constellation' | 'location-channels' | 'api-key' | 'instructions';
 
 export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProps) {
   const navigate = useNavigate();
   const api = useMeshBotApi();
+
+  // Glasgow coordinates as default fallback
+  const GLASGOW_COORDS = { lat: 55.8642, lng: -4.2518 };
 
   const [currentStep, setCurrentStep] = useState<SetupStep>('constellation');
   const [selectedConstellation, setSelectedConstellation] = useState<number | null>(null);
@@ -39,8 +45,35 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
   const [newApiKeyName, setNewApiKeyName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [createdManagedNode, setCreatedManagedNode] = useState<ManagedNode | null>(null);
+  const [createdManagedNode, setCreatedManagedNode] = useState<OwnedManagedNode | null>(null);
   const [createdApiKey, setCreatedApiKey] = useState<any | null>(null);
+
+  // Location state
+  const [nodeLocation, setNodeLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+
+  // Channel mappings state
+  const [channelMappings, setChannelMappings] = useState<{
+    channel_0: number | null;
+    channel_1: number | null;
+    channel_2: number | null;
+    channel_3: number | null;
+    channel_4: number | null;
+    channel_5: number | null;
+    channel_6: number | null;
+    channel_7: number | null;
+  }>({
+    channel_0: null,
+    channel_1: null,
+    channel_2: null,
+    channel_3: null,
+    channel_4: null,
+    channel_5: null,
+    channel_6: null,
+    channel_7: null,
+  });
 
   // Fetch constellations
   const constellationsQuery = useQuery({
@@ -48,11 +81,22 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
     queryFn: () => api.getConstellations(),
   });
 
+  // Fetch constellation channels when a constellation is selected
+  const channelsQuery = useQuery({
+    queryKey: ['constellation-channels', selectedConstellation],
+    queryFn: () => (selectedConstellation ? api.getConstellationChannels(selectedConstellation) : Promise.resolve([])),
+    enabled: !!selectedConstellation,
+  });
+
   // Fetch API keys
   const apiKeysQuery = useQuery({
     queryKey: ['api-keys'],
     queryFn: () => api.getApiKeys(),
   });
+
+  // Get the node's observed node data to check for existing location
+  const { useNode } = useNodes();
+  const observedNodeQuery = useNode(node.node_id);
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -67,11 +111,36 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
       setError(null);
       setCreatedManagedNode(null);
       setCreatedApiKey(null);
+
+      // Reset location and channel mappings
+      setNodeLocation(null);
+      setChannelMappings({
+        channel_0: null,
+        channel_1: null,
+        channel_2: null,
+        channel_3: null,
+        channel_4: null,
+        channel_5: null,
+        channel_6: null,
+        channel_7: null,
+      });
+
+      // Clean up map if it exists
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+      if (markerRef.current) {
+        markerRef.current.remove();
+        markerRef.current = null;
+      }
     }
   }, [isOpen, node]);
 
   const handleNextStep = () => {
     if (currentStep === 'constellation') {
+      setCurrentStep('location-channels');
+    } else if (currentStep === 'location-channels') {
       setCurrentStep('api-key');
     } else if (currentStep === 'api-key') {
       handleCreateManagedNode();
@@ -79,11 +148,82 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
   };
 
   const handlePreviousStep = () => {
-    if (currentStep === 'api-key') {
+    if (currentStep === 'location-channels') {
       setCurrentStep('constellation');
+    } else if (currentStep === 'api-key') {
+      setCurrentStep('location-channels');
     } else if (currentStep === 'instructions') {
       setCurrentStep('api-key');
     }
+  };
+
+  // Initialize map when location-channels step is active
+  useEffect(() => {
+    if (currentStep === 'location-channels' && mapRef.current && !mapInstanceRef.current) {
+      // Try to get location from observed node first
+      let initialLocation = GLASGOW_COORDS; // Default to Glasgow
+
+      if (observedNodeQuery.data?.latest_position?.latitude && observedNodeQuery.data?.latest_position?.longitude) {
+        // Use observed node's location if available
+        initialLocation = {
+          lat: observedNodeQuery.data.latest_position.latitude,
+          lng: observedNodeQuery.data.latest_position.longitude,
+        };
+        // Set the node location state
+        setNodeLocation(initialLocation);
+      }
+
+      // Initialize the map
+      const map = L.map(mapRef.current).setView([initialLocation.lat, initialLocation.lng], 13);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      }).addTo(map);
+
+      // Add a marker at the initial location
+      const marker = L.marker([initialLocation.lat, initialLocation.lng], {
+        draggable: true, // Allow the marker to be dragged
+      }).addTo(map);
+
+      // Update location when marker is dragged
+      marker.on('dragend', () => {
+        const position = marker.getLatLng();
+        setNodeLocation({ lat: position.lat, lng: position.lng });
+      });
+
+      // Allow clicking on the map to move the marker
+      map.on('click', (e) => {
+        marker.setLatLng(e.latlng);
+        setNodeLocation({ lat: e.latlng.lat, lng: e.latlng.lng });
+      });
+
+      // Store references
+      mapInstanceRef.current = map;
+      markerRef.current = marker;
+
+      // Add CSS for map container
+      const style = document.createElement('style');
+      style.textContent = `
+        .map-container {
+          height: 300px;
+          width: 100%;
+          z-index: 1;
+        }
+      `;
+      document.head.appendChild(style);
+
+      return () => {
+        style.remove();
+      };
+    }
+  }, [currentStep, observedNodeQuery.data]);
+
+  // Handle channel mapping changes
+  const handleChannelChange = (channelIndex: number, channelId: number | null) => {
+    setChannelMappings((prev) => ({
+      ...prev,
+      [`channel_${channelIndex}`]: channelId,
+    }));
   };
 
   const handleCreateManagedNode = async () => {
@@ -96,8 +236,12 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
     setError(null);
 
     try {
-      // Create the managed node
-      const managedNode = await api.createManagedNode(node.node_id, selectedConstellation, nodeName);
+      // Create the managed node with location and channel mappings
+      const managedNode = await api.createManagedNode(node.node_id, selectedConstellation, nodeName, {
+        defaultLocationLatitude: nodeLocation?.lat,
+        defaultLocationLongitude: nodeLocation?.lng,
+        channels: channelMappings,
+      });
       setCreatedManagedNode(managedNode);
 
       // Handle API key
@@ -177,6 +321,100 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
         <Button onClick={handleNextStep} disabled={!selectedConstellation || !nodeName}>
           Next
         </Button>
+      </DialogFooter>
+    </>
+  );
+
+  const renderLocationChannelsStep = () => (
+    <>
+      <DialogHeader>
+        <DialogTitle>Node Location & Channels</DialogTitle>
+        <DialogDescription>
+          Set the default location for your node and map its channels to known message channels.
+        </DialogDescription>
+      </DialogHeader>
+
+      <div className="space-y-4 py-4">
+        <div className="space-y-2">
+          <Label>Node Location</Label>
+          <p className="text-sm text-gray-500 mb-2">
+            Click on the map or drag the marker to set the default location for your node.
+            {observedNodeQuery.data?.latest_position
+              ? " We've set the initial location based on the node's last reported position."
+              : " We've set the initial location to Glasgow, Scotland."}
+          </p>
+
+          <div ref={mapRef} className="map-container border rounded-md" />
+
+          {nodeLocation && (
+            <div className="mt-2 text-sm">
+              <p>
+                Selected location: {nodeLocation.lat.toFixed(6)}, {nodeLocation.lng.toFixed(6)}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2 mt-4">
+          <Label>Channel Mappings</Label>
+          <p className="text-sm text-gray-500 mb-2">
+            Map your node's channels to known message channels in this constellation.
+          </p>
+
+          {channelsQuery.isLoading ? (
+            <div className="flex items-center space-x-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Loading channels...</span>
+            </div>
+          ) : channelsQuery.error ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>Failed to load channels. Please try again.</AlertDescription>
+            </Alert>
+          ) : channelsQuery.data && channelsQuery.data.length > 0 ? (
+            <div className="space-y-3">
+              {[0, 1, 2, 3, 4, 5, 6, 7].map((channelIndex) => (
+                <div key={channelIndex} className="flex items-center space-x-2">
+                  <Label htmlFor={`channel-${channelIndex}`} className="w-24">
+                    Channel {channelIndex}:
+                  </Label>
+                  <Select
+                    value={channelMappings[`channel_${channelIndex}` as keyof typeof channelMappings]?.toString() || ''}
+                    onValueChange={(value) => handleChannelChange(channelIndex, value ? Number(value) : null)}
+                  >
+                    <SelectTrigger id={`channel-${channelIndex}`} className="flex-1">
+                      <SelectValue placeholder="Select a channel" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {channelsQuery.data.map((channel) => (
+                        <SelectItem key={channel.id} value={channel.id.toString()}>
+                          {channel.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>No Channels</AlertTitle>
+              <AlertDescription>
+                This constellation doesn't have any channels defined. You can continue without mapping channels.
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+      </div>
+
+      <DialogFooter>
+        <Button variant="outline" onClick={handlePreviousStep}>
+          Back
+        </Button>
+        <Button onClick={handleNextStep}>Next</Button>
       </DialogFooter>
     </>
   );
@@ -332,6 +570,8 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
           </div>
         ) : currentStep === 'constellation' ? (
           renderConstellationStep()
+        ) : currentStep === 'location-channels' ? (
+          renderLocationChannelsStep()
         ) : currentStep === 'api-key' ? (
           renderApiKeyStep()
         ) : (

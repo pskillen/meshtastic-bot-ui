@@ -8,7 +8,7 @@ import {
   InfiniteData,
 } from '@tanstack/react-query';
 import { useMeshBotApi } from './useApi';
-import { DeviceMetrics, NodeData, Position, ManagedNode } from '../models';
+import { DeviceMetrics, NodeData, Position, ManagedNode, OwnedManagedNode } from '../models';
 import { DateRange } from '@/types/types.ts';
 import { PaginatedResponse } from '../models';
 import React from 'react';
@@ -66,7 +66,7 @@ export function useNodes(options?: UseNodesOptions) {
   });
 
   // Query for user's managed nodes
-  const myManagedNodesQuery = useQuery({
+  const myManagedNodesQuery = useQuery<OwnedManagedNode[], Error>({
     queryKey: ['managed-nodes', 'mine'],
     queryFn: () => api.getMyManagedNodes(),
     enabled: options?.enabled !== false,

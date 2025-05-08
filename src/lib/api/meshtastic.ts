@@ -3,6 +3,7 @@ import {
   NodeData,
   ObservedNode,
   ManagedNode,
+  OwnedManagedNode,
   DeviceMetrics,
   Position,
   NodeSearchResult,
@@ -74,8 +75,8 @@ export class MeshtasticApi extends BaseApi {
     return response.results;
   }
 
-  async getMyManagedNodes(): Promise<ManagedNode[]> {
-    const response = await this.get<ManagedNode[]>('/nodes/managed-nodes/mine/');
+  async getMyManagedNodes(): Promise<OwnedManagedNode[]> {
+    const response = await this.get<OwnedManagedNode[]>('/nodes/managed-nodes/mine/');
     return response;
   }
 
@@ -206,7 +207,7 @@ export class MeshtasticApi extends BaseApi {
   }
 
   async getConstellationChannels(constellationId: number): Promise<MessageChannel[]> {
-    return this.get<MessageChannel[]>(`/constellations/${constellationId}/channels`);
+    return this.get<MessageChannel[]>(`/constellations/${constellationId}/channels/`);
   }
 
   /**
@@ -258,15 +259,56 @@ export class MeshtasticApi extends BaseApi {
    * @param nodeId The ID of the claimed node
    * @param constellationId The ID of the constellation to add the node to
    * @param name The name for the managed node
+   * @param options Optional parameters for the managed node
    * @returns The created managed node
    */
-  async createManagedNode(nodeId: number, constellationId: number, name: string): Promise<ManagedNode> {
-    const data = {
+  async createManagedNode(
+    nodeId: number,
+    constellationId: number,
+    name: string,
+    options?: {
+      defaultLocationLatitude?: number;
+      defaultLocationLongitude?: number;
+      channels?: {
+        channel_0?: number | null;
+        channel_1?: number | null;
+        channel_2?: number | null;
+        channel_3?: number | null;
+        channel_4?: number | null;
+        channel_5?: number | null;
+        channel_6?: number | null;
+        channel_7?: number | null;
+      };
+    }
+  ): Promise<OwnedManagedNode> {
+    const data: any = {
       node_id: nodeId,
       constellation: constellationId,
       name: name,
     };
-    return this.post<ManagedNode>('/nodes/managed-nodes/', data);
+
+    // Add default location if provided
+    if (options?.defaultLocationLatitude !== undefined) {
+      data.default_location_latitude = options.defaultLocationLatitude;
+    }
+    if (options?.defaultLocationLongitude !== undefined) {
+      data.default_location_longitude = options.defaultLocationLongitude;
+    }
+
+    // Add channel mappings if provided
+    if (options?.channels) {
+      const { channels } = options;
+      if (channels.channel_0 !== undefined) data.channel_0 = channels.channel_0;
+      if (channels.channel_1 !== undefined) data.channel_1 = channels.channel_1;
+      if (channels.channel_2 !== undefined) data.channel_2 = channels.channel_2;
+      if (channels.channel_3 !== undefined) data.channel_3 = channels.channel_3;
+      if (channels.channel_4 !== undefined) data.channel_4 = channels.channel_4;
+      if (channels.channel_5 !== undefined) data.channel_5 = channels.channel_5;
+      if (channels.channel_6 !== undefined) data.channel_6 = channels.channel_6;
+      if (channels.channel_7 !== undefined) data.channel_7 = channels.channel_7;
+    }
+
+    return this.post<OwnedManagedNode>('/nodes/managed-nodes/', data);
   }
 
   /**

@@ -50,6 +50,20 @@ export interface ManagedNode {
   };
 }
 
+// OwnedManagedNode extends ManagedNode with channel mappings
+export interface OwnedManagedNode extends ManagedNode {
+  channel_0?: MessageChannel | null;
+  channel_1?: MessageChannel | null;
+  channel_2?: MessageChannel | null;
+  channel_3?: MessageChannel | null;
+  channel_4?: MessageChannel | null;
+  channel_5?: MessageChannel | null;
+  channel_6?: MessageChannel | null;
+  channel_7?: MessageChannel | null;
+  default_location_latitude?: number | null;
+  default_location_longitude?: number | null;
+}
+
 // For backward compatibility
 // TODO: We need to get rid of this and use ObservedNode everywhere
 export interface NodeData extends ObservedNode {
