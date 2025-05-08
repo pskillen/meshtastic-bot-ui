@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import axios from 'axios';
-import { AppConfig } from '@/types/types';
+import { AppConfig } from '@/lib/types';
 
 // Mock axios
 vi.mock('axios', () => ({

@@ -1,58 +1,39 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MessageList } from '@/components/messages/MessageList';
 import { NodeSearch } from '@/components/NodeSearch';
-import { useConfig } from '@/providers/ConfigProvider';
-import { MeshtasticApi } from '@/lib/api/meshtastic';
-import { Constellation, MessageChannel } from '@/lib/models';
+import { useConstellationsSuspense } from '@/hooks/api/useConstellations';
+import type { MessageChannel } from '@/lib/models';
 
 export function MessageHistory() {
-  const config = useConfig();
-  const api = useMemo(() => new MeshtasticApi(config.apis.meshBot), [config.apis.meshBot]);
-
-  const [constellations, setConstellations] = useState<Constellation[]>([]);
-  const [channels, setChannels] = useState<MessageChannel[]>([]);
+  const { constellations } = useConstellationsSuspense();
   const [selectedConstellation, setSelectedConstellation] = useState<number | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<number | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<number | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<string>('channels');
-  const [loadingConstellations, setLoadingConstellations] = useState(false);
-  const [loadingChannels, setLoadingChannels] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Fetch constellations on mount
   useEffect(() => {
-    setLoadingConstellations(true);
-    api
-      .getConstellations()
-      .then((data) => {
-        setConstellations(data);
-        if (data.length > 0) {
-          setSelectedConstellation(data[0].id);
-        }
-      })
-      .catch(() => setError('Failed to load constellations'))
-      .finally(() => setLoadingConstellations(false));
-  }, [api]);
-
-  // Fetch channels when constellation changes
-  useEffect(() => {
-    if (selectedConstellation == null) {
-      setChannels([]);
-      setSelectedChannel(null);
-      return;
+    if (constellations.length > 0 && selectedConstellation == null) {
+      setSelectedConstellation(constellations[0].id);
     }
-    setLoadingChannels(true);
-    api
-      .getConstellationChannels(selectedConstellation)
-      .then((data) => {
-        setChannels(data);
-        setSelectedChannel(data.length > 0 ? data[0].id : null);
-      })
-      .catch(() => setError('Failed to load channels'))
-      .finally(() => setLoadingChannels(false));
-  }, [selectedConstellation, api]);
+  }, [constellations, selectedConstellation]);
+
+  // Get channels for the selected constellation (useMemo to avoid conditional hook call)
+  const channels: MessageChannel[] = useMemo(() => {
+    if (selectedConstellation) {
+      const constellation = constellations.find((c) => c.id === selectedConstellation);
+      return constellation?.channels ?? [];
+    }
+    return [];
+  }, [selectedConstellation, constellations]);
+
+  useEffect(() => {
+    if (channels.length > 0 && selectedChannel == null) {
+      setSelectedChannel(channels[0].id);
+    }
+  }, [channels, selectedChannel]);
 
   // Handle constellation selection
   const handleConstellationSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -99,7 +80,7 @@ export function MessageHistory() {
                     id="constellation-select"
                     value={selectedConstellation ?? ''}
                     onChange={handleConstellationSelect}
-                    disabled={loadingConstellations || constellations.length === 0}
+                    disabled={constellations.length === 0}
                     className="border rounded px-2 py-1"
                   >
                     {constellations.map((c) => (
@@ -118,10 +99,10 @@ export function MessageHistory() {
                     id="channel-select"
                     value={selectedChannel ?? ''}
                     onChange={handleChannelSelect}
-                    disabled={loadingChannels || channels.length === 0}
+                    disabled={channels.length === 0}
                     className="border rounded px-2 py-1"
                   >
-                    {channels.map((ch) => (
+                    {channels.map((ch: MessageChannel) => (
                       <option key={ch.id} value={ch.id}>
                         {ch.name}
                       </option>
@@ -129,11 +110,10 @@ export function MessageHistory() {
                   </select>
                 </div>
               </div>
-              {error && <div className="text-red-500 mb-2">{error}</div>}
               {activeTab === 'channels' && selectedChannel && selectedConstellation && (
                 <MessageList channel={selectedChannel} constellationId={selectedConstellation} />
               )}
-              {!selectedChannel && !loadingChannels && (
+              {!selectedChannel && (
                 <div className="flex justify-center p-8">No channels available for this constellation.</div>
               )}
             </TabsContent>

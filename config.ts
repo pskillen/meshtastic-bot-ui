@@ -1,4 +1,4 @@
-import { AppConfig } from '@/types/types';
+import { AppConfig } from '@/lib/types';
 import axios from 'axios';
 
 // This var will be set to the version of the app when it is built

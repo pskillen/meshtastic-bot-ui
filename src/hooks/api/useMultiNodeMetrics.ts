@@ -1,7 +1,9 @@
 import { useQueries, useSuspenseQueries } from '@tanstack/react-query';
 import { useMeshtasticApi } from './useApi';
-import { NodeData } from '@/lib/models';
-import { DateRange } from '@/types/types';
+import { ObservedNode } from '@/lib/models';
+import { DateRangeParams } from '@/lib/types';
+import { getKeyValue } from './hooks-utils';
+import { roundDateParams } from './hooks-utils';
 
 /**
  * Hook to fetch metrics for multiple nodes in parallel
@@ -9,7 +11,7 @@ import { DateRange } from '@/types/types';
  * @param dateRange Optional date range to filter metrics
  * @returns Object with metricsMap and loading/error states
  */
-export function useMultiNodeMetrics(nodes: NodeData[], dateRange?: DateRange) {
+export function useMultiNodeMetrics(nodes: ObservedNode[], dateRange?: DateRangeParams) {
   const api = useMeshtasticApi();
 
   const queries = useQueries({
@@ -50,25 +52,20 @@ export function useMultiNodeMetrics(nodes: NodeData[], dateRange?: DateRange) {
  * Suspense-enabled hook to fetch metrics for multiple nodes in parallel
  * Use inside a <Suspense> boundary. No isLoading or error states are returned.
  */
-export function useMultiNodeMetricsSuspense(nodes: NodeData[], dateRange?: DateRange) {
+export function useMultiNodeMetricsSuspense(nodes: ObservedNode[], params?: DateRangeParams) {
   const api = useMeshtasticApi();
+  params = roundDateParams(params);
 
   const queries = useSuspenseQueries({
-    queries: nodes.map((node) => ({
-      queryKey: [
-        'nodes',
-        node.node_id,
-        'metrics',
-        dateRange?.startDate?.toISOString(),
-        dateRange?.endDate?.toISOString(),
-      ],
-      queryFn: () => {
-        const params: { startDate?: Date; endDate?: Date } = {};
-        if (dateRange?.startDate) params.startDate = dateRange.startDate;
-        if (dateRange?.endDate) params.endDate = dateRange.endDate;
-        return api.getNodeDeviceMetrics(node.node_id, params);
-      },
-    })),
+    queries: nodes.map((node) => {
+      const keyValue = getKeyValue(params);
+      const key = ['nodes', node.node_id, 'metrics', keyValue];
+
+      return {
+        queryKey: key,
+        queryFn: () => api.getNodeDeviceMetrics(node.node_id, params),
+      };
+    }),
   });
 
   // Create a map of node ID to metrics data

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useNodes } from '@/lib/hooks/useNodes';
-import { useMeshBotApi } from '@/lib/hooks/useApi';
+import { useNodeSuspense, useManagedNodesSuspense } from '@/hooks/api/useNodes';
+import { useMeshtasticApi } from '@/hooks/api/useApi';
 import { ConstellationsMap } from '@/components/nodes/ConstellationsMap';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,8 +14,7 @@ export function ClaimNode() {
   const { id } = useParams<{ id: string }>();
   const nodeId = parseInt(id || '0', 10);
   const navigate = useNavigate();
-  const { useNode, managedNodes, isLoadingManagedNodes, managedNodesError } = useNodes();
-  const api = useMeshBotApi();
+  const api = useMeshtasticApi();
 
   const [claimKey, setClaimKey] = useState<string | null>(null);
   const [claimStatus, setClaimStatus] = useState<NodeClaim | undefined>(undefined);
@@ -23,7 +22,10 @@ export function ClaimNode() {
   const [error, setError] = useState<string | null>(null);
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
 
-  const nodeQuery = useNode(nodeId);
+  const node = useNodeSuspense(nodeId);
+  const { managedNodes } = useManagedNodesSuspense();
+  const isLoadingManagedNodes = !managedNodes;
+  const managedNodesError = false; // Suspense disables error state, so just set to false
 
   // On mount, check for existing claim status and start polling if in progress
   useEffect(() => {
@@ -105,26 +107,6 @@ export function ClaimNode() {
       }
     };
   }, [pollingInterval]);
-
-  if (nodeQuery.isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
-  if (nodeQuery.error || !nodeQuery.data) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-red-500">
-          Error: {nodeQuery.error instanceof Error ? nodeQuery.error.message : 'Failed to fetch node details'}
-        </div>
-      </div>
-    );
-  }
-
-  const node = nodeQuery.data;
 
   // If the node is already claimed, redirect to node details
   if (node.owner) {

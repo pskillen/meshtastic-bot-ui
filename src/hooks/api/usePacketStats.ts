@@ -1,11 +1,8 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { useMeshtasticApi } from './useApi';
 import { GlobalStats } from '@/lib/models';
-import { DateRangeIntervalParams } from '@/lib/types';
-
-interface StatsQueryParams extends DateRangeIntervalParams {
-  nodeId?: number;
-}
+import { StatsQueryParams } from '@/lib/types';
+import { getKeyValue, roundDateParams } from './hooks-utils';
 
 /**
  * Hook to fetch packet statistics
@@ -14,9 +11,14 @@ interface StatsQueryParams extends DateRangeIntervalParams {
  */
 export function usePacketStats(params?: StatsQueryParams) {
   const api = useMeshtasticApi();
+  params = roundDateParams(params);
+
+  const keyValue = getKeyValue(params);
+  const key = ['stats', keyValue];
 
   return useQuery<GlobalStats>({
-    queryKey: ['stats', params],
+    refetchInterval: 5 * 1000 * 60, // 5 minutes
+    queryKey: key,
     queryFn: async () => {
       const { startDate, endDate, nodeId, interval = 1, intervalType = 'hour' } = params || {};
 
@@ -36,11 +38,16 @@ export function usePacketStats(params?: StatsQueryParams) {
  */
 export function usePacketStatsSuspense(params?: StatsQueryParams) {
   const api = useMeshtasticApi();
+  params = roundDateParams(params);
+  const keyValue = getKeyValue(params);
+  const key = ['stats', keyValue];
 
   const query = useSuspenseQuery<GlobalStats, Error>({
-    queryKey: ['stats', params],
+    refetchInterval: 5 * 1000 * 60, // 5 minutes
+    queryKey: key,
     queryFn: async () => {
       const { startDate, endDate, nodeId, interval = 1, intervalType = 'hour' } = params || {};
+
       if (nodeId) {
         return await api.getNodeStats(nodeId, { startDate, endDate, interval, intervalType });
       } else {

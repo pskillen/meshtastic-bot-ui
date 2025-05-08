@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ReferenceArea } from 'recharts';
-import { useMultiNodeMetrics } from '@/lib/hooks/useMultiNodeMetrics';
-import { NodeData } from '@/lib/models';
+import { useMultiNodeMetricsSuspense } from '@/hooks/api/useMultiNodeMetrics';
+import { ObservedNode } from '@/lib/models';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { TimeRangeSelect, TimeRangeOption } from '@/components/TimeRangeSelect';
@@ -15,7 +15,7 @@ interface ExtendedPayload extends Payload<ValueType, NameType> {
 }
 
 interface MonitoredNodesBatteryChartProps {
-  nodes: NodeData[];
+  nodes: ObservedNode[];
   timeRangeOptions?: TimeRangeOption[];
   defaultTimeRange?: string;
 }
@@ -40,7 +40,7 @@ export function MonitoredNodesBatteryChart({
   const [displayMode, setDisplayMode] = React.useState<'voltage' | 'percentage'>('voltage');
 
   // Use the new hook to fetch metrics for all nodes
-  const { metricsMap, isLoading, isError } = useMultiNodeMetrics(nodes, dateRange);
+  const { metricsMap } = useMultiNodeMetricsSuspense(nodes, dateRange);
 
   const handleTimeRangeChange = (value: string, timeRange: { startDate: Date; endDate: Date }) => {
     if (value === timeRangeLabel) return;
@@ -180,100 +180,90 @@ export function MonitoredNodesBatteryChart({
           />
           <Label htmlFor="display-mode">Show as {displayMode === 'voltage' ? 'Voltage' : 'Percentage'}</Label>
         </div>
-        {isLoading ? (
-          <div className="flex items-center justify-center h-[400px]">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-          </div>
-        ) : isError ? (
-          <div className="text-red-500 text-center h-[400px] flex items-center justify-center">
-            Failed to load battery data
-          </div>
-        ) : (
-          <ChartContainer config={chartConfig} className="aspect-auto h-[400px] w-full">
-            <LineChart data={chartData}>
-              <CartesianGrid vertical={false} />
-              <Legend verticalAlign="bottom" height={36} iconType="line" iconSize={8} />
-              <XAxis
-                dataKey="timestamp"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                minTickGap={32}
-                domain={[dateRange.startDate.getTime(), dateRange.endDate.getTime()]}
-                tickFormatter={(value: number) => {
-                  const date = new Date(value);
-                  return date.toLocaleString('en-GB', {
-                    month: 'short',
-                    day: 'numeric',
-                    hour: 'numeric',
-                    minute: 'numeric',
-                  });
-                }}
-                scale="time"
-                type="number"
+        <ChartContainer config={chartConfig} className="aspect-auto h-[400px] w-full">
+          <LineChart data={chartData}>
+            <CartesianGrid vertical={false} />
+            <Legend verticalAlign="bottom" height={36} iconType="line" iconSize={8} />
+            <XAxis
+              dataKey="timestamp"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              minTickGap={32}
+              domain={[dateRange.startDate.getTime(), dateRange.endDate.getTime()]}
+              tickFormatter={(value: number) => {
+                const date = new Date(value);
+                return date.toLocaleString('en-GB', {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: 'numeric',
+                });
+              }}
+              scale="time"
+              type="number"
+            />
+            <YAxis
+              domain={displayMode === 'voltage' ? [3.0, 4.2] : [0, 100]}
+              tickFormatter={displayMode === 'voltage' ? (value) => `${value}V` : (value) => `${value}%`}
+            />
+            {/* Shading areas */}
+            {getShadingAreas().map((area, idx) => (
+              <ReferenceArea
+                key={idx}
+                y1={area.y1}
+                y2={area.y2}
+                stroke={undefined}
+                fill={area.color}
+                ifOverflow="extendDomain"
               />
-              <YAxis
-                domain={displayMode === 'voltage' ? [3.0, 4.2] : [0, 100]}
-                tickFormatter={displayMode === 'voltage' ? (value) => `${value}V` : (value) => `${value}%`}
-              />
-              {/* Shading areas */}
-              {getShadingAreas().map((area, idx) => (
-                <ReferenceArea
-                  key={idx}
-                  y1={area.y1}
-                  y2={area.y2}
-                  stroke={undefined}
-                  fill={area.color}
-                  ifOverflow="extendDomain"
+            ))}
+            <Tooltip
+              content={
+                <ChartTooltipContent
+                  labelFormatter={(_, payload: Payload<ValueType, NameType>[]) => {
+                    // Extract the timestamp from the payload
+                    if (payload && payload[0] && payload[0].payload && payload[0].payload.timestamp) {
+                      const date = new Date(payload[0].payload.timestamp);
+                      return date.toLocaleString('en-GB', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: 'numeric',
+                      });
+                    }
+                    // If we can't find the timestamp in the payload, use the activeLabel
+                    const extendedPayload = payload as ExtendedPayload[];
+                    if (extendedPayload && extendedPayload[0] && extendedPayload[0].activeLabel) {
+                      const date = new Date(extendedPayload[0].activeLabel);
+                      return date.toLocaleString('en-GB', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: 'numeric',
+                      });
+                    }
+                    // Fallback if we can't find any timestamp
+                    return 'Unknown time';
+                  }}
+                  formatter={formatter}
                 />
-              ))}
-              <Tooltip
-                content={
-                  <ChartTooltipContent
-                    labelFormatter={(_, payload: Payload<ValueType, NameType>[]) => {
-                      // Extract the timestamp from the payload
-                      if (payload && payload[0] && payload[0].payload && payload[0].payload.timestamp) {
-                        const date = new Date(payload[0].payload.timestamp);
-                        return date.toLocaleString('en-GB', {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: 'numeric',
-                          minute: 'numeric',
-                        });
-                      }
-                      // If we can't find the timestamp in the payload, use the activeLabel
-                      const extendedPayload = payload as ExtendedPayload[];
-                      if (extendedPayload && extendedPayload[0] && extendedPayload[0].activeLabel) {
-                        const date = new Date(extendedPayload[0].activeLabel);
-                        return date.toLocaleString('en-GB', {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: 'numeric',
-                          minute: 'numeric',
-                        });
-                      }
-                      // Fallback if we can't find any timestamp
-                      return 'Unknown time';
-                    }}
-                    formatter={formatter}
-                  />
-                }
+              }
+            />
+            {seriesNames.map((seriesName, index) => (
+              <Line
+                key={seriesName}
+                name={seriesName}
+                dataKey={seriesName}
+                stroke={colors[index % colors.length]}
+                strokeWidth={2}
+                dot={{ r: 3 }}
+                connectNulls={true}
+                type="monotone"
               />
-              {seriesNames.map((seriesName, index) => (
-                <Line
-                  key={seriesName}
-                  name={seriesName}
-                  dataKey={seriesName}
-                  stroke={colors[index % colors.length]}
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                  connectNulls={true}
-                  type="monotone"
-                />
-              ))}
-            </LineChart>
-          </ChartContainer>
-        )}
+            ))}
+          </LineChart>
+        </ChartContainer>
       </CardContent>
     </Card>
   );

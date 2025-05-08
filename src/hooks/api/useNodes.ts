@@ -7,12 +7,14 @@ import {
   useInfiniteQuery,
   InfiniteData,
   useSuspenseInfiniteQuery,
+  useSuspenseQuery,
 } from '@tanstack/react-query';
 import { useMeshtasticApi } from './useApi';
-import { DeviceMetrics, NodeData, Position, ManagedNode, OwnedManagedNode } from '@/lib/models';
-import { DateRange } from '@/types/types';
+import { DeviceMetrics, ObservedNode, Position, ManagedNode, OwnedManagedNode } from '@/lib/models';
+import { DateRangeParams } from '@/lib/types';
 import { PaginatedResponse } from '@/lib/models';
 import React from 'react';
+import { getKeyValue, roundDateParams } from './hooks-utils';
 
 export interface UseNodesOptions {
   pageSize?: number;
@@ -29,13 +31,14 @@ export function useNodes(options?: UseNodesOptions) {
 
   // Query for observed nodes with automatic pagination
   const nodesQuery = useInfiniteQuery<
-    PaginatedResponse<NodeData>,
+    PaginatedResponse<ObservedNode>,
     Error,
-    InfiniteData<PaginatedResponse<NodeData>>,
+    InfiniteData<PaginatedResponse<ObservedNode>>,
     [string, number],
     number
   >({
-    queryKey: ['nodes', pageSize],
+    refetchInterval: 1000 * 60, // 1 minute
+    queryKey: ['nodes', 0],
     queryFn: async ({ pageParam = 1 }) => {
       return api.getNodes({
         page: pageParam,
@@ -64,8 +67,9 @@ export function useNodes(options?: UseNodesOptions) {
 
   // Query for managed nodes with pagination
   const managedNodesQuery = useInfiniteQuery<PaginatedResponse<ManagedNode>, Error>({
-    queryKey: ['managed-nodes', pageSize],
-    queryFn: async ({ pageParam = 1 }) => api.getManagedNodes({ page: pageParam, page_size: pageSize }),
+    refetchInterval: 1000 * 60, // 1 minute
+    queryKey: ['managed-nodes', 0],
+    queryFn: async ({ pageParam = 1 }) => api.getManagedNodes({ page: pageParam as number, page_size: pageSize }),
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) => (lastPage.next ? allPages.length + 1 : undefined),
     enabled: options?.enabled !== false,
@@ -78,8 +82,9 @@ export function useNodes(options?: UseNodesOptions) {
 
   // Query for user's managed nodes with pagination
   const myManagedNodesQuery = useInfiniteQuery<PaginatedResponse<OwnedManagedNode>, Error>({
+    refetchInterval: 1000 * 60, // 1 minute
     queryKey: ['managed-nodes', 'mine', pageSize],
-    queryFn: async ({ pageParam = 1 }) => api.getMyManagedNodes({ page: pageParam, page_size: pageSize }),
+    queryFn: async ({ pageParam = 1 }) => api.getMyManagedNodes({ page: pageParam as number, page_size: pageSize }),
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) => (lastPage.next ? allPages.length + 1 : undefined),
     enabled: options?.enabled !== false,
@@ -91,9 +96,10 @@ export function useNodes(options?: UseNodesOptions) {
   );
 
   // Query for user's claimed nodes with pagination
-  const myClaimedNodesQuery = useInfiniteQuery<PaginatedResponse<NodeData>, Error>({
-    queryKey: ['observed-nodes', 'mine', pageSize],
-    queryFn: async ({ pageParam = 1 }) => api.getMyClaimedNodes({ page: pageParam, page_size: pageSize }),
+  const myClaimedNodesQuery = useInfiniteQuery<PaginatedResponse<ObservedNode>, Error>({
+    refetchInterval: 1000 * 60, // 1 minute
+    queryKey: ['observed-nodes', 'mine', 0],
+    queryFn: async ({ pageParam = 1 }) => api.getMyClaimedNodes({ page: pageParam as number, page_size: pageSize }),
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) => (lastPage.next ? allPages.length + 1 : undefined),
     enabled: options?.enabled !== false,
@@ -153,8 +159,8 @@ export function useNodes(options?: UseNodesOptions) {
  */
 export function useNode(
   id: number,
-  options?: Omit<UseQueryOptions<NodeData>, 'queryKey' | 'queryFn'>
-): UseQueryResult<NodeData> {
+  options?: Omit<UseQueryOptions<ObservedNode>, 'queryKey' | 'queryFn'>
+): UseQueryResult<ObservedNode> {
   const api = useMeshtasticApi();
   return useQuery({
     queryKey: ['nodes', id],
@@ -173,6 +179,7 @@ export function useManagedNode(
 ): UseQueryResult<ManagedNode> {
   const api = useMeshtasticApi();
   return useQuery({
+    refetchInterval: 1000 * 60, // 1 minute
     queryKey: ['managed-nodes', id],
     queryFn: () => api.getManagedNode(id),
     enabled: !!id,
@@ -183,16 +190,16 @@ export function useManagedNode(
 /**
  * Hook to fetch device metrics for a node
  */
-export function useNodeMetrics(id: number, dateRange?: DateRange): UseQueryResult<DeviceMetrics[]> {
+export function useNodeMetrics(id: number, params?: DateRangeParams): UseQueryResult<DeviceMetrics[]> {
   const api = useMeshtasticApi();
+  params = roundDateParams(params);
+  const keyValue = getKeyValue(params);
+  const key = ['nodes', id, 'metrics', keyValue];
+
   return useQuery({
-    queryKey: ['nodes', id, 'metrics', dateRange?.startDate?.toISOString(), dateRange?.endDate?.toISOString()],
-    queryFn: () => {
-      const params: { startDate?: Date; endDate?: Date } = {};
-      if (dateRange?.startDate) params.startDate = dateRange.startDate;
-      if (dateRange?.endDate) params.endDate = dateRange.endDate;
-      return api.getNodeDeviceMetrics(id, params);
-    },
+    refetchInterval: 1000 * 60, // 1 minute
+    queryKey: key,
+    queryFn: () => api.getNodeDeviceMetrics(id, params),
     enabled: !!id,
   });
 }
@@ -200,16 +207,16 @@ export function useNodeMetrics(id: number, dateRange?: DateRange): UseQueryResul
 /**
  * Hook to fetch positions for a node
  */
-export function useNodePositions(id: number, dateRange?: DateRange): UseQueryResult<Position[]> {
+export function useNodePositions(id: number, params?: DateRangeParams): UseQueryResult<Position[]> {
   const api = useMeshtasticApi();
+  params = roundDateParams(params);
+  const keyValue = getKeyValue(params);
+  const key = ['nodes', id, 'positions', keyValue];
+
   return useQuery({
-    queryKey: ['nodes', id, 'positions', dateRange?.startDate?.toISOString(), dateRange?.endDate?.toISOString()],
-    queryFn: () => {
-      const params: { startDate?: Date; endDate?: Date } = {};
-      if (dateRange?.startDate) params.startDate = dateRange.startDate;
-      if (dateRange?.endDate) params.endDate = dateRange.endDate;
-      return api.getNodePositions(id, params);
-    },
+    refetchInterval: 1000 * 60, // 1 minute
+    queryKey: key,
+    queryFn: () => api.getNodePositions(id, params),
     enabled: !!id,
   });
 }
@@ -245,9 +252,10 @@ export function useNodesSuspense(options?: UseNodesOptions) {
   const api = useMeshtasticApi();
   const pageSize = options?.pageSize || 25;
 
-  const nodesQuery = useSuspenseInfiniteQuery<PaginatedResponse<NodeData>, Error>({
+  const nodesQuery = useSuspenseInfiniteQuery<PaginatedResponse<ObservedNode>, Error>({
+    refetchInterval: 1000 * 60, // 1 minute
     queryKey: ['nodes', pageSize],
-    queryFn: async ({ pageParam = 1 }) => api.getNodes({ page: pageParam, page_size: pageSize }),
+    queryFn: async ({ pageParam = 1 }) => api.getNodes({ page: pageParam as number, page_size: pageSize }),
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) => (lastPage.next ? allPages.length + 1 : undefined),
   });
@@ -277,8 +285,9 @@ export function useNodesSuspense(options?: UseNodesOptions) {
 export function useManagedNodesSuspense(pageSize = 25) {
   const api = useMeshtasticApi();
   const managedNodesQuery = useSuspenseInfiniteQuery<PaginatedResponse<ManagedNode>, Error>({
+    refetchInterval: 1000 * 60, // 1 minute
     queryKey: ['managed-nodes', pageSize],
-    queryFn: async ({ pageParam = 1 }) => api.getManagedNodes({ page: pageParam, page_size: pageSize }),
+    queryFn: async ({ pageParam = 1 }) => api.getManagedNodes({ page: pageParam as number, page_size: pageSize }),
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) => (lastPage.next ? allPages.length + 1 : undefined),
   });
@@ -305,8 +314,9 @@ export function useManagedNodesSuspense(pageSize = 25) {
 export function useMyManagedNodesSuspense(pageSize = 25) {
   const api = useMeshtasticApi();
   const myManagedNodesQuery = useSuspenseInfiniteQuery<PaginatedResponse<OwnedManagedNode>, Error>({
+    refetchInterval: 1000 * 60, // 1 minute
     queryKey: ['managed-nodes', 'mine', pageSize],
-    queryFn: async ({ pageParam = 1 }) => api.getMyManagedNodes({ page: pageParam, page_size: pageSize }),
+    queryFn: async ({ pageParam = 1 }) => api.getMyManagedNodes({ page: pageParam as number, page_size: pageSize }),
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) => (lastPage.next ? allPages.length + 1 : undefined),
   });
@@ -332,9 +342,10 @@ export function useMyManagedNodesSuspense(pageSize = 25) {
  */
 export function useMyClaimedNodesSuspense(pageSize = 25) {
   const api = useMeshtasticApi();
-  const myClaimedNodesQuery = useSuspenseInfiniteQuery<PaginatedResponse<NodeData>, Error>({
+  const myClaimedNodesQuery = useSuspenseInfiniteQuery<PaginatedResponse<ObservedNode>, Error>({
+    refetchInterval: 1000 * 60, // 1 minute
     queryKey: ['observed-nodes', 'mine', pageSize],
-    queryFn: async ({ pageParam = 1 }) => api.getMyClaimedNodes({ page: pageParam, page_size: pageSize }),
+    queryFn: async ({ pageParam = 1 }) => api.getMyClaimedNodes({ page: pageParam as number, page_size: pageSize }),
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) => (lastPage.next ? allPages.length + 1 : undefined),
   });
@@ -353,4 +364,36 @@ export function useMyClaimedNodesSuspense(pageSize = 25) {
     fetchNextPage: myClaimedNodesQuery.fetchNextPage,
     hasNextPage: myClaimedNodesQuery.hasNextPage,
   };
+}
+
+/**
+ * Suspense-enabled hook to fetch device metrics for a node
+ * Use inside a <Suspense> boundary. No isLoading or error states are returned.
+ */
+export function useNodeMetricsSuspense(id: number, params?: DateRangeParams) {
+  const api = useMeshtasticApi();
+  params = roundDateParams(params);
+  const keyValue = getKeyValue(params);
+  const key = ['nodes', id, 'metrics', keyValue];
+
+  const query = useSuspenseQuery<DeviceMetrics[], Error>({
+    refetchInterval: 1000 * 60, // 1 minute
+    queryKey: key,
+    queryFn: () => api.getNodeDeviceMetrics(id, params),
+  });
+  return { metrics: query.data };
+}
+
+/**
+ * Suspense-enabled hook to fetch a single node by ID
+ * Use inside a <Suspense> boundary. No isLoading or error states are returned.
+ */
+export function useNodeSuspense(id: number) {
+  const api = useMeshtasticApi();
+  const query = useSuspenseQuery<ObservedNode, Error>({
+    refetchInterval: 1000 * 60, // 1 minute
+    queryKey: ['nodes', id],
+    queryFn: () => api.getNode(id),
+  });
+  return query.data;
 }

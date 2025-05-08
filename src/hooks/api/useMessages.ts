@@ -90,7 +90,7 @@ export function useMessagesSuspense(options?: UseMessagesOptions) {
       api.getTextMessages({
         channelId: options?.channelId,
         constellationId: options?.constellationId,
-        page: pageParam,
+        page: pageParam as number,
         page_size: pageSize,
       }),
     initialPageParam: 1,

@@ -1,33 +1,25 @@
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useNodes } from '@/lib/hooks/useNodes';
-import { useMeshBotApi } from '@/lib/hooks/useApi';
+import { useMyClaimedNodesSuspense, useMyManagedNodesSuspense } from '@/hooks/api/useNodes';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, AlertCircle, Settings, Radio } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { NodeData } from '@/lib/models';
+import { ObservedNode } from '@/lib/models';
 import { Badge } from '@/components/ui/badge';
 import { SetupManagedNode } from '@/components/nodes/SetupManagedNode';
 
-export function MyNodes() {
+function MyNodesContent() {
   const navigate = useNavigate();
-  const {
-    myClaimedNodes,
-    isLoadingMyClaimedNodes,
-    myClaimedNodesError,
-    myManagedNodes,
-    isLoadingMyManagedNodes,
-    myManagedNodesError,
-  } = useNodes();
-  const api = useMeshBotApi();
-  const [selectedNode, setSelectedNode] = useState<NodeData | null>(null);
+  const { myClaimedNodes } = useMyClaimedNodesSuspense();
+  const { myManagedNodes } = useMyManagedNodesSuspense();
+  const [selectedNode, setSelectedNode] = useState<ObservedNode | null>(null);
   const [isSetupDialogOpen, setIsSetupDialogOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
 
-  const handleRunAsManagedNode = (node: NodeData) => {
+  const handleRunAsManagedNode = (node: ObservedNode) => {
     setSelectedNode(node);
     setIsSetupDialogOpen(true);
   };
@@ -69,19 +61,7 @@ export function MyNodes() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoadingMyClaimedNodes ? (
-                <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-                </div>
-              ) : myClaimedNodesError ? (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Error</AlertTitle>
-                  <AlertDescription>
-                    Failed to load your claimed nodes. Please refresh the page and try again.
-                  </AlertDescription>
-                </Alert>
-              ) : myClaimedNodes && myClaimedNodes.length > 0 ? (
+              {myClaimedNodes && myClaimedNodes.length > 0 ? (
                 <div className="space-y-4">
                   {myClaimedNodes.map((node) => (
                     <Card key={node.node_id} className="overflow-hidden">
@@ -135,19 +115,7 @@ export function MyNodes() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoadingMyManagedNodes ? (
-                <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-                </div>
-              ) : myManagedNodesError ? (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Error</AlertTitle>
-                  <AlertDescription>
-                    Failed to load your managed nodes. Please refresh the page and try again.
-                  </AlertDescription>
-                </Alert>
-              ) : myManagedNodes && myManagedNodes.length > 0 ? (
+              {myManagedNodes && myManagedNodes.length > 0 ? (
                 <div className="space-y-4">
                   {myManagedNodes.map((node) => (
                     <Card key={node.node_id} className="overflow-hidden">
@@ -204,5 +172,19 @@ export function MyNodes() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+export function MyNodes() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+        </div>
+      }
+    >
+      <MyNodesContent />
+    </Suspense>
   );
 }

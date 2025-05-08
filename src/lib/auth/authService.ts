@@ -1,4 +1,4 @@
-import { ApiConfig } from '@/types/types';
+import { ApiConfig } from '@/lib/types';
 
 // Token storage keys
 const ACCESS_TOKEN_KEY = 'meshflow_access_token';

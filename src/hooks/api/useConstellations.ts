@@ -1,10 +1,4 @@
-import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-  useInfiniteQuery,
-  useSuspenseInfiniteQuery,
-} from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useSuspenseInfiniteQuery } from '@tanstack/react-query';
 import { useMeshtasticApi } from './useApi';
 import { Constellation, MessageChannel, PaginatedResponse } from '@/lib/models';
 
@@ -19,7 +13,7 @@ export function useConstellations(pageSize = 25, enabled = true) {
 
   const query = useInfiniteQuery<PaginatedResponse<Constellation>, Error>({
     queryKey: ['constellations', pageSize],
-    queryFn: async ({ pageParam = 1 }) => api.getConstellations({ page: pageParam, page_size: pageSize }),
+    queryFn: async ({ pageParam }) => api.getConstellations({ page: pageParam as number, page_size: pageSize }),
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) => (lastPage.next ? allPages.length + 1 : undefined),
     enabled,
@@ -52,7 +46,7 @@ export function useConstellationsSuspense(pageSize = 25) {
 
   const query = useSuspenseInfiniteQuery<PaginatedResponse<Constellation>, Error>({
     queryKey: ['constellations', pageSize],
-    queryFn: async ({ pageParam = 1 }) => api.getConstellations({ page: pageParam, page_size: pageSize }),
+    queryFn: async ({ pageParam = 1 }) => api.getConstellations({ page: pageParam as number, page_size: pageSize }),
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) => (lastPage.next ? allPages.length + 1 : undefined),
   });
@@ -90,49 +84,5 @@ export function useConstellationChannels(constellationId: number, enabled = true
     queryKey: ['constellations', constellationId, 'channels'],
     queryFn: () => api.getConstellationChannels(constellationId),
     enabled: !!constellationId && enabled,
-  });
-}
-
-/**
- * Hook to create a new constellation
- * @returns Mutation for creating a constellation
- */
-export function useCreateConstellation() {
-  const api = useMeshtasticApi();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (data: { name: string; description: string }) => {
-      // This is a placeholder - the actual API method needs to be implemented in meshtastic-api.ts
-      throw new Error('Not implemented: createConstellation');
-      // return api.createConstellation(data.name, data.description);
-    },
-    onSuccess: () => {
-      // Invalidate the constellations query to refetch the data
-      queryClient.invalidateQueries({ queryKey: ['constellations'] });
-    },
-  });
-}
-
-/**
- * Hook to create a new channel in a constellation
- * @returns Mutation for creating a channel
- */
-export function useCreateChannel() {
-  const api = useMeshtasticApi();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (data: { constellationId: number; name: string }) => {
-      // This is a placeholder - the actual API method needs to be implemented in meshtastic-api.ts
-      throw new Error('Not implemented: createChannel');
-      // return api.createConstellationChannel(data.constellationId, data.name);
-    },
-    onSuccess: (_, variables) => {
-      // Invalidate the channels query for the specific constellation
-      queryClient.invalidateQueries({
-        queryKey: ['constellations', variables.constellationId, 'channels'],
-      });
-    },
   });
 }

@@ -1,32 +1,27 @@
 import { useParams, Link } from 'react-router-dom';
-import { useNodes } from '@/lib/hooks/useNodes';
-import { useRecentNodes } from '@/lib/hooks/useRecentNodes';
+import { useNodeSuspense, useNodePositions } from '@/hooks/api/useNodes';
+import { useRecentNodes } from '@/hooks/useRecentNodes';
 import { formatDistanceToNow } from 'date-fns';
 import { BatteryChartShadcn } from '@/components/BatteryChartShadcn';
 import { PacketTypeChart } from '@/components/PacketTypeChart';
 import { NodesMap } from '@/components/nodes/NodesMap';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Pause, Play } from 'lucide-react';
+import { Pause, Play } from 'lucide-react';
 
-export function NodeDetails() {
+function NodeDetailsContent() {
   const { id } = useParams<{ id: string }>();
   const nodeId = parseInt(id || '0', 10);
-  const { useNode, useNodePositions } = useNodes();
+  const node = useNodeSuspense(nodeId);
+  const positionsQuery = useNodePositions(nodeId);
   const { recentNodes, addRecentNode } = useRecentNodes();
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [refreshInterval] = useState<number | false>(30000); // 30 seconds
-
-  const nodeQuery = useNode(nodeId, {
-    refetchInterval: autoRefresh ? refreshInterval : false,
-  });
-  const positionsQuery = useNodePositions(nodeId);
 
   // Add node to recently viewed list only when nodeId changes or on initial load
   useEffect(() => {
-    if (nodeQuery.data) {
-      addRecentNode(nodeQuery.data);
+    if (node) {
+      addRecentNode(node);
     }
   }, [nodeId, addRecentNode]);
 
@@ -35,25 +30,6 @@ export function NodeDetails() {
     setAutoRefresh(!autoRefresh);
   };
 
-  if (nodeQuery.isLoading || positionsQuery.isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
-  if (nodeQuery.error || !nodeQuery.data) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-red-500">
-          Error: {nodeQuery.error instanceof Error ? nodeQuery.error.message : 'Failed to fetch node details'}
-        </div>
-      </div>
-    );
-  }
-
-  const node = nodeQuery.data;
   const positions = positionsQuery.data;
   const hasPositions =
     positions &&
@@ -115,10 +91,10 @@ export function NodeDetails() {
                 <span className="font-medium">Node ID:</span> {node.node_id}
               </p>
               <p>
-                <span className="font-medium">Hardware Model:</span> {node.hardware_model}
+                <span className="font-medium">Hardware Model:</span> {node.hw_model}
               </p>
               <p>
-                <span className="font-medium">Meshtastic Version:</span> {node.meshtastic_version}
+                <span className="font-medium">Meshtastic Version:</span> {node.sw_version}
               </p>
               <p>
                 <span className="font-medium">Last Heard:</span>{' '}
@@ -151,15 +127,7 @@ export function NodeDetails() {
                     </>
                   )}
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => nodeQuery.refetch()}
-                  className="flex items-center gap-1"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  <span>Refresh</span>
-                </Button>
+                {/* Manual refresh removed for Suspense version */}
               </div>
             </CardHeader>
             <CardContent>
@@ -242,5 +210,19 @@ export function NodeDetails() {
         <PacketTypeChart nodeId={nodeId} defaultTimeRange={'48h'} />
       </div>
     </div>
+  );
+}
+
+export function NodeDetails() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      }
+    >
+      <NodeDetailsContent />
+    </Suspense>
   );
 }

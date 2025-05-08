@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMeshBotApi } from '@/lib/hooks/useApi';
-import { NodeData, OwnedManagedNode } from '@/lib/models';
-import { useNode } from '@/lib/hooks/useNodes';
+import { useMeshtasticApi } from '@/hooks/api/useApi';
+import { NodeApiKey, ObservedNode } from '@/lib/models';
+import { useNodeSuspense } from '@/hooks/api/useNodes';
+import { authService } from '@/lib/auth/authService';
 import {
   Dialog,
   DialogContent,
@@ -23,7 +24,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 interface SetupManagedNodeProps {
-  node: NodeData;
+  node: ObservedNode;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -32,7 +33,7 @@ type SetupStep = 'constellation' | 'location-channels' | 'api-key' | 'instructio
 
 export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProps) {
   const navigate = useNavigate();
-  const api = useMeshBotApi();
+  const api = useMeshtasticApi();
 
   // Glasgow coordinates as default fallback
   const GLASGOW_COORDS = { lat: 55.8642, lng: -4.2518 };
@@ -45,8 +46,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
   const [newApiKeyName, setNewApiKeyName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [createdManagedNode, setCreatedManagedNode] = useState<OwnedManagedNode | null>(null);
-  const [createdApiKey, setCreatedApiKey] = useState<any | null>(null);
+  const [createdApiKey, setCreatedApiKey] = useState<NodeApiKey | null>(null);
 
   // Location state
   const [nodeLocation, setNodeLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -95,7 +95,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
   });
 
   // Get the node's observed node data to check for existing location
-  const observedNodeQuery = useNode(node.node_id);
+  const observedNode = useNodeSuspense(node.node_id);
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -108,7 +108,6 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
       setNewApiKeyName('');
       setIsLoading(false);
       setError(null);
-      setCreatedManagedNode(null);
       setCreatedApiKey(null);
 
       // Reset location and channel mappings
@@ -162,11 +161,11 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
       // Try to get location from observed node first
       let initialLocation = GLASGOW_COORDS; // Default to Glasgow
 
-      if (observedNodeQuery.data?.latest_position?.latitude && observedNodeQuery.data?.latest_position?.longitude) {
+      if (observedNode?.latest_position?.latitude && observedNode?.latest_position?.longitude) {
         // Use observed node's location if available
         initialLocation = {
-          lat: observedNodeQuery.data.latest_position.latitude,
-          lng: observedNodeQuery.data.latest_position.longitude,
+          lat: observedNode.latest_position.latitude,
+          lng: observedNode.latest_position.longitude,
         };
         // Set the node location state
         setNodeLocation(initialLocation);
@@ -215,7 +214,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
         style.remove();
       };
     }
-  }, [currentStep, observedNodeQuery.data]);
+  }, [currentStep, observedNode]);
 
   // Handle channel mapping changes
   const handleChannelChange = (channelIndex: number, channelId: number | null) => {
@@ -234,14 +233,21 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
     setIsLoading(true);
     setError(null);
 
+    // current user id
+    const user = authService.getCurrentUser();
+    if (!user) {
+      setError('Please login to create a managed node');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       // Create the managed node with location and channel mappings
-      const managedNode = await api.createManagedNode(node.node_id, selectedConstellation, nodeName, {
+      const managedNode = await api.createManagedNode(node.node_id, selectedConstellation, nodeName, user.id, {
         defaultLocationLatitude: nodeLocation?.lat,
         defaultLocationLongitude: nodeLocation?.lng,
         channels: channelMappings,
       });
-      setCreatedManagedNode(managedNode);
 
       // Handle API key
       if (apiKeyOption === 'existing' && selectedApiKey) {
@@ -249,8 +255,11 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
         await api.addNodeToApiKey(selectedApiKey, managedNode.node_id);
       } else if (apiKeyOption === 'new' && newApiKeyName) {
         // Create new API key
-        const apiKey = await api.createApiKey(newApiKeyName, selectedConstellation, [managedNode.node_id]);
+        const apiKey = await api.createApiKey(newApiKeyName, selectedConstellation);
         setCreatedApiKey(apiKey);
+
+        // Add node to new API key
+        await api.addNodeToApiKey(apiKey.id, managedNode.node_id);
       }
 
       // Move to instructions step
@@ -302,7 +311,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
                 <SelectValue placeholder="Select a constellation" />
               </SelectTrigger>
               <SelectContent>
-                {constellationsQuery.data?.map((constellation) => (
+                {constellationsQuery.data?.results.map((constellation) => (
                   <SelectItem key={constellation.id} value={constellation.id.toString()}>
                     {constellation.name}
                   </SelectItem>
@@ -338,7 +347,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
           <Label>Node Location</Label>
           <p className="text-sm text-gray-500 mb-2">
             Click on the map or drag the marker to set the default location for your node.
-            {observedNodeQuery.data?.latest_position
+            {observedNode?.latest_position
               ? " We've set the initial location based on the node's last reported position."
               : " We've set the initial location to Glasgow, Scotland."}
           </p>

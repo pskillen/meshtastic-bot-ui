@@ -1,4 +1,4 @@
-import { NodeData } from '@/lib/models';
+import { ObservedNode } from '@/lib/models';
 import L from 'leaflet';
 import { useEffect, useRef } from 'react';
 import 'leaflet/dist/leaflet.css';
@@ -20,7 +20,7 @@ const createNodeIcon = (text: string) => {
 };
 
 interface NodesMapProps {
-  nodes: NodeData[];
+  nodes: ObservedNode[];
 }
 
 // Default center only used if no nodes are present

@@ -6,10 +6,9 @@ import { CartesianGrid, XAxis, YAxis, Bar, Line, ComposedChart } from 'recharts'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { TimeRangeSelect, TimeRangeOption } from '@/components/TimeRangeSelect';
-import { usePacketStats } from '@/lib/hooks/usePacketStats';
+import { usePacketStatsSuspense } from '@/hooks/api/usePacketStats';
 import { subDays } from 'date-fns';
 import { Payload, ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent';
-import { GlobalStats } from '@/lib/models';
 
 interface PacketStatsChartProps {
   nodeId?: number;
@@ -40,17 +39,16 @@ export function PacketStatsChart({
     endDate: new Date(),
   });
 
-  // Use the usePacketStats hook to fetch data
-  const {
-    data: stats,
-    isLoading,
-    error,
-  } = usePacketStats({
-    startDate: dateRange.startDate,
-    endDate: dateRange.endDate,
-    nodeId,
-  });
-  const packetStats = stats as GlobalStats;
+  const statsParams = React.useMemo(
+    () => ({
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
+      nodeId,
+    }),
+    [dateRange.startDate, dateRange.endDate, nodeId]
+  );
+
+  const { stats: packetStats } = usePacketStatsSuspense(statsParams);
 
   const handleTimeRangeChange = (value: string, timeRange: { startDate: Date; endDate: Date }) => {
     if (value === timeRangeLabel) return;
@@ -123,81 +121,71 @@ export function PacketStatsChart({
         </div>
       </CardHeader>
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-[250px]">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-          </div>
-        ) : error ? (
-          <div className="text-red-500 text-center h-[250px] flex items-center justify-center">
-            Failed to load packet statistics
-          </div>
-        ) : (
-          <ChartContainer config={config} className="aspect-auto h-[250px] w-full">
-            <ComposedChart data={chartData}>
-              <defs>
-                <linearGradient id="fillValue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-value)" stopOpacity={1.0} />
-                  <stop offset="95%" stopColor="var(--color-value)" stopOpacity={0.1} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid vertical={false} />
-              <XAxis
-                dataKey="timestamp"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                minTickGap={80}
-                tickCount={6}
-                scale="time"
-                type="number"
-                domain={[dateRange.startDate.getTime(), dateRange.endDate.getTime()]}
-                tickFormatter={(value) => {
-                  // Convert number to Date for display
-                  const date = new Date(value);
-                  return date.toLocaleDateString('en-GB', {
-                    month: 'short',
-                    day: 'numeric',
-                    hour: 'numeric',
-                    minute: 'numeric',
-                  });
-                }}
-              />
-              <YAxis domain={yAxisDomain} tickLine={false} axisLine={false} tickMargin={8} />
-              <ChartTooltip
-                cursor={false}
-                content={
-                  <ChartTooltipContent
-                    labelFormatter={(_, payload: Payload<ValueType, NameType>[]) => {
-                      // Extract the timestamp from the payload
-                      if (payload && payload[0] && payload[0].payload) {
-                        const timestamp = payload[0].payload.timestamp;
-                        // Convert number to Date for display
-                        const date = new Date(timestamp);
-                        return date.toLocaleDateString('en-GB', {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: 'numeric',
-                          minute: 'numeric',
-                        });
-                      }
-                      return 'Unknown time';
-                    }}
-                    indicator="dot"
-                  />
-                }
-              />
-              <Bar dataKey="value" fill="var(--color-value)" fillOpacity={0.7} barSize={8} />
-              <Line
-                type="monotone"
-                dataKey="movingAverage"
-                stroke="var(--color-value)"
-                strokeWidth={2}
-                dot={false}
-                name="24h Moving Average"
-              />
-            </ComposedChart>
-          </ChartContainer>
-        )}
+        <ChartContainer config={config} className="aspect-auto h-[250px] w-full">
+          <ComposedChart data={chartData}>
+            <defs>
+              <linearGradient id="fillValue" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="var(--color-value)" stopOpacity={1.0} />
+                <stop offset="95%" stopColor="var(--color-value)" stopOpacity={0.1} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid vertical={false} />
+            <XAxis
+              dataKey="timestamp"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              minTickGap={80}
+              tickCount={6}
+              scale="time"
+              type="number"
+              domain={[dateRange.startDate.getTime(), dateRange.endDate.getTime()]}
+              tickFormatter={(value) => {
+                // Convert number to Date for display
+                const date = new Date(value);
+                return date.toLocaleDateString('en-GB', {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: 'numeric',
+                });
+              }}
+            />
+            <YAxis domain={yAxisDomain} tickLine={false} axisLine={false} tickMargin={8} />
+            <ChartTooltip
+              cursor={false}
+              content={
+                <ChartTooltipContent
+                  labelFormatter={(_, payload: Payload<ValueType, NameType>[]) => {
+                    // Extract the timestamp from the payload
+                    if (payload && payload[0] && payload[0].payload) {
+                      const timestamp = payload[0].payload.timestamp;
+                      // Convert number to Date for display
+                      const date = new Date(timestamp);
+                      return date.toLocaleDateString('en-GB', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: 'numeric',
+                      });
+                    }
+                    return 'Unknown time';
+                  }}
+                  indicator="dot"
+                />
+              }
+            />
+            <Bar dataKey="value" fill="var(--color-value)" fillOpacity={0.7} barSize={8} />
+            <Line
+              type="monotone"
+              dataKey="movingAverage"
+              stroke="var(--color-value)"
+              strokeWidth={2}
+              dot={false}
+              name="24h Moving Average"
+            />
+          </ComposedChart>
+        </ChartContainer>
       </CardContent>
     </Card>
   );

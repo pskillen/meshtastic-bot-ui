@@ -2,13 +2,11 @@
 
 import * as React from 'react';
 import { CartesianGrid, XAxis, YAxis, Bar, BarChart, Legend } from 'recharts';
-import { usePacketStats } from '@/lib/hooks/usePacketStats';
+import { usePacketStatsSuspense } from '@/hooks/api/usePacketStats';
 import { subDays } from 'date-fns';
 import { TimeRangeSelect, TimeRangeOption } from '@/components/TimeRangeSelect';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
 import { PacketStatsInterval } from '@/lib/models';
 import { Payload, ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent';
 
@@ -55,12 +53,7 @@ export function PacketTypeChart({
   const [timeRange, setTimeRange] = React.useState(defaultTimeRange);
   const [dateRange, setDateRange] = React.useState(getInitialDateRange);
 
-  const {
-    data: packetStats,
-    isLoading,
-    error,
-    refetch,
-  } = usePacketStats({
+  const { stats: packetStats } = usePacketStatsSuspense({
     nodeId,
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
@@ -111,34 +104,6 @@ export function PacketTypeChart({
     setDateRange(newDateRange);
   }, []);
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Packet Types</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center h-[250px]">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Packet Types</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center h-[250px] text-red-500">Error loading packet statistics</div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card className="@container/card">
       <CardHeader className="relative">
@@ -151,10 +116,6 @@ export function PacketTypeChart({
         </CardDescription>
         <div className="absolute right-4 top-4 flex items-center gap-2">
           <TimeRangeSelect options={TIME_RANGE_OPTIONS} value={timeRange} onChange={handleTimeRangeChange} />
-          <Button variant="outline" size="sm" onClick={() => refetch()} className="flex items-center gap-1">
-            <RefreshCw className="h-4 w-4" />
-            <span>Refresh</span>
-          </Button>
         </div>
       </CardHeader>
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">

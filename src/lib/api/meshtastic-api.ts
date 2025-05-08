@@ -1,6 +1,5 @@
 import { BaseApi } from './base';
 import {
-  NodeData,
   ObservedNode,
   ManagedNode,
   OwnedManagedNode,
@@ -14,42 +13,16 @@ import {
   TextMessage,
   TextMessageResponse,
   NodeClaim,
+  CreateManagedNode,
+  NodeApiKey,
+  CreateNodeApiKey,
 } from '../models';
-import { DateRangeParams, DateRangeIntervalParams, PaginationParams } from '../types';
-import { ApiConfig } from '@/types/types';
+import { ApiConfig, DateRangeParams, DateRangeIntervalParams, PaginationParams } from '@/lib/types';
+import { parseObservedNodeFromAPI } from './api-utils';
 
-/**
- * MeshtasticApi class for interacting with the Meshtastic API
- * Implemented based on the openapi.yaml specification
- */
 export class MeshtasticApi extends BaseApi {
   constructor(config: ApiConfig) {
     super(config);
-  }
-
-  // Helper method to convert ObservedNode to NodeData for backward compatibility
-  private observedNodeToNodeData(node: ObservedNode): NodeData {
-    return {
-      ...node,
-      id: node.internal_id,
-      hardware_model: node.hw_model,
-      meshtastic_version: node.sw_version,
-      last_heard: node.last_heard ? new Date(node.last_heard) : null,
-      latest_position: node.latest_position
-        ? {
-            ...node.latest_position,
-            logged_time: new Date(node.latest_position.logged_time),
-            reported_time: new Date(node.latest_position.reported_time),
-          }
-        : null,
-      latest_device_metrics: node.latest_device_metrics
-        ? {
-            ...node.latest_device_metrics,
-            logged_time: new Date(node.latest_device_metrics.logged_time),
-            reported_time: new Date(node.latest_device_metrics.reported_time),
-          }
-        : null,
-    };
   }
 
   // ===== Observed Nodes API =====
@@ -57,7 +30,7 @@ export class MeshtasticApi extends BaseApi {
   /**
    * Get a paginated list of observed nodes
    */
-  async getNodes(params?: PaginationParams): Promise<PaginatedResponse<NodeData>> {
+  async getNodes(params?: PaginationParams): Promise<PaginatedResponse<ObservedNode>> {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.append('page', params.page.toString());
     if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
@@ -65,30 +38,30 @@ export class MeshtasticApi extends BaseApi {
     const response = await this.get<PaginatedResponse<ObservedNode>>('/nodes/observed-nodes/', searchParams);
     return {
       ...response,
-      results: response.results.map((node) => this.observedNodeToNodeData(node)),
+      results: response.results.map((node) => parseObservedNodeFromAPI(node)),
     };
   }
 
   /**
    * Get a paginated list of observed nodes owned by the current user
    */
-  async getMyClaimedNodes(params?: PaginationParams): Promise<PaginatedResponse<NodeData>> {
+  async getMyClaimedNodes(params?: PaginationParams): Promise<PaginatedResponse<ObservedNode>> {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.append('page', params.page.toString());
     if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
     const response = await this.get<PaginatedResponse<ObservedNode>>('/nodes/observed-nodes/mine/', searchParams);
     return {
       ...response,
-      results: response.results.map((node) => this.observedNodeToNodeData(node)),
+      results: response.results.map((node) => parseObservedNodeFromAPI(node)),
     };
   }
 
   /**
    * Get a single observed node by ID
    */
-  async getNode(id: number): Promise<NodeData> {
+  async getNode(id: number): Promise<ObservedNode> {
     const node = await this.get<ObservedNode>(`/nodes/observed-nodes/${id}/`);
-    return this.observedNodeToNodeData(node);
+    return parseObservedNodeFromAPI(node);
   }
 
   /**
@@ -109,7 +82,7 @@ export class MeshtasticApi extends BaseApi {
     if (params?.startDate) searchParams.append('start_date', params.startDate.toISOString());
     if (params?.endDate) searchParams.append('end_date', params.endDate.toISOString());
 
-    const metrics = await this.get<DeviceMetrics[]>(`/nodes/observed-nodes/${id}/device-metrics/`, searchParams);
+    const metrics = await this.get<DeviceMetrics[]>(`/nodes/observed-nodes/${id}/device_metrics/`, searchParams);
     return metrics.map((metric) => ({
       ...metric,
       logged_time: new Date(metric.logged_time),
@@ -191,6 +164,7 @@ export class MeshtasticApi extends BaseApi {
     nodeId: number,
     constellationId: number,
     name: string,
+    ownerId: number | null,
     options?: {
       defaultLocationLatitude?: number;
       defaultLocationLongitude?: number;
@@ -206,32 +180,22 @@ export class MeshtasticApi extends BaseApi {
       };
     }
   ): Promise<OwnedManagedNode> {
-    const data: any = {
+    const data: CreateManagedNode = {
       node_id: nodeId,
-      constellation: constellationId,
-      name: name,
+      constellation_id: constellationId,
+      long_name: name,
+      owner_id: ownerId,
+      default_location_latitude: options?.defaultLocationLatitude ?? null,
+      default_location_longitude: options?.defaultLocationLongitude ?? null,
+      channel_0: options?.channels?.channel_0 ?? null,
+      channel_1: options?.channels?.channel_1 ?? null,
+      channel_2: options?.channels?.channel_2 ?? null,
+      channel_3: options?.channels?.channel_3 ?? null,
+      channel_4: options?.channels?.channel_4 ?? null,
+      channel_5: options?.channels?.channel_5 ?? null,
+      channel_6: options?.channels?.channel_6 ?? null,
+      channel_7: options?.channels?.channel_7 ?? null,
     };
-
-    // Add default location if provided
-    if (options?.defaultLocationLatitude !== undefined) {
-      data.default_location_latitude = options.defaultLocationLatitude;
-    }
-    if (options?.defaultLocationLongitude !== undefined) {
-      data.default_location_longitude = options.defaultLocationLongitude;
-    }
-
-    // Add channel mappings if provided
-    if (options?.channels) {
-      const { channels } = options;
-      if (channels.channel_0 !== undefined) data.channel_0 = channels.channel_0;
-      if (channels.channel_1 !== undefined) data.channel_1 = channels.channel_1;
-      if (channels.channel_2 !== undefined) data.channel_2 = channels.channel_2;
-      if (channels.channel_3 !== undefined) data.channel_3 = channels.channel_3;
-      if (channels.channel_4 !== undefined) data.channel_4 = channels.channel_4;
-      if (channels.channel_5 !== undefined) data.channel_5 = channels.channel_5;
-      if (channels.channel_6 !== undefined) data.channel_6 = channels.channel_6;
-      if (channels.channel_7 !== undefined) data.channel_7 = channels.channel_7;
-    }
 
     return this.post<OwnedManagedNode>('/nodes/managed-nodes/', data);
   }
@@ -241,32 +205,28 @@ export class MeshtasticApi extends BaseApi {
   /**
    * Get a list of API keys
    */
-  async getApiKeys(): Promise<any[]> {
-    const response = await this.get<any>('/nodes/api-keys/');
-    return response.results || [];
+  async getApiKeys(): Promise<NodeApiKey[]> {
+    const response = await this.get<NodeApiKey[]>('/nodes/api-keys/');
+    return response;
   }
 
   /**
    * Create an API key
    */
-  async createApiKey(name: string, constellationId: number, nodeIds?: number[]): Promise<any> {
-    const data: any = {
+  async createApiKey(name: string, constellationId: number): Promise<NodeApiKey> {
+    const data: CreateNodeApiKey = {
       name,
-      constellation: constellationId,
+      constellation_id: constellationId,
     };
 
-    if (nodeIds && nodeIds.length > 0) {
-      data.nodes = nodeIds;
-    }
-
-    return this.post<any>('/nodes/api-keys/', data);
+    return this.post<NodeApiKey>('/nodes/api-keys/', data);
   }
 
   /**
    * Add a node to an API key
    */
-  async addNodeToApiKey(apiKeyId: string, nodeId: number): Promise<any> {
-    return this.post<any>(`/nodes/api-keys/${apiKeyId}/add_node/`, { node_id: nodeId });
+  async addNodeToApiKey(apiKeyId: string, nodeId: number): Promise<NodeApiKey> {
+    return this.post<NodeApiKey>(`/nodes/api-keys/${apiKeyId}/add_node/`, { node_id: nodeId });
   }
 
   // ===== Constellations API =====

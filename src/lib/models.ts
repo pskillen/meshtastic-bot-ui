@@ -41,8 +41,8 @@ export interface ManagedNode {
   };
   constellation: {
     id: number;
-    name: string;
-    map_color: string;
+    name?: string;
+    map_color?: string;
   };
   position: {
     latitude: number | null;
@@ -52,24 +52,33 @@ export interface ManagedNode {
 
 // OwnedManagedNode extends ManagedNode with channel mappings
 export interface OwnedManagedNode extends ManagedNode {
-  channel_0?: MessageChannel | null;
-  channel_1?: MessageChannel | null;
-  channel_2?: MessageChannel | null;
-  channel_3?: MessageChannel | null;
-  channel_4?: MessageChannel | null;
-  channel_5?: MessageChannel | null;
-  channel_6?: MessageChannel | null;
-  channel_7?: MessageChannel | null;
+  channel_0?: { id: number } | null;
+  channel_1?: { id: number } | null;
+  channel_2?: { id: number } | null;
+  channel_3?: { id: number } | null;
+  channel_4?: { id: number } | null;
+  channel_5?: { id: number } | null;
+  channel_6?: { id: number } | null;
+  channel_7?: { id: number } | null;
   default_location_latitude?: number | null;
   default_location_longitude?: number | null;
 }
 
-// For backward compatibility
-// TODO: We need to get rid of this and use ObservedNode everywhere
-export interface NodeData extends ObservedNode {
-  id: number; // Maps to internal_id
-  hardware_model: string | null; // Maps to hw_model
-  meshtastic_version: string | null; // Maps to sw_version
+export interface CreateManagedNode {
+  node_id: number;
+  constellation_id: number;
+  long_name: string;
+  owner_id: number | null;
+  default_location_latitude: number | null;
+  default_location_longitude: number | null;
+  channel_0: number | null;
+  channel_1: number | null;
+  channel_2: number | null;
+  channel_3: number | null;
+  channel_4: number | null;
+  channel_5: number | null;
+  channel_6: number | null;
+  channel_7: number | null;
 }
 
 // Message interfaces (API v2)
@@ -174,6 +183,7 @@ export interface Constellation {
   description: string;
   created_by: number;
   channels: MessageChannel[];
+  map_color: string;
 }
 
 export interface NodeClaim {
@@ -182,4 +192,21 @@ export interface NodeClaim {
   claim_key: string;
   created_at: string;
   accepted_at: string | null;
+}
+
+export interface NodeApiKey {
+  id: string;
+  key: string;
+  name: string;
+  constellation: number;
+  created_at: string;
+  owner: number;
+  last_used: string | null;
+  is_active: boolean;
+  nodes: number[];
+}
+
+export interface CreateNodeApiKey {
+  name: string;
+  constellation_id: number;
 }

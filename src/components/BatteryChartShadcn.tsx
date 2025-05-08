@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ReferenceArea } from 'recharts';
-import { useNodes } from '@/lib/hooks/useNodes';
+import { useNodeMetricsSuspense } from '@/hooks/api/useNodes';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 
@@ -41,8 +41,7 @@ export function BatteryChartShadcn({
   });
   const [displayMode, setDisplayMode] = React.useState<'voltage' | 'percentage'>('voltage');
 
-  const { useNodeMetrics } = useNodes();
-  const metricsQuery = useNodeMetrics(nodeId, dateRange);
+  const { metrics } = useNodeMetricsSuspense(nodeId, dateRange);
 
   const handleTimeRangeChange = (value: string, timeRange: { startDate: Date; endDate: Date }) => {
     if (value === timeRangeLabel) return;
@@ -93,16 +92,15 @@ export function BatteryChartShadcn({
 
   // Transform metrics data to chart format
   const chartData = React.useMemo(() => {
-    if (!metricsQuery.data) return [];
-
-    return metricsQuery.data.map((metric) => ({
+    if (!metrics) return [];
+    return metrics.map((metric: import('@/lib/models').DeviceMetrics) => ({
       timestamp: metric.reported_time.getTime(),
       voltage: metric.voltage,
       batteryLevel: metric.battery_level,
       chUtil: metric.channel_utilization,
       airUtil: metric.air_util_tx,
     }));
-  }, [metricsQuery.data]);
+  }, [metrics]);
 
   return (
     <Card className="@container/card">
@@ -124,165 +122,146 @@ export function BatteryChartShadcn({
         </div>
       </CardHeader>
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
-        {metricsQuery.isLoading ? (
-          <div className="flex items-center justify-center h-[400px]">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-          </div>
-        ) : metricsQuery.error ? (
-          <div className="text-red-500 text-center h-[400px] flex items-center justify-center">
-            Failed to load battery data
-          </div>
-        ) : (
-          <>
-            <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="voltageGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#d0a8ff" stopOpacity={0.8} />
-                    <stop offset="95%" stopColor="#d0a8ff" stopOpacity={0.1} />
-                  </linearGradient>
-                  <linearGradient id="batteryLevelGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#76d9c4" stopOpacity={0.8} />
-                    <stop offset="95%" stopColor="#76d9c4" stopOpacity={0.1} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid vertical={false} />
-                {/* Shading bands */}
-                {getShadingAreas().map((area, idx) => (
-                  <ReferenceArea
-                    key={idx}
-                    yAxisId={displayMode === 'voltage' ? 'voltage' : 'battery'}
-                    y1={area.y1}
-                    y2={area.y2}
-                    stroke={undefined}
-                    fill={area.color}
-                    ifOverflow="extendDomain"
-                  />
-                ))}
-                <Legend
-                  verticalAlign="bottom"
-                  height={36}
-                  iconType="circle"
-                  iconSize={8}
-                  formatter={(value) => {
-                    switch (value) {
-                      case 'voltage':
-                        return 'Voltage (V)';
-                      case 'batteryLevel':
-                        return 'Battery Level (%)';
-                      case 'chUtil':
-                        return 'Channel Utilization (%)';
-                      case 'airUtil':
-                        return 'Air Utilization (%)';
-                      default:
-                        return value;
+        <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
+          <AreaChart data={chartData}>
+            <defs>
+              <linearGradient id="voltageGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#d0a8ff" stopOpacity={0.8} />
+                <stop offset="95%" stopColor="#d0a8ff" stopOpacity={0.1} />
+              </linearGradient>
+              <linearGradient id="batteryLevelGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#76d9c4" stopOpacity={0.8} />
+                <stop offset="95%" stopColor="#76d9c4" stopOpacity={0.1} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid vertical={false} />
+            {/* Shading bands */}
+            {getShadingAreas().map((area, idx) => (
+              <ReferenceArea
+                key={idx}
+                yAxisId={displayMode === 'voltage' ? 'voltage' : 'battery'}
+                y1={area.y1}
+                y2={area.y2}
+                stroke={undefined}
+                fill={area.color}
+                ifOverflow="extendDomain"
+              />
+            ))}
+            <Legend
+              verticalAlign="bottom"
+              height={36}
+              iconType="circle"
+              iconSize={8}
+              formatter={(value) => {
+                switch (value) {
+                  case 'voltage':
+                    return 'Voltage (V)';
+                  case 'batteryLevel':
+                    return 'Battery Level (%)';
+                  case 'chUtil':
+                    return 'Channel Utilization (%)';
+                  case 'airUtil':
+                    return 'Air Utilization (%)';
+                  default:
+                    return value;
+                }
+              }}
+            />
+            <XAxis
+              dataKey="timestamp"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              minTickGap={32}
+              domain={[dateRange.startDate.getTime(), dateRange.endDate.getTime()]}
+              tickFormatter={(value: number) => {
+                const date = new Date(value);
+                return date.toLocaleDateString('en-GB', {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: 'numeric',
+                });
+              }}
+              scale="time"
+              type="number"
+            />
+            <YAxis
+              yAxisId="voltage"
+              orientation="right"
+              domain={[3.0, 4.2]}
+              tickFormatter={(value) => `${value}V`}
+              hide={displayMode !== 'voltage'}
+            />
+            <YAxis
+              yAxisId="battery"
+              domain={[0, 100]}
+              tickFormatter={(value) => `${value}%`}
+              hide={displayMode !== 'percentage'}
+            />
+            <Tooltip
+              content={
+                <ChartTooltipContent
+                  labelFormatter={(_, payload: Payload<ValueType, NameType>[]) => {
+                    // Extract the timestamp from the activeLabel property
+                    if (payload && payload[0] && payload[0].payload && payload[0].payload.timestamp) {
+                      const date = new Date(payload[0].payload.timestamp);
+                      return date.toLocaleDateString('en-GB', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: 'numeric',
+                      });
                     }
+                    // If we can't find the timestamp in the payload, use the activeLabel
+                    const extendedPayload = payload as ExtendedPayload[];
+                    if (extendedPayload && extendedPayload[0] && extendedPayload[0].activeLabel) {
+                      const date = new Date(extendedPayload[0].activeLabel);
+                      return date.toLocaleDateString('en-GB', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: 'numeric',
+                      });
+                    }
+                    // Fallback if we can't find any timestamp
+                    return 'Unknown time';
                   }}
+                  formatter={formatter}
                 />
-                <XAxis
-                  dataKey="timestamp"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  minTickGap={32}
-                  domain={[dateRange.startDate.getTime(), dateRange.endDate.getTime()]}
-                  tickFormatter={(value: number) => {
-                    const date = new Date(value);
-                    return date.toLocaleDateString('en-GB', {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: 'numeric',
-                      minute: 'numeric',
-                    });
-                  }}
-                  scale="time"
-                  type="number"
-                />
-                <YAxis
-                  yAxisId="voltage"
-                  orientation="right"
-                  domain={[3.0, 4.2]}
-                  tickFormatter={(value) => `${value}V`}
-                  hide={displayMode !== 'voltage'}
-                />
-                <YAxis
-                  yAxisId="battery"
-                  domain={[0, 100]}
-                  tickFormatter={(value) => `${value}%`}
-                  hide={displayMode !== 'percentage'}
-                />
-                <Tooltip
-                  content={
-                    <ChartTooltipContent
-                      labelFormatter={(_, payload: Payload<ValueType, NameType>[]) => {
-                        // Extract the timestamp from the activeLabel property
-                        if (payload && payload[0] && payload[0].payload && payload[0].payload.timestamp) {
-                          const date = new Date(payload[0].payload.timestamp);
-                          return date.toLocaleDateString('en-GB', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: 'numeric',
-                            minute: 'numeric',
-                          });
-                        }
-                        // If we can't find the timestamp in the payload, use the activeLabel
-                        const extendedPayload = payload as ExtendedPayload[];
-                        if (extendedPayload && extendedPayload[0] && extendedPayload[0].activeLabel) {
-                          const date = new Date(extendedPayload[0].activeLabel);
-                          return date.toLocaleDateString('en-GB', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: 'numeric',
-                            minute: 'numeric',
-                          });
-                        }
-                        // Fallback if we can't find any timestamp
-                        return 'Unknown time';
-                      }}
-                      formatter={formatter}
-                    />
-                  }
-                />
-                {displayMode === 'voltage' && (
-                  <Area
-                    yAxisId="voltage"
-                    type="monotone"
-                    dataKey="voltage"
-                    stroke="#d0a8ff"
-                    fill="none"
-                    strokeWidth={2}
-                  />
-                )}
-                {displayMode === 'percentage' && (
-                  <Area
-                    yAxisId="battery"
-                    type="monotone"
-                    dataKey="batteryLevel"
-                    stroke="#76d9c4"
-                    fill="none"
-                    strokeWidth={2}
-                  />
-                )}
-                <Area
-                  yAxisId={displayMode === 'voltage' ? 'battery' : 'battery'}
-                  type="monotone"
-                  dataKey="chUtil"
-                  stroke="#ff7b72"
-                  fill="none"
-                  dot={{ r: 4 }}
-                />
-                <Area
-                  yAxisId={displayMode === 'voltage' ? 'battery' : 'battery'}
-                  type="monotone"
-                  dataKey="airUtil"
-                  stroke="#ffa657"
-                  fill="none"
-                  dot={{ r: 4 }}
-                />
-              </AreaChart>
-            </ChartContainer>
-          </>
-        )}
+              }
+            />
+            {displayMode === 'voltage' && (
+              <Area yAxisId="voltage" type="monotone" dataKey="voltage" stroke="#d0a8ff" fill="none" strokeWidth={2} />
+            )}
+            {displayMode === 'percentage' && (
+              <Area
+                yAxisId="battery"
+                type="monotone"
+                dataKey="batteryLevel"
+                stroke="#76d9c4"
+                fill="none"
+                strokeWidth={2}
+              />
+            )}
+            <Area
+              yAxisId={displayMode === 'voltage' ? 'battery' : 'battery'}
+              type="monotone"
+              dataKey="chUtil"
+              stroke="#ff7b72"
+              fill="none"
+              dot={{ r: 4 }}
+            />
+            <Area
+              yAxisId={displayMode === 'voltage' ? 'battery' : 'battery'}
+              type="monotone"
+              dataKey="airUtil"
+              stroke="#ffa657"
+              fill="none"
+              dot={{ r: 4 }}
+            />
+          </AreaChart>
+        </ChartContainer>
       </CardContent>
     </Card>
   );

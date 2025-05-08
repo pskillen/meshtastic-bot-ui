@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useMeshtasticApi } from './useApi';
 import { NodeClaim } from '@/lib/models';
+import { authService } from '@/lib/auth/authService';
 
 /**
  * Hook to fetch claim status for a node
@@ -46,6 +47,8 @@ export function useCreateManagedNode() {
   const api = useMeshtasticApi();
   const queryClient = useQueryClient();
 
+  const currentUser = authService.getCurrentUser();
+
   return useMutation({
     mutationFn: (data: {
       nodeId: number;
@@ -66,7 +69,11 @@ export function useCreateManagedNode() {
         };
       };
     }) => {
-      return api.createManagedNode(data.nodeId, data.constellationId, data.name, data.options);
+      if (!currentUser) {
+        throw new Error('User not authenticated');
+      }
+
+      return api.createManagedNode(data.nodeId, data.constellationId, data.name, currentUser.id, data.options);
     },
     onSuccess: () => {
       // Invalidate the managed nodes queries

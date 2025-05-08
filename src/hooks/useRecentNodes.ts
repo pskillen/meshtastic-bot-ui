@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { NodeData, ObservedNode } from '@/lib/models';
+import { ObservedNode } from '@/lib/models';
 
 // Type for storing recent nodes in local storage
 interface RecentNode {
@@ -43,7 +43,7 @@ export function useRecentNodes() {
   }, [recentNodes]);
 
   // Add a node to the recent nodes list
-  const addRecentNode = (node: NodeData | ObservedNode) => {
+  const addRecentNode = (node: ObservedNode | ObservedNode) => {
     setRecentNodes((prevNodes) => {
       // Check if the node already exists with the same ID
       if (prevNodes.some((n) => n.internal_id === node.internal_id)) {

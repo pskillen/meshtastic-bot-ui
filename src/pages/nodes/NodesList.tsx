@@ -1,6 +1,6 @@
-import { useNodes } from '@/lib/hooks/useNodes';
+import { useNodesSuspense } from '@/hooks/api/useNodes';
 import { subHours } from 'date-fns';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { NodeCard } from '@/components/nodes/NodeCard';
 import { NodesMap } from '@/components/nodes/NodesMap';
@@ -11,37 +11,21 @@ import { Search } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { NodeData } from '@/lib/models';
+import { ObservedNode } from '@/lib/models';
 
 type SortOption = 'last_heard' | 'name';
 
-export function NodesList() {
-  const { nodes, isLoading, isLoadingMoreNodes, nodesError: error } = useNodes();
+function NodesListContent() {
+  const { nodes } = useNodesSuspense();
   const [hoursThreshold, setHoursThreshold] = useState('2');
   const [sortBy, setSortBy] = useState<SortOption>('last_heard');
   const [searchQuery, setSearchQuery] = useState('');
   const [showOfflineNodes, setShowOfflineNodes] = useState(true);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-red-500">Error: {error instanceof Error ? error.message : 'Failed to fetch nodes'}</div>
-      </div>
-    );
-  }
-
   const now = new Date();
   const threshold = subHours(now, Number(hoursThreshold));
 
-  const sortNodes = (nodes: NodeData[]) => {
+  const sortNodes = (nodes: ObservedNode[]) => {
     return [...nodes].sort((a, b) => {
       if (sortBy === 'last_heard') {
         if (!a.last_heard) return 1;
@@ -56,7 +40,7 @@ export function NodesList() {
     });
   };
 
-  const filterNodes = (nodes: NodeData[]) => {
+  const filterNodes = (nodes: ObservedNode[]) => {
     if (!searchQuery) return nodes;
 
     const query = searchQuery.toLowerCase();
@@ -149,12 +133,7 @@ export function NodesList() {
 
       <Accordion type="single" collapsible defaultValue="online" className="space-y-4">
         <AccordionItem value="online">
-          <AccordionTrigger>
-            Online Nodes ({onlineNodes.length})
-            {isLoadingMoreNodes && (
-              <span className="ml-2 inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary"></span>
-            )}
-          </AccordionTrigger>
+          <AccordionTrigger>Online Nodes ({onlineNodes.length})</AccordionTrigger>
           <AccordionContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {onlineNodes.map((node) => (
@@ -163,14 +142,8 @@ export function NodesList() {
             </div>
           </AccordionContent>
         </AccordionItem>
-
         <AccordionItem value="offline">
-          <AccordionTrigger>
-            Offline Nodes ({offlineNodes.length})
-            {isLoadingMoreNodes && (
-              <span className="ml-2 inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary"></span>
-            )}
-          </AccordionTrigger>
+          <AccordionTrigger>Offline Nodes ({offlineNodes.length})</AccordionTrigger>
           <AccordionContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {offlineNodes.map((node) => (
@@ -181,5 +154,19 @@ export function NodesList() {
         </AccordionItem>
       </Accordion>
     </div>
+  );
+}
+
+export function NodesList() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      }
+    >
+      <NodesListContent />
+    </Suspense>
   );
 }
