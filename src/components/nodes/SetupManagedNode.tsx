@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMeshtasticApi } from '@/hooks/api/useApi';
-import { NodeApiKey, ObservedNode } from '@/lib/models';
+import { NodeApiKey, ObservedNode, MessageChannel } from '@/lib/models';
 import { useNodeSuspense } from '@/hooks/api/useNodes';
 import { authService } from '@/lib/auth/authService';
 import {
@@ -22,7 +22,7 @@ import { Loader2, AlertCircle, CheckCircle2, Download } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useConstellations } from '@/hooks/api/useConstellations';
+import { useConstellationsSuspense } from '@/hooks/api/useConstellations';
 
 interface SetupManagedNodeProps {
   node: ObservedNode;
@@ -77,7 +77,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
   });
 
   // Fetch constellations using the custom hook
-  const { constellations, isLoading: isConstellationsLoading, error: constellationsError } = useConstellations();
+  const { constellations } = useConstellationsSuspense();
 
   // Fetch API keys
   const apiKeysQuery = useQuery({
@@ -290,31 +290,18 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
 
         <div className="space-y-2">
           <Label htmlFor="constellation">Constellation</Label>
-          {isConstellationsLoading ? (
-            <div className="flex items-center space-x-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Loading constellations...</span>
-            </div>
-          ) : constellationsError ? (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>Failed to load constellations. Please try again.</AlertDescription>
-            </Alert>
-          ) : (
-            <Select onValueChange={(value) => setSelectedConstellation(Number(value))}>
-              <SelectTrigger id="constellation">
-                <SelectValue placeholder="Select a constellation" />
-              </SelectTrigger>
-              <SelectContent>
-                {constellations.map((constellation) => (
-                  <SelectItem key={constellation.id} value={constellation.id.toString()}>
-                    {constellation.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <Select onValueChange={(value) => setSelectedConstellation(Number(value))}>
+            <SelectTrigger id="constellation">
+              <SelectValue placeholder="Select a constellation" />
+            </SelectTrigger>
+            <SelectContent>
+              {constellations.map((constellation) => (
+                <SelectItem key={constellation.id} value={constellation.id.toString()}>
+                  {constellation.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -385,8 +372,8 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
                       <SelectValue placeholder="Select a channel" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
-                      {selectedConstellationChannels.map((channel) => (
+                      {/* <SelectItem value="">None</SelectItem> */}
+                      {selectedConstellationChannels.map((channel: MessageChannel) => (
                         <SelectItem key={channel.id} value={channel.id.toString()}>
                           {channel.name}
                         </SelectItem>
