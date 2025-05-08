@@ -1,4 +1,4 @@
-import { useQueries } from '@tanstack/react-query';
+import { useQueries, useSuspenseQueries } from '@tanstack/react-query';
 import { useMeshtasticApi } from './useApi';
 import { NodeData } from '@/lib/models';
 import { DateRange } from '@/types/types';
@@ -43,5 +43,38 @@ export function useMultiNodeMetrics(nodes: NodeData[], dateRange?: DateRange) {
     isLoading,
     isError,
     errors,
+  };
+}
+
+/**
+ * Suspense-enabled hook to fetch metrics for multiple nodes in parallel
+ * Use inside a <Suspense> boundary. No isLoading or error states are returned.
+ */
+export function useMultiNodeMetricsSuspense(nodes: NodeData[], dateRange?: DateRange) {
+  const api = useMeshtasticApi();
+
+  const queries = useSuspenseQueries({
+    queries: nodes.map((node) => ({
+      queryKey: [
+        'nodes',
+        node.node_id,
+        'metrics',
+        dateRange?.startDate?.toISOString(),
+        dateRange?.endDate?.toISOString(),
+      ],
+      queryFn: () => {
+        const params: { startDate?: Date; endDate?: Date } = {};
+        if (dateRange?.startDate) params.startDate = dateRange.startDate;
+        if (dateRange?.endDate) params.endDate = dateRange.endDate;
+        return api.getNodeDeviceMetrics(node.node_id, params);
+      },
+    })),
+  });
+
+  // Create a map of node ID to metrics data
+  const metricsMap = Object.fromEntries(queries.map((query, index) => [nodes[index].node_id, query.data || []]));
+
+  return {
+    metricsMap,
   };
 }

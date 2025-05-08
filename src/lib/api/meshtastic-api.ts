@@ -70,11 +70,17 @@ export class MeshtasticApi extends BaseApi {
   }
 
   /**
-   * Get a list of observed nodes owned by the current user
+   * Get a paginated list of observed nodes owned by the current user
    */
-  async getMyClaimedNodes(): Promise<NodeData[]> {
-    const nodes = await this.get<ObservedNode[]>('/nodes/observed-nodes/mine/');
-    return nodes.map((node) => this.observedNodeToNodeData(node));
+  async getMyClaimedNodes(params?: PaginationParams): Promise<PaginatedResponse<NodeData>> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    const response = await this.get<PaginatedResponse<ObservedNode>>('/nodes/observed-nodes/mine/', searchParams);
+    return {
+      ...response,
+      results: response.results.map((node) => this.observedNodeToNodeData(node)),
+    };
   }
 
   /**
@@ -152,18 +158,23 @@ export class MeshtasticApi extends BaseApi {
   // ===== Managed Nodes API =====
 
   /**
-   * Get a list of managed nodes
+   * Get a paginated list of managed nodes
    */
-  async getManagedNodes(): Promise<ManagedNode[]> {
-    const response = await this.get<PaginatedResponse<ManagedNode>>('/nodes/managed-nodes/');
-    return response.results;
+  async getManagedNodes(params?: PaginationParams): Promise<PaginatedResponse<ManagedNode>> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    return this.get<PaginatedResponse<ManagedNode>>('/nodes/managed-nodes/', searchParams);
   }
 
   /**
-   * Get a list of managed nodes owned by the current user
+   * Get a paginated list of managed nodes owned by the current user
    */
-  async getMyManagedNodes(): Promise<OwnedManagedNode[]> {
-    return this.get<OwnedManagedNode[]>('/nodes/managed-nodes/mine/');
+  async getMyManagedNodes(params?: PaginationParams): Promise<PaginatedResponse<OwnedManagedNode>> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    return this.get<PaginatedResponse<OwnedManagedNode>>('/nodes/managed-nodes/mine/', searchParams);
   }
 
   /**
@@ -261,11 +272,13 @@ export class MeshtasticApi extends BaseApi {
   // ===== Constellations API =====
 
   /**
-   * Get a list of constellations
+   * Get a paginated list of constellations
    */
-  async getConstellations(): Promise<Constellation[]> {
-    const response = await this.get<PaginatedResponse<Constellation>>('/constellations');
-    return response.results;
+  async getConstellations(params?: PaginationParams): Promise<PaginatedResponse<Constellation>> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    return this.get<PaginatedResponse<Constellation>>('/constellations', searchParams);
   }
 
   /**

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useMeshtasticApi } from './useApi';
 import { NodeClaim } from '@/lib/models';
 
@@ -74,4 +74,30 @@ export function useCreateManagedNode() {
       queryClient.invalidateQueries({ queryKey: ['managed-nodes', 'mine'] });
     },
   });
+}
+
+/**
+ * Suspense-enabled hook to fetch claim status for a node
+ * Use inside a <Suspense> boundary. No isLoading or error states are returned.
+ * Note: Suspense hooks do not support the 'enabled' option.
+ */
+export function useNodeClaimStatusSuspense(nodeId: number) {
+  const api = useMeshtasticApi();
+  // Note: Suspense hooks do not support 'enabled'.
+  const query = useSuspenseQuery<NodeClaim | undefined, Error>({
+    queryKey: ['nodes', nodeId, 'claim'],
+    queryFn: () => api.getClaimStatus(nodeId),
+  });
+  return {
+    claimStatus: query.data,
+  };
+}
+
+/**
+ * Suspense-friendly mutation for claiming a node
+ * Note: Mutations do not suspend, but this is designed for Suspense trees.
+ */
+export function useClaimNodeSuspense() {
+  // This is the same as the classic mutation, but documented for Suspense usage
+  return useClaimNode();
 }

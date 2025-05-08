@@ -1,4 +1,4 @@
-import { useQuery, useInfiniteQuery, InfiniteData } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, InfiniteData, useSuspenseInfiniteQuery } from '@tanstack/react-query';
 import { useMeshtasticApi } from './useApi';
 import { TextMessage, TextMessageResponse } from '@/lib/models';
 
@@ -73,4 +73,45 @@ export function useMessage(id: string, enabled = true) {
     queryFn: () => api.getTextMessage(id),
     enabled: !!id && enabled,
   });
+}
+
+/**
+ * Suspense-enabled hook to fetch and manage text messages with pagination
+ * Use inside a <Suspense> boundary. No isLoading or error states are returned.
+ * Note: Suspense hooks do not support the 'enabled' option.
+ */
+export function useMessagesSuspense(options?: UseMessagesOptions) {
+  const api = useMeshtasticApi();
+  const pageSize = options?.pageSize || 25;
+
+  const messagesQuery = useSuspenseInfiniteQuery<TextMessageResponse, Error>({
+    queryKey: ['messages', options?.channelId, options?.constellationId, pageSize],
+    queryFn: async ({ pageParam = 1 }) =>
+      api.getTextMessages({
+        channelId: options?.channelId,
+        constellationId: options?.constellationId,
+        page: pageParam,
+        page_size: pageSize,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => (lastPage.next ? allPages.length + 1 : undefined),
+  });
+
+  if (!messagesQuery.data) {
+    return {
+      messages: [],
+      totalMessages: 0,
+      fetchNextPage: messagesQuery.fetchNextPage,
+      hasNextPage: false,
+    };
+  }
+
+  const allMessages = messagesQuery.data.pages.flatMap((page) => page.results);
+
+  return {
+    messages: allMessages,
+    totalMessages: messagesQuery.data.pages[0]?.count || 0,
+    fetchNextPage: messagesQuery.fetchNextPage,
+    hasNextPage: messagesQuery.hasNextPage,
+  };
 }

@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 
 const STORAGE_KEY = 'monitored-nodes';
 
+/**
+ * Hook to manage a list of monitored node IDs in localStorage
+ * @returns Object with monitoredNodeIds array and methods to add/remove nodes
+ */
 export function useMonitoredNodes() {
   const [monitoredNodeIds, setMonitoredNodeIds] = useState<number[]>(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
