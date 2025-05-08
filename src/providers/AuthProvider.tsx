@@ -46,9 +46,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         // Initialize user details
         try {
-          await authService.initializeUser(config.apis.meshBot.baseUrl);
+          const user = await authService.initializeUser(config.apis.meshBot.baseUrl);
+          if (!user) {
+            // User details could not be loaded (expired/invalid session)
+            authService.logout();
+            setIsAuthenticated(false);
+            setAuthProvider(null);
+            navigate('/login');
+            return;
+          }
         } catch (error) {
           console.error('Failed to initialize user details:', error);
+          authService.logout();
+          setIsAuthenticated(false);
+          setAuthProvider(null);
+          navigate('/login');
+          return;
         }
       }
 
