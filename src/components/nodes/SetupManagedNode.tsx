@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMeshtasticApi } from '@/hooks/api/useApi';
-import { NodeApiKey, ObservedNode } from '@/lib/models';
+import { NodeApiKey, ObservedNode, MessageChannel } from '@/lib/models';
 import { useNodeSuspense } from '@/hooks/api/useNodes';
 import { authService } from '@/lib/auth/authService';
 import {
@@ -22,7 +22,7 @@ import { Loader2, AlertCircle, CheckCircle2, Download } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useConstellations } from '@/hooks/api/useConstellations';
+import { useConstellationsSuspense } from '@/hooks/api/useConstellations';
 
 interface SetupManagedNodeProps {
   node: ObservedNode;
@@ -30,7 +30,7 @@ interface SetupManagedNodeProps {
   onClose: () => void;
 }
 
-type SetupStep = 'constellation' | 'location-channels' | 'api-key' | 'instructions';
+type SetupStep = 'constellation' | 'location' | 'channels' | 'api-key' | 'instructions';
 
 export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProps) {
   const navigate = useNavigate();
@@ -77,7 +77,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
   });
 
   // Fetch constellations using the custom hook
-  const { constellations, isLoading: isConstellationsLoading, error: constellationsError } = useConstellations();
+  const { constellations } = useConstellationsSuspense();
 
   // Fetch API keys
   const apiKeysQuery = useQuery({
@@ -128,8 +128,10 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
 
   const handleNextStep = () => {
     if (currentStep === 'constellation') {
-      setCurrentStep('location-channels');
-    } else if (currentStep === 'location-channels') {
+      setCurrentStep('location');
+    } else if (currentStep === 'location') {
+      setCurrentStep('channels');
+    } else if (currentStep === 'channels') {
       setCurrentStep('api-key');
     } else if (currentStep === 'api-key') {
       handleCreateManagedNode();
@@ -137,10 +139,12 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
   };
 
   const handlePreviousStep = () => {
-    if (currentStep === 'location-channels') {
+    if (currentStep === 'location') {
       setCurrentStep('constellation');
+    } else if (currentStep === 'channels') {
+      setCurrentStep('location');
     } else if (currentStep === 'api-key') {
-      setCurrentStep('location-channels');
+      setCurrentStep('channels');
     } else if (currentStep === 'instructions') {
       setCurrentStep('api-key');
     }
@@ -148,7 +152,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
 
   // Initialize map when location-channels step is active
   useEffect(() => {
-    if (currentStep === 'location-channels' && mapRef.current && !mapInstanceRef.current) {
+    if (currentStep === 'location' && mapRef.current && !mapInstanceRef.current) {
       // Try to get location from observed node first
       let initialLocation = GLASGOW_COORDS; // Default to Glasgow
 
@@ -190,6 +194,11 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
       mapInstanceRef.current = map;
       markerRef.current = marker;
 
+      // Fix: Invalidate map size after a short delay to ensure all tiles load
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 100);
+
       // Add CSS for map container
       const style = document.createElement('style');
       style.textContent = `
@@ -203,6 +212,20 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
 
       return () => {
         style.remove();
+        // Enhanced cleanup: remove map, marker, and all controls/attribution
+        if (markerRef.current) {
+          markerRef.current.remove();
+          markerRef.current = null;
+        }
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.off();
+          mapInstanceRef.current.remove();
+          mapInstanceRef.current = null;
+        }
+        // Remove any leftover Leaflet controls/attribution from the DOM
+        if (mapRef.current) {
+          mapRef.current.innerHTML = '';
+        }
       };
     }
   }, [currentStep, observedNode]);
@@ -290,31 +313,18 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
 
         <div className="space-y-2">
           <Label htmlFor="constellation">Constellation</Label>
-          {isConstellationsLoading ? (
-            <div className="flex items-center space-x-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Loading constellations...</span>
-            </div>
-          ) : constellationsError ? (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>Failed to load constellations. Please try again.</AlertDescription>
-            </Alert>
-          ) : (
-            <Select onValueChange={(value) => setSelectedConstellation(Number(value))}>
-              <SelectTrigger id="constellation">
-                <SelectValue placeholder="Select a constellation" />
-              </SelectTrigger>
-              <SelectContent>
-                {constellations.map((constellation) => (
-                  <SelectItem key={constellation.id} value={constellation.id.toString()}>
-                    {constellation.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <Select onValueChange={(value) => setSelectedConstellation(Number(value))}>
+            <SelectTrigger id="constellation">
+              <SelectValue placeholder="Select a constellation" />
+            </SelectTrigger>
+            <SelectContent>
+              {constellations.map((constellation) => (
+                <SelectItem key={constellation.id} value={constellation.id.toString()}>
+                  {constellation.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -329,12 +339,12 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
     </>
   );
 
-  const renderLocationChannelsStep = () => (
+  const renderLocationStep = () => (
     <>
       <DialogHeader>
-        <DialogTitle>Node Location & Channels</DialogTitle>
+        <DialogTitle>Node Location</DialogTitle>
         <DialogDescription>
-          Set the default location for your node and map its channels to known message channels.
+          Set the default location for your node. Click on the map or drag the marker to set the location.
         </DialogDescription>
       </DialogHeader>
 
@@ -358,7 +368,25 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
             </div>
           )}
         </div>
+      </div>
 
+      <DialogFooter>
+        <Button variant="outline" onClick={handlePreviousStep}>
+          Back
+        </Button>
+        <Button onClick={handleNextStep}>Next</Button>
+      </DialogFooter>
+    </>
+  );
+
+  const renderChannelsStep = () => (
+    <>
+      <DialogHeader>
+        <DialogTitle>Channel Mappings</DialogTitle>
+        <DialogDescription>Map your node's channels to known message channels in this constellation.</DialogDescription>
+      </DialogHeader>
+
+      <div className="space-y-4 py-4">
         <div className="space-y-2 mt-4">
           <Label>Channel Mappings</Label>
           <p className="text-sm text-gray-500 mb-2">
@@ -385,8 +413,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
                       <SelectValue placeholder="Select a channel" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
-                      {selectedConstellationChannels.map((channel) => (
+                      {selectedConstellationChannels.map((channel: MessageChannel) => (
                         <SelectItem key={channel.id} value={channel.id.toString()}>
                           {channel.name}
                         </SelectItem>
@@ -526,17 +553,44 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
           </ol>
 
           <div className="mt-4">
-            <h4 className="text-md font-medium">Your API Key:</h4>
-            <div className="bg-gray-100 p-2 rounded mt-1 font-mono text-sm">
+            <h4 className="text-md font-medium flex items-center gap-2">
+              Your API Key:
+              {createdApiKey && (
+                <button
+                  className="ml-2 px-2 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300"
+                  onClick={() => {
+                    navigator.clipboard.writeText(createdApiKey.key);
+                  }}
+                  title="Copy API Key"
+                  type="button"
+                >
+                  Copy
+                </button>
+              )}
+            </h4>
+            <div
+              className="bg-gray-100 p-2 rounded mt-1 font-mono text-sm break-all select-all whitespace-pre-wrap"
+              style={{ wordBreak: 'break-all' }}
+            >
               {createdApiKey ? createdApiKey.key : 'Use your selected API key'}
             </div>
+            {createdApiKey && (
+              <div className="mt-2 text-xs text-red-600">
+                <b>Warning:</b> This API key cannot be recovered. Please copy and store it securely now.
+              </div>
+            )}
           </div>
 
           <div className="mt-4">
-            <Button className="flex items-center">
+            <a
+              href="https://github.com/pskillen/meshtastic-bot"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            >
               <Download className="mr-2 h-4 w-4" />
               Download Bot Software
-            </Button>
+            </a>
           </div>
         </div>
       </div>
@@ -552,7 +606,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         {error && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
@@ -568,8 +622,10 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
           </div>
         ) : currentStep === 'constellation' ? (
           renderConstellationStep()
-        ) : currentStep === 'location-channels' ? (
-          renderLocationChannelsStep()
+        ) : currentStep === 'location' ? (
+          renderLocationStep()
+        ) : currentStep === 'channels' ? (
+          renderChannelsStep()
         ) : currentStep === 'api-key' ? (
           renderApiKeyStep()
         ) : (

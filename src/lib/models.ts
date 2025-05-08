@@ -67,7 +67,7 @@ export interface OwnedManagedNode extends ManagedNode {
 export interface CreateManagedNode {
   node_id: number;
   constellation_id: number;
-  long_name: string;
+  name: string;
   owner_id: number | null;
   default_location_latitude: number | null;
   default_location_longitude: number | null;
@@ -208,5 +208,5 @@ export interface NodeApiKey {
 
 export interface CreateNodeApiKey {
   name: string;
-  constellation_id: number;
+  constellation: number;
 }

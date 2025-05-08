@@ -128,13 +128,30 @@ export const authService = {
       throw new Error('No access token available');
     }
 
-    const response = await fetch(`${baseUrl}/api/auth/user/`, {
+    let response = await fetch(`${baseUrl}/api/auth/user/`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
     });
+
+    // If unauthorized, try to refresh token and retry once
+    if (response.status === 401) {
+      try {
+        const newAccessToken = await this.refreshToken(baseUrl);
+        response = await fetch(`${baseUrl}/api/auth/user/`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${newAccessToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+      } catch {
+        this.clearTokens();
+        throw new Error('Session expired. Please log in again.');
+      }
+    }
 
     if (!response.ok) {
       throw new Error('Failed to fetch user details');

@@ -12,6 +12,7 @@ export function useConstellations(pageSize = 25, enabled = true) {
   const api = useMeshtasticApi();
 
   const query = useInfiniteQuery<PaginatedResponse<Constellation>, Error>({
+    refetchInterval: 60 * 1000, // 1 minute
     queryKey: ['constellations', pageSize],
     queryFn: async ({ pageParam }) => api.getConstellations({ page: pageParam as number, page_size: pageSize }),
     initialPageParam: 1,
@@ -45,6 +46,7 @@ export function useConstellationsSuspense(pageSize = 25) {
   const api = useMeshtasticApi();
 
   const query = useSuspenseInfiniteQuery<PaginatedResponse<Constellation>, Error>({
+    refetchInterval: 60 * 1000, // 1 minute
     queryKey: ['constellations', pageSize],
     queryFn: async ({ pageParam = 1 }) => api.getConstellations({ page: pageParam as number, page_size: pageSize }),
     initialPageParam: 1,
@@ -81,6 +83,7 @@ export function useConstellationChannels(constellationId: number, enabled = true
   const api = useMeshtasticApi();
 
   return useQuery<MessageChannel[], Error>({
+    refetchInterval: 60 * 1000, // 1 minute
     queryKey: ['constellations', constellationId, 'channels'],
     queryFn: () => api.getConstellationChannels(constellationId),
     enabled: !!constellationId && enabled,

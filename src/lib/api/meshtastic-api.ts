@@ -183,7 +183,7 @@ export class MeshtasticApi extends BaseApi {
     const data: CreateManagedNode = {
       node_id: nodeId,
       constellation_id: constellationId,
-      long_name: name,
+      name: name,
       owner_id: ownerId,
       default_location_latitude: options?.defaultLocationLatitude ?? null,
       default_location_longitude: options?.defaultLocationLongitude ?? null,
@@ -216,7 +216,7 @@ export class MeshtasticApi extends BaseApi {
   async createApiKey(name: string, constellationId: number): Promise<NodeApiKey> {
     const data: CreateNodeApiKey = {
       name,
-      constellation_id: constellationId,
+      constellation: constellationId,
     };
 
     return this.post<NodeApiKey>('/nodes/api-keys/', data);
