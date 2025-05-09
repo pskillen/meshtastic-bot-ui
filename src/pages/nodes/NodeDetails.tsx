@@ -195,18 +195,15 @@ function NodeDetailsContent({ claimStatus }: { claimStatus: NodeClaim | undefine
           <CardContent>
             {hasPositions ? (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Latitude</p>
-                    <p className="text-lg">{positions[0].latitude.toFixed(6)}°</p>
+                <div className="flex flex-wrap md:flex-nowrap gap-4 mb-2 items-end">
+                  <div className="flex flex-col items-start">
+                    <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Lat</span>
+                    <span className="text-base font-mono">{positions[0].latitude.toFixed(6)}°</span>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Longitude</p>
-                    <p className="text-lg">{positions[0].longitude.toFixed(6)}°</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Altitude</p>
-                    <p className="text-lg">{positions[0].altitude.toFixed(1)}m</p>
+                  <span className="hidden md:inline-block h-6 border-l border-gray-200 mx-2"></span>
+                  <div className="flex flex-col items-start">
+                    <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Long</span>
+                    <span className="text-base font-mono">{positions[0].longitude.toFixed(6)}°</span>
                   </div>
                 </div>
                 <div className="mb-4">
