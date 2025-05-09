@@ -107,12 +107,9 @@ export function PacketTypeChart({
   return (
     <Card className="@container/card">
       <CardHeader className="relative">
-        <CardTitle>Packet Types</CardTitle>
+        <CardTitle>Sent packets</CardTitle>
         <CardDescription>
-          <span className="@[540px]/card:block hidden">Distribution of packet types over time</span>
-          <span className="@[540px]/card:hidden">
-            {TIME_RANGE_OPTIONS.find((option) => option.key === timeRange)?.label}
-          </span>
+          <span>Packets sent by this node which were received by another node and reported to the Meshflow system</span>
         </CardDescription>
         <div className="absolute right-4 top-4 flex items-center gap-2">
           <TimeRangeSelect options={TIME_RANGE_OPTIONS} value={timeRange} onChange={handleTimeRangeChange} />
