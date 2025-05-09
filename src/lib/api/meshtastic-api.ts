@@ -110,15 +110,8 @@ export class MeshtasticApi extends BaseApi {
    * Get claim status for a node
    */
   async getClaimStatus(nodeId: number): Promise<NodeClaim | undefined> {
-    try {
-      const response = await this.get<NodeClaim>(`/nodes/observed-nodes/${nodeId}/claim/`);
-      return response;
-    } catch (error) {
-      if (error instanceof Error && error.message === 'No data returned from server') {
-        return undefined;
-      }
-      throw error;
-    }
+    const response = await this.get<NodeClaim>(`/nodes/observed-nodes/${nodeId}/claim/`);
+    return response;
   }
 
   /**
@@ -126,6 +119,14 @@ export class MeshtasticApi extends BaseApi {
    */
   async claimNode(nodeId: number): Promise<NodeClaim> {
     return this.post<NodeClaim>(`/nodes/observed-nodes/${nodeId}/claim/`);
+  }
+
+  /**
+   * Get all node claims for the current user
+   * @returns Array of NodeClaim objects
+   */
+  async getMyClaims(): Promise<NodeClaim[]> {
+    return this.get<NodeClaim[]>('/nodes/claims/mine/');
   }
 
   // ===== Managed Nodes API =====

@@ -5,7 +5,6 @@ import {
   BarChartIcon,
   MessageSquareIcon,
   NetworkIcon,
-  SettingsIcon,
   ActivityIcon,
   RadioIcon,
 } from 'lucide-react';
@@ -53,13 +52,7 @@ const data = {
       icon: MessageSquareIcon,
     },
   ],
-  navSecondary: [
-    {
-      title: 'Settings',
-      url: '/settings',
-      icon: SettingsIcon,
-    },
-  ],
+  navSecondary: [],
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -91,5 +84,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavUser user={currentUser} />
       </SidebarFooter>
     </Sidebar>
+
   );
 }

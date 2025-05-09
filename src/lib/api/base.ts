@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import { ApiAuthConfig, ApiConfig, ApiError } from '@/lib/types';
+import { ApiAuthConfig, ApiConfig, ApiError, NotFoundError, ServerError } from '@/lib/types';
 import { authService } from '@/lib/auth/authService';
 
 export abstract class BaseApi {
@@ -105,6 +105,16 @@ export abstract class BaseApi {
           }
         }
 
+        // Handle 404 errors with NotFoundError
+        if (error.response?.status === 404) {
+          throw new NotFoundError(error.message || 'Not Found', error.response?.data);
+        }
+
+        // Handle 5xx errors with ServerError
+        if (error.response?.status >= 500 && error.response?.status < 600) {
+          throw new ServerError(error.message || 'Server Error', error.response?.status, error.response?.data);
+        }
+
         // Handle other errors
         const apiError: ApiError = {
           message: error.message || 'An error occurred',
@@ -127,23 +137,13 @@ export abstract class BaseApi {
     options: AxiosRequestConfig = {},
     searchParams?: URLSearchParams
   ): Promise<T> {
-    try {
-      const queryString = searchParams?.toString();
-      const url = queryString ? `${endpoint}?${queryString}` : endpoint;
-      const response: AxiosResponse<T> = await this.axios({
-        url,
-        ...options,
-      });
-      return response.data;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw {
-          message: error.message,
-          data: error,
-        } as ApiError;
-      }
-      throw error;
-    }
+    const queryString = searchParams?.toString();
+    const url = queryString ? `${endpoint}?${queryString}` : endpoint;
+    const response: AxiosResponse<T> = await this.axios({
+      url,
+      ...options,
+    });
+    return response.data;
   }
 
   protected async get<T>(endpoint: string, searchParams?: URLSearchParams, config?: AxiosRequestConfig): Promise<T> {
