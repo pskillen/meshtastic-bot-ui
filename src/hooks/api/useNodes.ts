@@ -309,6 +309,32 @@ export function useManagedNodesSuspense(pageSize = 500) {
 }
 
 /**
+ * Hook to fetch user's managed nodes with pagination
+ */
+export function useMyManagedNodes(pageSize = 500) {
+  const api = useMeshtasticApi();
+  const myManagedNodesQuery = useInfiniteQuery<PaginatedResponse<OwnedManagedNode>, Error>({
+    refetchInterval: 1000 * 60, // 1 minute
+    queryKey: ['managed-nodes', 'mine', pageSize],
+    queryFn: async ({ pageParam = 1 }) => api.getMyManagedNodes({ page: pageParam as number, page_size: pageSize }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => (lastPage.next ? allPages.length + 1 : undefined),
+  });
+
+  const allMyManagedNodes = myManagedNodesQuery.data?.pages.flatMap((page) => page.results) || [];
+  const totalMyManagedNodes = myManagedNodesQuery.data?.pages[0]?.count || 0;
+
+  return {
+    myManagedNodes: allMyManagedNodes,
+    totalMyManagedNodes,
+    fetchNextPage: myManagedNodesQuery.fetchNextPage,
+    hasNextPage: myManagedNodesQuery.hasNextPage,
+    isLoading: myManagedNodesQuery.isLoading,
+    error: myManagedNodesQuery.error,
+  };
+}
+
+/**
  * Suspense-enabled hook to fetch user's managed nodes with pagination
  */
 export function useMyManagedNodesSuspense(pageSize = 500) {

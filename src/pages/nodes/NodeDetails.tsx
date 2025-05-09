@@ -8,9 +8,14 @@ import { NodesMap } from '@/components/nodes/NodesMap';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useState, useEffect, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
-import { Pause, Play } from 'lucide-react';
+import { Pause, Play, CheckCircle, Clock } from 'lucide-react';
+import { useNodeClaimStatusSuspense } from '@/hooks/api/useNodeClaims';
+import { Badge } from '@/components/ui/badge';
+import { ErrorBoundary, FallbackProps } from 'react-error-boundary';
+import { NotFoundError } from '@/lib/types';
+import { NodeClaim } from '@/lib/models';
 
-function NodeDetailsContent() {
+function NodeDetailsContent({ claimStatus }: { claimStatus: NodeClaim | undefined }) {
   const { id } = useParams<{ id: string }>();
   const nodeId = parseInt(id || '0', 10);
   const node = useNodeSuspense(nodeId);
@@ -38,6 +43,10 @@ function NodeDetailsContent() {
     positions[0].longitude !== 0 &&
     positions[0].altitude !== 0;
 
+  // Determine claim status
+  const hasPendingClaim = claimStatus && !claimStatus.accepted_at;
+  const hasApprovedClaim = claimStatus && claimStatus.accepted_at;
+
   return (
     <div className="container mx-auto px-4 py-8">
       <Link to="/nodes" replace={true} className="text-blue-500 hover:text-blue-700 mb-4 inline-block">
@@ -48,13 +57,28 @@ function NodeDetailsContent() {
         <div>
           <h1 className="text-3xl font-bold">{node.short_name}</h1>
           <p className="text-gray-600">{node.long_name}</p>
+          {(hasPendingClaim || hasApprovedClaim) && (
+            <div className="mt-2 flex items-center">
+              {hasPendingClaim ? (
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  <span>Claim Pending</span>
+                </Badge>
+              ) : (
+                <Badge variant="default" className="flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3" />
+                  <span>Claimed by You</span>
+                </Badge>
+              )}
+            </div>
+          )}
         </div>
-        {!node.owner && (
+        {(!node.owner || hasPendingClaim) && (
           <Link
             to={`/nodes/${nodeId}/claim`}
             className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
           >
-            Claim Node
+            {hasPendingClaim ? 'View Claim Details' : 'Claim Node'}
           </Link>
         )}
       </div>
@@ -213,7 +237,47 @@ function NodeDetailsContent() {
   );
 }
 
+function NodeClaimStatusBoundary({
+  nodeId,
+  children,
+}: {
+  nodeId: number;
+  children: (props: { claimStatus: NodeClaim | undefined }) => React.ReactNode;
+}) {
+  return (
+    <ErrorBoundary
+      fallbackRender={({ error }: FallbackProps) => {
+        if (error instanceof NotFoundError) {
+          // Not an error: node just isn't claimed
+          return children({ claimStatus: undefined });
+        }
+        // For other errors, show a generic error UI
+        return (
+          <div className="flex items-center justify-center min-h-screen text-red-600">
+            <div>Something went wrong: {error instanceof Error ? error.message : String(error)}</div>
+          </div>
+        );
+      }}
+    >
+      <NodeClaimStatusBoundaryInner nodeId={nodeId} children={children} />
+    </ErrorBoundary>
+  );
+}
+
+function NodeClaimStatusBoundaryInner({
+  nodeId,
+  children,
+}: {
+  nodeId: number;
+  children: (props: { claimStatus: NodeClaim | undefined }) => React.ReactNode;
+}) {
+  const { claimStatus } = useNodeClaimStatusSuspense(nodeId);
+  return <>{children({ claimStatus })}</>;
+}
+
 export function NodeDetails() {
+  const { id } = useParams<{ id: string }>();
+  const nodeId = parseInt(id || '0', 10);
   return (
     <Suspense
       fallback={
@@ -222,7 +286,9 @@ export function NodeDetails() {
         </div>
       }
     >
-      <NodeDetailsContent />
+      <NodeClaimStatusBoundary nodeId={nodeId}>
+        {({ claimStatus }) => <NodeDetailsContent claimStatus={claimStatus} />}
+      </NodeClaimStatusBoundary>
     </Suspense>
   );
 }

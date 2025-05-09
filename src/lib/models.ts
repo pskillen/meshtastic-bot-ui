@@ -187,7 +187,13 @@ export interface Constellation {
 }
 
 export interface NodeClaim {
-  node: string;
+  node: {
+    node_id: number;
+    node_id_str: string;
+    long_name: string;
+    short_name: string;
+    last_heard: string | null;
+  };
   user: number;
   claim_key: string;
   created_at: string;
