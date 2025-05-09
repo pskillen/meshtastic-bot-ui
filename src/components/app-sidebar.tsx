@@ -1,13 +1,6 @@
 import * as React from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ArrowUpCircleIcon,
-  BarChartIcon,
-  MessageSquareIcon,
-  NetworkIcon,
-  ActivityIcon,
-  RadioIcon,
-} from 'lucide-react';
+import { ArrowUpCircleIcon, BarChartIcon, MessageSquareIcon, NetworkIcon, ActivityIcon, RadioIcon } from 'lucide-react';
 
 import { NavMain } from '@/components/nav-main';
 import { NavSecondary } from '@/components/nav-secondary';
@@ -84,6 +77,5 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavUser user={currentUser} />
       </SidebarFooter>
     </Sidebar>
-
   );
 }

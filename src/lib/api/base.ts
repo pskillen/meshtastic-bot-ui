@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { ApiAuthConfig, ApiConfig, ApiError, NotFoundError, ServerError } from '@/lib/types';
 import { authService } from '@/lib/auth/authService';
+import { eventService, EventType } from '@/lib/events/eventService';
 
 export abstract class BaseApi {
   protected readonly axios: AxiosInstance;
@@ -91,9 +92,12 @@ export abstract class BaseApi {
             // Retry the request
             return this.axios(originalRequest);
           } catch (refreshError) {
-            // If refresh fails, redirect to login
-            authService.clearTokens();
-            window.location.href = '/login';
+            // If refresh fails, emit auth error event instead of directly redirecting
+            eventService.emit(EventType.AUTH_ERROR, {
+              message: 'Session expired. Please log in again.',
+              status: 401,
+              data: refreshError,
+            });
 
             // Create and throw an API error
             const apiError: ApiError = {
@@ -103,6 +107,13 @@ export abstract class BaseApi {
             };
             throw apiError;
           }
+        } else if (error.response?.status === 401 && !authService.getRefreshToken()) {
+          // If we get a 401 and there's no refresh token, emit auth error event
+          eventService.emit(EventType.AUTH_ERROR, {
+            message: 'Authentication failed. Please log in again.',
+            status: 401,
+            data: error.response?.data,
+          });
         }
 
         // Handle 404 errors with NotFoundError
@@ -125,6 +136,11 @@ export abstract class BaseApi {
         // Handle authentication errors
         if (error.response?.status === 401) {
           apiError.message = 'Authentication failed. Please check your credentials.';
+
+          // Emit auth error event for any 401 that wasn't handled by the refresh token logic
+          if (!originalRequest._retry) {
+            eventService.emit(EventType.AUTH_ERROR, apiError);
+          }
         }
 
         throw apiError;
