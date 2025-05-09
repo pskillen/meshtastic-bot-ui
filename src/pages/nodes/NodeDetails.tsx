@@ -1,12 +1,13 @@
 import { useParams, Link } from 'react-router-dom';
-import { useNodeSuspense, useNodePositions } from '@/hooks/api/useNodes';
+import { useNodeSuspense, useNodePositions, useManagedNodesSuspense } from '@/hooks/api/useNodes';
 import { useRecentNodes } from '@/hooks/useRecentNodes';
 import { formatDistanceToNow } from 'date-fns';
 import { BatteryChartShadcn } from '@/components/BatteryChartShadcn';
 import { PacketTypeChart } from '@/components/PacketTypeChart';
+import { ReceivedPacketTypeChart } from '@/components/ReceivedPacketTypeChart';
 import { NodesMap } from '@/components/nodes/NodesMap';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Pause, Play, CheckCircle, Clock } from 'lucide-react';
 import { useNodeClaimStatusSuspense } from '@/hooks/api/useNodeClaims';
@@ -22,6 +23,14 @@ function NodeDetailsContent({ claimStatus }: { claimStatus: NodeClaim | undefine
   const positionsQuery = useNodePositions(nodeId);
   const { recentNodes, addRecentNode } = useRecentNodes();
   const [autoRefresh, setAutoRefresh] = useState(true);
+
+  // Get all managed nodes to check if this node is managed
+  const { managedNodes } = useManagedNodesSuspense();
+
+  // Check if this node is a managed node
+  const isManagedNode = useMemo(() => {
+    return managedNodes.some((managedNode) => managedNode.node_id === nodeId);
+  }, [managedNodes, nodeId]);
 
   // Add node to recently viewed list only when nodeId changes or on initial load
   useEffect(() => {
@@ -205,10 +214,16 @@ function NodeDetailsContent({ claimStatus }: { claimStatus: NodeClaim | undefine
                     <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Long</span>
                     <span className="text-base font-mono">{positions[0].longitude.toFixed(6)}°</span>
                   </div>
-                </div>
-                <div className="mb-4">
-                  <p className="text-sm font-medium text-muted-foreground">Location Source</p>
-                  <p>{positions[0].location_source}</p>
+                  <span className="hidden md:inline-block h-6 border-l border-gray-200 mx-2"></span>
+                  <div className="flex flex-col items-start">
+                    <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Alt</span>
+                    <span className="text-base font-mono">{positions[0].altitude.toFixed(1)}m</span>
+                  </div>
+                  {positions[0].location_source && (
+                    <span className="ml-4 px-2 py-0.5 rounded bg-muted text-xs text-muted-foreground border border-gray-200">
+                      {positions[0].location_source}
+                    </span>
+                  )}
                 </div>
                 <div className="h-[400px] w-full">
                   <NodesMap nodes={[node]} />
@@ -230,6 +245,12 @@ function NodeDetailsContent({ claimStatus }: { claimStatus: NodeClaim | undefine
       <div className="mb-6">
         <PacketTypeChart nodeId={nodeId} defaultTimeRange={'48h'} />
       </div>
+
+      {isManagedNode && (
+        <div className="mb-6">
+          <ReceivedPacketTypeChart nodeId={nodeId} defaultTimeRange={'48h'} />
+        </div>
+      )}
     </div>
   );
 }
