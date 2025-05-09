@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { CartesianGrid, XAxis, YAxis, Bar, BarChart, Legend } from 'recharts';
-import { usePacketStatsSuspense } from '@/hooks/api/usePacketStats';
+import { useReceivedPacketStatsSuspense } from '@/hooks/api/usePacketStats';
 import { subDays } from 'date-fns';
 import { TimeRangeSelect, TimeRangeOption } from '@/components/TimeRangeSelect';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '
 import { PacketStatsInterval } from '@/lib/models';
 import { Payload, ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent';
 
-interface PacketTypeChartProps {
+interface ReceivedPacketTypeChartProps {
   nodeId: number;
   defaultTimeRange?: string;
   config?: ChartConfig;
@@ -38,7 +38,7 @@ const getInitialDateRange = () => {
   return { startDate, endDate };
 };
 
-export function PacketTypeChart({
+export function ReceivedPacketTypeChart({
   nodeId,
   defaultTimeRange = '24h',
   config = {
@@ -49,11 +49,11 @@ export function PacketTypeChart({
       },
     },
   },
-}: PacketTypeChartProps) {
+}: ReceivedPacketTypeChartProps) {
   const [timeRange, setTimeRange] = React.useState(defaultTimeRange);
   const [dateRange, setDateRange] = React.useState(getInitialDateRange);
 
-  const { stats: packetStats } = usePacketStatsSuspense({
+  const { stats: packetStats } = useReceivedPacketStatsSuspense({
     nodeId,
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
@@ -107,9 +107,9 @@ export function PacketTypeChart({
   return (
     <Card className="@container/card">
       <CardHeader className="relative">
-        <CardTitle>Sent packets</CardTitle>
+        <CardTitle>Heard packets</CardTitle>
         <CardDescription>
-          <span>Packets sent by this node which were received by another node and reported to the Meshflow system</span>
+          <span>Packets heard by this node and reported to the Meshflow system</span>
         </CardDescription>
         <div className="absolute right-4 top-4 flex items-center gap-2">
           <TimeRangeSelect options={TIME_RANGE_OPTIONS} value={timeRange} onChange={handleTimeRangeChange} />
