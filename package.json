@@ -53,6 +53,7 @@
     "react": "^18.3.1",
     "react-apexcharts": "^1.7.0",
     "react-dom": "^18.3.1",
+    "react-error-boundary": "^6.0.0",
     "react-router-dom": "^7.4.1",
     "recharts": "^2.15.1",
     "sonner": "^2.0.2",

@@ -108,3 +108,33 @@ export function useClaimNodeSuspense() {
   // This is the same as the classic mutation, but documented for Suspense usage
   return useClaimNode();
 }
+
+/**
+ * Hook to fetch all claims for the current user
+ * @returns Query result with all claims and loading/error states
+ */
+export function useUserClaims() {
+  const api = useMeshtasticApi();
+
+  return useQuery<NodeClaim[], Error>({
+    queryKey: ['node-claims', 'mine'],
+    queryFn: () => api.getMyClaims(),
+  });
+}
+
+/**
+ * Suspense-enabled hook to fetch all claims for the current user
+ * Use inside a <Suspense> boundary. No isLoading or error states are returned.
+ */
+export function useUserClaimsSuspense() {
+  const api = useMeshtasticApi();
+
+  const query = useSuspenseQuery<NodeClaim[], Error>({
+    queryKey: ['node-claims', 'mine'],
+    queryFn: () => api.getMyClaims(),
+  });
+
+  return {
+    claims: query.data,
+  };
+}

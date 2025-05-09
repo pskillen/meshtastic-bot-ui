@@ -7,11 +7,10 @@ import { AuthProvider } from '@/providers/AuthProvider';
 import { NodesList } from '@/pages/nodes/NodesList';
 import { NodeMap } from '@/pages/map/NodeMap';
 import { MessageHistory } from '@/pages/messages/MessageHistory';
-import { Settings } from '@/pages/settings/Settings';
 import { Dashboard } from '@/pages/Dashboard';
 import { NodeDetails } from '@/pages/nodes/NodeDetails';
 import { ClaimNode } from '@/pages/nodes/ClaimNode';
-import { MyNodes } from '@/pages/nodes/MyNodes';
+import { MyNodes } from '@/pages/user/MyNodes';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { OAuthCallback } from '@/pages/auth/OAuthCallback';
 import { UserPage } from '@/pages/user/UserPage';
@@ -46,7 +45,7 @@ function App() {
                 <Route path="/nodes/:id" element={<NodeDetails />} />
                 <Route path="/map" element={<NodeMap />} />
                 <Route path="/messages" element={<MessageHistory />} />
-                <Route path="/settings" element={<Settings />} />
+                <Route path="/user/nodes" element={<MyNodes />} />
                 <Route path="/user" element={<UserPage />} />
               </Route>
 

@@ -57,3 +57,24 @@ export interface ApiError {
   status?: number;
   data?: unknown;
 }
+
+export class NotFoundError extends Error {
+  status: number = 404;
+  data?: unknown;
+  constructor(message: string = 'Not Found', data?: unknown) {
+    super(message);
+    this.name = 'NotFoundError';
+    this.data = data;
+  }
+}
+
+export class ServerError extends Error {
+  status: number;
+  data?: unknown;
+  constructor(message: string = 'Server Error', status: number = 500, data?: unknown) {
+    super(message);
+    this.name = 'ServerError';
+    this.status = status;
+    this.data = data;
+  }
+}

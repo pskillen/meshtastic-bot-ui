@@ -23,7 +23,7 @@ export function NodeCard({ node }: NodeCardProps) {
         </span>
       </div>
       <div className="space-y-2">
-        <p className="text-gray-600">ID: {node.node_id}</p>
+        <p className="text-gray-600">ID: {node.node_id_str}</p>
         <p className="text-gray-600">Model: {node.hw_model}</p>
         <p className="text-gray-600">Version: {node.sw_version}</p>
         {node.latest_device_metrics && (
