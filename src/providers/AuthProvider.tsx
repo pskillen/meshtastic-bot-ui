@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authService, AuthProvider as AuthProviderType } from '@/lib/auth/authService';
 import { useConfig } from './ConfigProvider';
+import { eventService, EventType } from '@/lib/events/eventService';
 
 // Auth context interface
 interface AuthContextType {
@@ -70,6 +71,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     checkAuth();
   }, [config.apis.meshBot.baseUrl]);
+
+  // Subscribe to auth error events
+  useEffect(() => {
+    // Handle auth errors (like 401 unauthorized)
+    const unsubscribe = eventService.subscribe(EventType.AUTH_ERROR, (errorData) => {
+      console.log('Auth error received:', errorData);
+      // Perform logout
+      authService.logout();
+      setIsAuthenticated(false);
+      setAuthProvider(null);
+      setError(errorData?.message || 'Authentication failed. Please log in again.');
+      navigate('/login');
+    });
+
+    // Cleanup subscription on unmount
+    return () => {
+      unsubscribe();
+    };
+  }, [navigate]);
 
   // Handle OAuth callback
   useEffect(() => {
