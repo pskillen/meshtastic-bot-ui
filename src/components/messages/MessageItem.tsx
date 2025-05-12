@@ -2,8 +2,10 @@ import { TextMessage } from '@/lib/models';
 import { Avatar } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { memo, useMemo } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 interface MessageItemProps {
   message: TextMessage;
@@ -45,9 +47,52 @@ export const MessageItem = memo(function MessageItem({ message, replies = [], em
           </div>
           <div className="text-xs text-muted-foreground">{formattedTime}</div>
         </div>
-        <Badge variant="outline" className="ml-auto">
-          Channel {message.channel}
-        </Badge>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="ml-auto">
+              {message.heard?.length || 0} heard
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Message Heard By</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              {message.heard?.length ? (
+                message.heard.map((observation) => (
+                  <div key={observation.observer.node_id} className="flex items-start space-x-4 p-2 border rounded-md">
+                    <div className="flex-1">
+                      <div className="font-semibold">
+                        {observation.observer.short_name || observation.observer.node_id_str}
+                      </div>
+                      {observation.observer.long_name && (
+                        <div className="text-sm text-muted-foreground">{observation.observer.long_name}</div>
+                      )}
+                      <div className="text-xs text-muted-foreground">
+                        {format(new Date(observation.rx_time), 'MMM d, yyyy h:mm a')}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      {observation.direct_from_sender ? (
+                        <div>
+                          <Badge variant="secondary">Direct</Badge>
+                          {observation.rx_rssi && (
+                            <div className="text-xs mt-1">RSSI: {observation.rx_rssi.toFixed(1)}</div>
+                          )}
+                          {observation.rx_snr && <div className="text-xs">SNR: {observation.rx_snr.toFixed(1)}</div>}
+                        </div>
+                      ) : (
+                        <Badge variant="outline">Hop: {observation.hop_count}</Badge>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-muted-foreground">No observation data available</div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardHeader>
       <CardContent>
         <p className="whitespace-pre-wrap">{message.message_text}</p>
