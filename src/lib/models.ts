@@ -88,6 +88,22 @@ export interface TextMessageSender {
   short_name: string | null;
 }
 
+export interface PacketObservationObserver {
+  node_id: number;
+  node_id_str: string;
+  long_name: string | null;
+  short_name: string | null;
+}
+
+export interface PacketObservation {
+  observer: PacketObservationObserver;
+  rx_time: string; // ISO date string
+  rx_rssi: number | null;
+  rx_snr: number | null;
+  direct_from_sender: boolean;
+  hop_count: number | null;
+}
+
 export interface TextMessage {
   id: string; // UUID
   packet_id: number;
@@ -98,6 +114,7 @@ export interface TextMessage {
   message_text: string;
   is_emoji: boolean;
   reply_to_message_id: number | null;
+  heard: PacketObservation[];
 }
 
 export interface TextMessageResponse {
