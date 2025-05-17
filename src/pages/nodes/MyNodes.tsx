@@ -5,10 +5,12 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, AlertCircle, Radio, Settings } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
 import { ObservedNode } from '@/lib/models';
 import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SetupManagedNode } from '@/components/nodes/SetupManagedNode';
+import { NodesMap } from '@/components/nodes/NodesMap';
+import { MonitoredNodesBatteryChart } from '@/components/nodes/MonitoredNodesBatteryChart';
 
 function MyNodesContent() {
   const navigate = useNavigate();
@@ -41,10 +43,123 @@ function MyNodesContent() {
     }
   });
 
+  // Custom table component that extends MonitoredNodesTable to include claim/manage status
+  const MyNodesTable = () => {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>My Nodes</CardTitle>
+          <CardDescription>
+            These are your observed and managed nodes. You can view details and manage them from here.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Short Name</TableHead>
+                <TableHead>Long Name</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Last Heard</TableHead>
+                <TableHead>Battery</TableHead>
+                <TableHead>Position</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {allNodes.map((node) => {
+                const isManaged = managedNodeIds.has(node.node_id);
+                const isClaimed = node.owner?.id !== undefined;
+
+                return (
+                  <TableRow key={node.node_id}>
+                    <TableCell>
+                      <div>
+                        {node.short_name || node.node_id_str}
+                        <div className="text-xs text-muted-foreground">{node.node_id_str}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{node.long_name || '-'}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-2">
+                        {isManaged && <Badge variant="outline">Managed</Badge>}
+                        {isClaimed && <Badge variant="outline">Claimed</Badge>}
+                      </div>
+                    </TableCell>
+                    <TableCell>{node.last_heard ? new Date(node.last_heard).toLocaleString() : 'Never'}</TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div>
+                          {node.latest_device_metrics?.battery_level
+                            ? `${node.latest_device_metrics.battery_level}%`
+                            : '-'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {node.latest_device_metrics?.voltage
+                            ? `${node.latest_device_metrics.voltage.toFixed(2)}V`
+                            : '-'}
+                        </div>
+                        {node.latest_device_metrics?.reported_time && (
+                          <div className="text-xs text-muted-foreground">
+                            Updated: {new Date(node.latest_device_metrics.reported_time).toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {node.latest_position ? (
+                        <div className="space-y-1">
+                          <div>
+                            {node.latest_position.latitude.toFixed(6)}, {node.latest_position.longitude.toFixed(6)}
+                          </div>
+                          {node.latest_position.reported_time && (
+                            <div className="text-xs text-muted-foreground">
+                              Updated: {new Date(node.latest_position.reported_time).toLocaleString()}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        {!isManaged && (
+                          <Button
+                            onClick={() => handleRunAsManagedNode(node)}
+                            size="sm"
+                            variant="outline"
+                            className="flex items-center text-xs"
+                          >
+                            <Radio className="mr-1 h-3 w-3" />
+                            Convert
+                          </Button>
+                        )}
+                        <Button
+                          onClick={() => navigate(`/nodes/${node.node_id}`)}
+                          size="sm"
+                          variant="outline"
+                          className="flex items-center"
+                        >
+                          <Settings className="mr-2 h-4 w-4" />
+                          Details
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">My Nodes</h1>
+    <div className="container mx-auto p-4 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">My Nodes</h1>
         <Button variant="outline" onClick={() => navigate('/user/nodes')} className="flex items-center">
           <Settings className="mr-2 h-4 w-4" />
           Node Settings
@@ -63,85 +178,33 @@ function MyNodesContent() {
         <SetupManagedNode node={selectedNode} isOpen={isSetupDialogOpen} onClose={handleCloseSetupDialog} />
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>My Nodes</CardTitle>
-          <CardDescription>
-            These are your observed and managed nodes. You can view details and manage them from here.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {allNodes && allNodes.length > 0 ? (
-            <div className="space-y-4">
-              {allNodes.map((node) => {
-                const isManaged = managedNodeIds.has(node.node_id);
-                const isClaimed = node.owner?.id !== undefined;
+      {allNodes.length > 0 ? (
+        <>
+          <div className="h-[400px] bg-background rounded-lg border">
+            <NodesMap nodes={allNodes} />
+          </div>
 
-                return (
-                  <Card key={node.node_id} className="overflow-hidden">
-                    <div className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="text-lg font-semibold">
-                            <Link to={`/nodes/${node.node_id}`} className="text-blue-500 hover:text-blue-700">
-                              {node.short_name || node.node_id_str}
-                            </Link>
-                          </h3>
-                          <p className="text-sm text-gray-600">{node.long_name}</p>
-                          <div className="flex flex-wrap gap-2 mt-1">
-                            {isManaged && <Badge className="bg-green-500 text-white text-xs">Managed</Badge>}
-                            {isClaimed && <Badge className="bg-blue-500 text-white text-xs">Claimed</Badge>}
-                            <p className="text-xs text-gray-500">
-                              Last heard:{' '}
-                              {node.last_heard
-                                ? formatDistanceToNow(new Date(node.last_heard), { addSuffix: true })
-                                : 'Never'}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          {!isManaged && (
-                            <Button
-                              onClick={() => handleRunAsManagedNode(node)}
-                              size="sm"
-                              variant="outline"
-                              className="flex items-center text-xs"
-                            >
-                              <Radio className="mr-1 h-3 w-3" />
-                              Convert to Managed Node
-                            </Button>
-                          )}
-                          <Button
-                            onClick={() => navigate(`/nodes/${node.node_id}`)}
-                            size="sm"
-                            variant="outline"
-                            className="flex items-center"
-                          >
-                            <Settings className="mr-2 h-4 w-4" />
-                            Details
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
-          ) : (
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>No Nodes</AlertTitle>
-              <AlertDescription>
-                You don't have any nodes yet. Browse the{' '}
-                <Link to="/nodes" className="text-blue-500 hover:text-blue-700">
-                  nodes list
-                </Link>{' '}
-                to find and claim a node.
-              </AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
+          <div className="bg-background rounded-lg border">
+            <MonitoredNodesBatteryChart nodes={allNodes} />
+          </div>
+
+          <div className="bg-background rounded-lg border">
+            <MyNodesTable />
+          </div>
+        </>
+      ) : (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>No Nodes</AlertTitle>
+          <AlertDescription>
+            You don't have any nodes yet. Browse the{' '}
+            <Link to="/nodes" className="text-blue-500 hover:text-blue-700">
+              nodes list
+            </Link>{' '}
+            to find and claim a node.
+          </AlertDescription>
+        </Alert>
+      )}
     </div>
   );
 }
