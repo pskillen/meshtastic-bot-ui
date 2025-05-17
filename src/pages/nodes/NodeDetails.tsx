@@ -121,7 +121,7 @@ function NodeDetailsContent({ claimStatus }: { claimStatus: NodeClaim | undefine
           <CardContent>
             <div className="space-y-2">
               <p>
-                <span className="font-medium">Node ID:</span> {node.node_id}
+                <span className="font-medium">Node ID:</span> {node.node_id_str}
               </p>
               <p>
                 <span className="font-medium">Hardware Model:</span> {node.hw_model}

@@ -207,8 +207,8 @@ export class MeshtasticApi extends BaseApi {
    * Get a list of API keys
    */
   async getApiKeys(): Promise<NodeApiKey[]> {
-    const response = await this.get<NodeApiKey[]>('/nodes/api-keys/');
-    return response;
+    const response = await this.get<PaginatedResponse<NodeApiKey>>('/nodes/api-keys/');
+    return response.results;
   }
 
   /**
@@ -228,6 +228,27 @@ export class MeshtasticApi extends BaseApi {
    */
   async addNodeToApiKey(apiKeyId: string, nodeId: number): Promise<NodeApiKey> {
     return this.post<NodeApiKey>(`/nodes/api-keys/${apiKeyId}/add_node/`, { node_id: nodeId });
+  }
+
+  /**
+   * Remove a node from an API key
+   */
+  async removeNodeFromApiKey(apiKeyId: string, nodeId: number): Promise<NodeApiKey> {
+    return this.post<NodeApiKey>(`/nodes/api-keys/${apiKeyId}/remove_node/`, { node_id: nodeId });
+  }
+
+  /**
+   * Delete an API key
+   */
+  async deleteApiKey(apiKeyId: string): Promise<void> {
+    await this.delete<void>(`/nodes/api-keys/${apiKeyId}/`);
+  }
+
+  /**
+   * Update an API key (name, is_active)
+   */
+  async updateApiKey(apiKeyId: string, data: { name?: string; is_active?: boolean }): Promise<NodeApiKey> {
+    return this.put<NodeApiKey>(`/nodes/api-keys/${apiKeyId}/`, data);
   }
 
   // ===== Constellations API =====
