@@ -152,7 +152,7 @@ export function ClaimNode() {
           </CardHeader>
           <CardContent>
             <p className="mb-4">
-              Node ID: <span className="font-medium">{node.node_id}</span>
+              Node ID: <span className="font-medium">{node.node_id_str}</span>
             </p>
             <p className="mb-4">
               Last Heard:{' '}
