@@ -10,8 +10,8 @@ import { MessageHistory } from '@/pages/messages/MessageHistory';
 import { Dashboard } from '@/pages/Dashboard';
 import { NodeDetails } from '@/pages/nodes/NodeDetails';
 import { ClaimNode } from '@/pages/nodes/ClaimNode';
-import { MyNodes as UserMyNodes } from '@/pages/user/MyNodes';
-import { MyNodes as NodesMyNodes } from '@/pages/nodes/MyNodes';
+import { NodeSettings } from '@/pages/user/NodeSettings';
+import { MyNodes } from '@/pages/nodes/MyNodes';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { OAuthCallback } from '@/pages/auth/OAuthCallback';
 import { UserPage } from '@/pages/user/UserPage';
@@ -40,13 +40,13 @@ function App() {
               >
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/nodes" element={<NodesList />} />
-                <Route path="/nodes/my-nodes" element={<NodesMyNodes />} />
+                <Route path="/nodes/my-nodes" element={<MyNodes />} />
                 <Route path="/nodes/monitor" element={<MonitorNodes />} />
                 <Route path="/nodes/:id/claim" element={<ClaimNode />} />
                 <Route path="/nodes/:id" element={<NodeDetails />} />
                 <Route path="/map" element={<NodeMap />} />
                 <Route path="/messages" element={<MessageHistory />} />
-                <Route path="/user/nodes" element={<UserMyNodes />} />
+                <Route path="/user/nodes" element={<NodeSettings />} />
                 <Route path="/user" element={<UserPage />} />
               </Route>
 
