@@ -27,7 +27,7 @@ export interface UseNodesOptions {
 export function useNodes(options?: UseNodesOptions) {
   const api = useMeshtasticApi();
   const queryClient = useQueryClient();
-  const pageSize = options?.pageSize || 25;
+  const pageSize = options?.pageSize || 100;
 
   // Query for observed nodes with automatic pagination
   const nodesQuery = useInfiniteQuery<
