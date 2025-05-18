@@ -1,6 +1,7 @@
 import { authService } from '@/lib/auth/authService';
-import { eventService, EventType } from '@/lib/events/eventService';
+import { eventService } from '@/lib/events/eventService';
 import { TextMessage } from '@/lib/models';
+import { AuthEventType } from '@/lib/auth/authService';
 
 // Define WebSocket events
 export enum WebSocketEventType {
@@ -36,13 +37,13 @@ class WebSocketService {
     this.baseUrl = baseUrl.replace(/^http/, 'ws');
 
     // Listen for auth events to reconnect when token changes
-    eventService.on(EventType.AUTH_TOKEN_REFRESHED, () => {
+    eventService.subscribe(AuthEventType.AUTH_TOKEN_REFRESHED, () => {
       if (this.connectionState === ConnectionState.CONNECTED) {
         this.reconnect();
       }
     });
 
-    eventService.on(EventType.AUTH_LOGOUT, () => {
+    eventService.subscribe(AuthEventType.AUTH_LOGOUT, () => {
       this.disconnect();
     });
   }
@@ -112,9 +113,6 @@ class WebSocketService {
     console.log('WebSocket connection established');
     this.setConnectionState(ConnectionState.CONNECTED);
     this.reconnectAttempts = 0;
-
-    // Emit connected event
-    eventService.emit(WebSocketEventType.CONNECTED);
   }
 
   /**
@@ -137,10 +135,7 @@ class WebSocketService {
   private handleClose(event: CloseEvent) {
     console.log(`WebSocket connection closed: ${event.code} ${event.reason}`);
     this.socket = null;
-    this.setConnectionState(ConnectionState.DISCONNECTED);
-
-    // Emit disconnected event
-    eventService.emit(WebSocketEventType.DISCONNECTED, { code: event.code, reason: event.reason });
+    this.setConnectionState(ConnectionState.DISCONNECTED, { code: event.code, reason: event.reason });
 
     // Try to reconnect if not closed cleanly
     if (event.code !== 1000) {
@@ -153,10 +148,7 @@ class WebSocketService {
    */
   private handleError(event: Event) {
     console.error('WebSocket error:', event);
-    this.setConnectionState(ConnectionState.ERROR);
-
-    // Emit error event
-    eventService.emit(WebSocketEventType.ERROR, event);
+    this.setConnectionState(ConnectionState.ERROR, event);
   }
 
   /**
@@ -183,9 +175,27 @@ class WebSocketService {
 
   /**
    * Set the connection state and emit events
+   * @param state The new connection state
+   * @param data Additional data to include in the event
    */
-  private setConnectionState(state: ConnectionState) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private setConnectionState(state: ConnectionState, data?: any) {
+    const previousState = this.connectionState;
     this.connectionState = state;
+
+    // Emit state change event if the state has changed
+    if (previousState !== state) {
+      console.log(`WebSocket connection state changed: ${previousState} -> ${state}`);
+
+      // Emit specific events based on the new state
+      if (state === ConnectionState.CONNECTED) {
+        eventService.emit(WebSocketEventType.CONNECTED, data);
+      } else if (state === ConnectionState.DISCONNECTED) {
+        eventService.emit(WebSocketEventType.DISCONNECTED, data);
+      } else if (state === ConnectionState.ERROR) {
+        eventService.emit(WebSocketEventType.ERROR, data);
+      }
+    }
   }
 
   /**

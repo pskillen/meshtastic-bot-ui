@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useConfig } from './ConfigProvider';
 import { useLocation } from 'react-router-dom';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { websocketService, WebSocketEventType, ConnectionState } from '@/lib/websocket/websocketService';
 import { TextMessage } from '@/lib/models';
 import { eventService } from '@/lib/events/eventService';
@@ -62,7 +62,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     const messageHandler = (message: TextMessage) => {
       // Add the message to unread messages if not on the messages page
       if (!location.pathname.includes('/messages')) {
-        setUnreadMessages(prev => [...prev, message]);
+        setUnreadMessages((prev) => [...prev, message]);
 
         // Show a toast notification
         toast({
@@ -74,22 +74,22 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     };
 
     // Register event handlers
-    eventService.on(WebSocketEventType.CONNECTED, connectedHandler);
-    eventService.on(WebSocketEventType.DISCONNECTED, disconnectedHandler);
-    eventService.on(WebSocketEventType.ERROR, errorHandler);
-    eventService.on(WebSocketEventType.MESSAGE_RECEIVED, messageHandler);
+    eventService.subscribe(WebSocketEventType.CONNECTED, connectedHandler);
+    eventService.subscribe(WebSocketEventType.DISCONNECTED, disconnectedHandler);
+    eventService.subscribe(WebSocketEventType.ERROR, errorHandler);
+    eventService.subscribe(WebSocketEventType.MESSAGE_RECEIVED, messageHandler);
 
     // Clean up event listeners when the component unmounts
     return () => {
-      eventService.off(WebSocketEventType.CONNECTED, connectedHandler);
-      eventService.off(WebSocketEventType.DISCONNECTED, disconnectedHandler);
-      eventService.off(WebSocketEventType.ERROR, errorHandler);
-      eventService.off(WebSocketEventType.MESSAGE_RECEIVED, messageHandler);
+      eventService.unsubscribe(WebSocketEventType.CONNECTED, connectedHandler);
+      eventService.unsubscribe(WebSocketEventType.DISCONNECTED, disconnectedHandler);
+      eventService.unsubscribe(WebSocketEventType.ERROR, errorHandler);
+      eventService.unsubscribe(WebSocketEventType.MESSAGE_RECEIVED, messageHandler);
 
       // Disconnect from the WebSocket server
       websocketService.disconnect();
     };
-  }, [config.apis.meshBot.baseUrl, toast]);
+  }, [config.apis.meshBot.baseUrl, toast, location]);
 
   // Clear unread messages when navigating to the messages page
   useEffect(() => {
@@ -112,9 +112,5 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     hasUnreadMessages: unreadMessages.length > 0,
   };
 
-  return (
-    <WebSocketContext.Provider value={contextValue}>
-      {children}
-    </WebSocketContext.Provider>
-  );
+  return <WebSocketContext.Provider value={contextValue}>{children}</WebSocketContext.Provider>;
 }

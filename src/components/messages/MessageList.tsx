@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useMessagesSuspense } from '@/hooks/api/useMessages';
+import { useMessagesWithWebSocket } from '@/hooks/useMessagesWithWebSocket';
 import { MessageItem } from './MessageItem';
 import { Button } from '@/components/ui/button';
 
@@ -10,14 +10,13 @@ interface MessageListProps {
 }
 
 export function MessageList({ channel, constellationId, nodeId }: MessageListProps) {
-  // Use the Suspense-enabled hook for fetching messages
-  const { messages, fetchNextPage, hasNextPage } = useMessagesSuspense(
-    channel !== undefined && constellationId !== undefined
-      ? { channelId: channel, constellationId }
-      : nodeId !== undefined
-        ? { channelId: undefined, constellationId: undefined, pageSize: 25, enabled: false }
-        : undefined
-  );
+  // Use the WebSocket-enabled hook for fetching messages with real-time updates
+  const { messages, fetchNextPage, hasNextPage } = useMessagesWithWebSocket({
+    channelId: channel,
+    constellationId: constellationId,
+    nodeId: nodeId,
+    pageSize: 25,
+  });
 
   // Group messages by packet_id for threading and emoji reactions
   const mainMessages = useMemo(() => messages.filter((msg) => !msg.reply_to_message_id), [messages]);

@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 
 import { ConfigProvider } from '@/providers/ConfigProvider';
 import { AuthProvider } from '@/providers/AuthProvider';
+import { WebSocketProvider } from '@/providers/WebSocketProvider';
 
 import { NodesList } from '@/pages/nodes/NodesList';
 import { NodeMap } from '@/pages/map/NodeMap';
@@ -25,34 +26,36 @@ function App() {
       <ConfigProvider>
         <Router>
           <AuthProvider>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/auth/callback" element={<OAuthCallback />} />
+            <WebSocketProvider>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/auth/callback" element={<OAuthCallback />} />
 
-              {/* Protected routes with AppLayout */}
-              <Route
-                element={
-                  <ProtectedRoute>
-                    <AppLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/nodes" element={<NodesList />} />
-                <Route path="/nodes/my-nodes" element={<MyNodes />} />
-                <Route path="/nodes/monitor" element={<MonitorNodes />} />
-                <Route path="/nodes/:id/claim" element={<ClaimNode />} />
-                <Route path="/nodes/:id" element={<NodeDetails />} />
-                <Route path="/map" element={<NodeMap />} />
-                <Route path="/messages" element={<MessageHistory />} />
-                <Route path="/user/nodes" element={<NodeSettings />} />
-                <Route path="/user" element={<UserPage />} />
-              </Route>
+                {/* Protected routes with AppLayout */}
+                <Route
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/nodes" element={<NodesList />} />
+                  <Route path="/nodes/my-nodes" element={<MyNodes />} />
+                  <Route path="/nodes/monitor" element={<MonitorNodes />} />
+                  <Route path="/nodes/:id/claim" element={<ClaimNode />} />
+                  <Route path="/nodes/:id" element={<NodeDetails />} />
+                  <Route path="/map" element={<NodeMap />} />
+                  <Route path="/messages" element={<MessageHistory />} />
+                  <Route path="/user/nodes" element={<NodeSettings />} />
+                  <Route path="/user" element={<UserPage />} />
+                </Route>
 
-              {/* Catch all route */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+                {/* Catch all route */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </WebSocketProvider>
           </AuthProvider>
         </Router>
       </ConfigProvider>
