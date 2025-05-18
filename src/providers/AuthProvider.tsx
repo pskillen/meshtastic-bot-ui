@@ -2,7 +2,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authService, AuthProvider as AuthProviderType } from '@/lib/auth/authService';
 import { useConfig } from './ConfigProvider';
-import { eventService, EventType } from '@/lib/events/eventService';
+import { eventService } from '@/lib/events/eventService';
+import { AuthEventType } from '@/lib/auth/authService';
 
 // Auth context interface
 interface AuthContextType {
@@ -75,7 +76,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Subscribe to auth error events
   useEffect(() => {
     // Handle auth errors (like 401 unauthorized)
-    const unsubscribe = eventService.subscribe(EventType.AUTH_ERROR, (errorData) => {
+    const unsubscribe = eventService.subscribe(AuthEventType.AUTH_ERROR, (errorData) => {
       console.log('Auth error received:', errorData);
       // Perform logout
       authService.logout();
