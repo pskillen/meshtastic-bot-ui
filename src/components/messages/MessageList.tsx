@@ -47,9 +47,9 @@ export function MessageList({ channel, constellationId, nodeId }: MessageListPro
 
   return (
     <div className="space-y-4">
-      {mainMessages.map((message) => (
+      {mainMessages.map((message, index) => (
         <MessageItem
-          key={message.id}
+          key={`${message.id}-${index}`}
           message={message}
           replies={repliesByPacketId[message.packet_id] || []}
           emojiReactions={emojiReactionsByPacketId[message.packet_id] || []}
