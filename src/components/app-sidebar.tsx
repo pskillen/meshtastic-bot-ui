@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpCircleIcon, BarChartIcon, MessageSquareIcon, NetworkIcon, ActivityIcon, RadioIcon } from 'lucide-react';
+import { ArrowUpCircleIcon } from 'lucide-react';
 
 import { NavMain } from '@/components/nav-main';
 import { NavSecondary } from '@/components/nav-secondary';
@@ -16,37 +16,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-
-const data = {
-  navMain: [
-    {
-      title: 'Dashboard',
-      url: '/',
-      icon: BarChartIcon,
-    },
-    {
-      title: 'Nodes',
-      url: '/nodes',
-      icon: NetworkIcon,
-    },
-    {
-      title: 'My Nodes',
-      url: '/nodes/my-nodes',
-      icon: RadioIcon,
-    },
-    {
-      title: 'Monitor',
-      url: '/nodes/monitor',
-      icon: ActivityIcon,
-    },
-    {
-      title: 'Messages',
-      url: '/messages',
-      icon: MessageSquareIcon,
-    },
-  ],
-  navSecondary: [],
-};
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // Get user details from authService
@@ -70,8 +39,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <div className="px-4 py-2">
           <NodeSearch />
         </div>
-        <NavMain items={data.navMain} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavMain />
+        <NavSecondary items={[]} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={currentUser} />

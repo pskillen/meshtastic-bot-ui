@@ -1,4 +1,5 @@
 import { ApiConfig } from '@/lib/types';
+import { eventService } from '@/lib/events/eventService';
 
 // Token storage keys
 const ACCESS_TOKEN_KEY = 'meshflow_access_token';
@@ -25,6 +26,13 @@ export interface User {
 
 // Auth provider type
 export type AuthProvider = 'password' | 'google' | 'github' | null;
+
+// Define auth event types
+export enum AuthEventType {
+  AUTH_ERROR = 'auth_error',
+  AUTH_TOKEN_REFRESHED = 'auth_token_refreshed',
+  AUTH_LOGOUT = 'auth_logout',
+}
 
 // Authentication service
 export const authService = {
@@ -227,6 +235,7 @@ export const authService = {
   // Logout user
   logout(): void {
     this.clearTokens();
+    eventService.emit(AuthEventType.AUTH_LOGOUT);
   },
 
   // Initialize user details if authenticated

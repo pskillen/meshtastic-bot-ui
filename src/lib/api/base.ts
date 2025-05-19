@@ -1,7 +1,8 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { ApiAuthConfig, ApiConfig, ApiError, NotFoundError, ServerError } from '@/lib/types';
 import { authService } from '@/lib/auth/authService';
-import { eventService, EventType } from '@/lib/events/eventService';
+import { eventService } from '@/lib/events/eventService';
+import { AuthEventType } from '@/lib/auth/authService';
 
 export abstract class BaseApi {
   protected readonly axios: AxiosInstance;
@@ -86,6 +87,9 @@ export abstract class BaseApi {
             // Attempt to refresh the token
             const newToken = await authService.refreshToken(this.baseUrl);
 
+            // Emit token refreshed event
+            eventService.emit(AuthEventType.AUTH_TOKEN_REFRESHED);
+
             // Update the request with the new token
             originalRequest.headers.Authorization = `Bearer ${newToken}`;
 
@@ -93,7 +97,7 @@ export abstract class BaseApi {
             return this.axios(originalRequest);
           } catch (refreshError) {
             // If refresh fails, emit auth error event instead of directly redirecting
-            eventService.emit(EventType.AUTH_ERROR, {
+            eventService.emit(AuthEventType.AUTH_ERROR, {
               message: 'Session expired. Please log in again.',
               status: 401,
               data: refreshError,
@@ -109,7 +113,7 @@ export abstract class BaseApi {
           }
         } else if (error.response?.status === 401 && !authService.getRefreshToken()) {
           // If we get a 401 and there's no refresh token, emit auth error event
-          eventService.emit(EventType.AUTH_ERROR, {
+          eventService.emit(AuthEventType.AUTH_ERROR, {
             message: 'Authentication failed. Please log in again.',
             status: 401,
             data: error.response?.data,
@@ -139,7 +143,7 @@ export abstract class BaseApi {
 
           // Emit auth error event for any 401 that wasn't handled by the refresh token logic
           if (!originalRequest._retry) {
-            eventService.emit(EventType.AUTH_ERROR, apiError);
+            eventService.emit(AuthEventType.AUTH_ERROR, apiError);
           }
         }
 
