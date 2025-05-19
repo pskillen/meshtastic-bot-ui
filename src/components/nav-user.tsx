@@ -1,5 +1,5 @@
-import { LogOutIcon, MoreVerticalIcon, UserCircleIcon, RadioIcon, BellIcon, MessageSquareIcon } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { LogOutIcon, MoreVerticalIcon, UserCircleIcon, RadioIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -13,35 +13,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar';
 import { useAuth } from '@/providers/AuthProvider';
-import { useWebSocket } from '@/providers/WebSocketProvider';
 import { User } from '@/lib/auth/authService';
-import { Badge } from '@/components/ui/badge';
 
 export function NavUser({ user }: { user: User | null }) {
   const { isMobile } = useSidebar();
   const { logout } = useAuth();
-  const navigate = useNavigate();
-  const { hasUnreadMessages, unreadMessages, markAllAsRead } = useWebSocket();
-
-  const handleMessagesClick = () => {
-    markAllAsRead();
-    navigate('/messages');
-  };
 
   return (
     <SidebarMenu>
-      {/* Notification Bell */}
-      {hasUnreadMessages && (
-        <SidebarMenuItem>
-          <SidebarMenuButton onClick={handleMessagesClick} className="relative">
-            <BellIcon className="h-5 w-5" />
-            <Badge className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 p-0 text-xs text-white">
-              {unreadMessages.length > 9 ? '9+' : unreadMessages.length}
-            </Badge>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      )}
-
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -80,15 +59,6 @@ export function NavUser({ user }: { user: User | null }) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={handleMessagesClick}>
-                <MessageSquareIcon className="mr-2 h-4 w-4" />
-                Messages
-                {hasUnreadMessages && (
-                  <Badge className="ml-auto flex h-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs text-white">
-                    {unreadMessages.length}
-                  </Badge>
-                )}
-              </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link to="/user/nodes">
                   <RadioIcon className="mr-2 h-4 w-4" />
