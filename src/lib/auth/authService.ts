@@ -266,7 +266,7 @@ export const authService = {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ access_token: googleToken }),
+      body: JSON.stringify({ code: googleToken }),
     });
 
     if (!response.ok) {
