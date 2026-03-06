@@ -16,6 +16,7 @@ export interface StatsQueryParams extends DateRangeIntervalParams {
 export interface PaginationParams {
   page?: number;
   page_size?: number;
+  last_heard_after?: Date;
 }
 
 export interface ApiAuthConfig {

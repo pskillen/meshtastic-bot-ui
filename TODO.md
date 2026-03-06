@@ -17,7 +17,7 @@
 
 ## Dashboard
 
-- [x] Online nodes
+- [x] Recent nodes
 - [ ] Active nodes (sending messages today)
 - [x] Graph of packets vs time (24h)
 - [ ] Node map (links to larger map page)
@@ -30,8 +30,8 @@
 ## Node list
 
 - [x] Sort by last heard, short name, long name, nodeid, distance
-- [x] accordion for online / offline
-- [ ] option to hide offline
+- [x] Time range selector (2h, 24h, 7d, 30d) for recent nodes
+- [x] Show older nodes toggle on map
 - [x] Map of current locations for all nodes
 
 ## Node details page
