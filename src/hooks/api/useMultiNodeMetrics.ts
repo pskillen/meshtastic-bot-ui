@@ -1,77 +1,83 @@
-import { useQueries, useSuspenseQueries } from '@tanstack/react-query';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { useMeshtasticApi } from './useApi';
-import { ObservedNode } from '@/lib/models';
+import { DeviceMetrics, ObservedNode } from '@/lib/models';
 import { DateRangeParams } from '@/lib/types';
 import { getKeyValue } from './hooks-utils';
 import { roundDateParams } from './hooks-utils';
 
 /**
- * Hook to fetch metrics for multiple nodes in parallel
+ * Transform flat bulk response into metricsMap keyed by node_id.
+ * Strips node_id, node_id_str, short_name from each item for DeviceMetrics shape.
+ */
+function bulkResultsToMetricsMap(
+  results: Array<DeviceMetrics & { node_id: number; node_id_str?: string; short_name?: string | null }>
+): Record<number, DeviceMetrics[]> {
+  const map: Record<number, DeviceMetrics[]> = {};
+  for (const item of results) {
+    const { node_id, ...metric } = item;
+    if (!map[node_id]) map[node_id] = [];
+    map[node_id].push(metric as DeviceMetrics);
+  }
+  // Sort each node's metrics by reported_time ascending (for chart ordering)
+  for (const nodeId of Object.keys(map)) {
+    map[Number(nodeId)].sort((a, b) => new Date(a.reported_time).getTime() - new Date(b.reported_time).getTime());
+  }
+  return map;
+}
+
+/**
+ * Hook to fetch metrics for multiple nodes via bulk endpoint (single request).
  * @param nodes Array of nodes to fetch metrics for
  * @param dateRange Optional date range to filter metrics
  * @returns Object with metricsMap and loading/error states
  */
 export function useMultiNodeMetrics(nodes: ObservedNode[], dateRange?: DateRangeParams) {
   const api = useMeshtasticApi();
+  const nodeIds = nodes.map((n) => n.node_id);
+  const params = roundDateParams(dateRange);
+  const keyValue = getKeyValue(params);
+  const queryKey = ['nodes', 'metrics-bulk', nodeIds.sort().join(','), keyValue];
 
-  const queries = useQueries({
-    queries: nodes.map((node) => ({
-      queryKey: [
-        'nodes',
-        node.node_id,
-        'metrics',
-        dateRange?.startDate?.toISOString(),
-        dateRange?.endDate?.toISOString(),
-      ],
-      queryFn: () => {
-        const params: { startDate?: Date; endDate?: Date } = {};
-        if (dateRange?.startDate) params.startDate = dateRange.startDate;
-        if (dateRange?.endDate) params.endDate = dateRange.endDate;
-        return api.getNodeDeviceMetrics(node.node_id, params);
-      },
-      enabled: !!node.node_id,
-    })),
+  const query = useQuery({
+    queryKey,
+    queryFn: async () => {
+      const results = await api.getDeviceMetricsBulk(nodeIds, params);
+      return bulkResultsToMetricsMap(results);
+    },
+    enabled: nodeIds.length > 0,
   });
 
-  const isLoading = queries.some((query) => query.isLoading);
-  const isError = queries.some((query) => query.isError);
-  const errors = queries.map((query) => query.error).filter(Boolean);
-
-  // Create a map of node ID to metrics data
-  const metricsMap = Object.fromEntries(queries.map((query, index) => [nodes[index].node_id, query.data || []]));
+  const metricsMap = query.data ?? Object.fromEntries(nodeIds.map((id) => [id, []]));
 
   return {
     metricsMap,
-    isLoading,
-    isError,
-    errors,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    errors: query.error ? [query.error] : [],
   };
 }
 
 /**
- * Suspense-enabled hook to fetch metrics for multiple nodes in parallel
+ * Suspense-enabled hook to fetch metrics for multiple nodes via bulk endpoint.
  * Use inside a <Suspense> boundary. No isLoading or error states are returned.
  */
 export function useMultiNodeMetricsSuspense(nodes: ObservedNode[], params?: DateRangeParams) {
   const api = useMeshtasticApi();
-  params = roundDateParams(params);
+  const roundedParams = roundDateParams(params);
+  const nodeIds = nodes.map((n) => n.node_id);
+  const keyValue = getKeyValue(roundedParams);
+  const queryKey = ['nodes', 'metrics-bulk', nodeIds.sort().join(','), keyValue];
 
-  const queries = useSuspenseQueries({
-    queries: nodes.map((node) => {
-      const keyValue = getKeyValue(params);
-      const key = ['nodes', node.node_id, 'metrics', keyValue];
-
-      return {
-        queryKey: key,
-        queryFn: () => api.getNodeDeviceMetrics(node.node_id, params),
-      };
-    }),
+  const query = useSuspenseQuery({
+    queryKey,
+    queryFn: async () => {
+      if (nodeIds.length === 0) return {};
+      const results = await api.getDeviceMetricsBulk(nodeIds, roundedParams);
+      return bulkResultsToMetricsMap(results);
+    },
   });
 
-  // Create a map of node ID to metrics data
-  const metricsMap = Object.fromEntries(queries.map((query, index) => [nodes[index].node_id, query.data || []]));
-
   return {
-    metricsMap,
+    metricsMap: (query.data ?? {}) as Record<number, DeviceMetrics[]>,
   };
 }

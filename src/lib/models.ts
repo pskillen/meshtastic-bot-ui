@@ -21,6 +21,7 @@ export interface ObservedNode {
   hw_model: string | null;
   sw_version: string | null;
   public_key: string | null;
+  role?: number | null;
   // Additional fields for UI compatibility
   last_heard?: Date | null;
   latest_device_metrics?: DeviceMetrics | null;
