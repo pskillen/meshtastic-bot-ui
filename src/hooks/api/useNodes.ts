@@ -248,6 +248,22 @@ export function useNodeSearch() {
   };
 }
 
+export type RecentNodeCounts = Record<string, number>;
+
+/**
+ * Suspense-enabled hook to fetch recent node counts by time window.
+ * Returns: { "2": n, "24": n, "168": n, "720": n, "2160": n, "all": n }
+ */
+export function useRecentNodeCountsSuspense() {
+  const api = useMeshtasticApi();
+  const query = useSuspenseQuery<RecentNodeCounts, Error>({
+    refetchInterval: 1000 * 60, // 1 minute
+    queryKey: ['nodes', 'recent-counts'],
+    queryFn: () => api.getRecentNodeCounts(),
+  });
+  return query.data;
+}
+
 /** Round timestamp to 5-minute window for stable query keys across Suspense remounts */
 function roundToFiveMinutes(date: Date): string {
   const fiveMinMs = 5 * 60 * 1000;

@@ -1,13 +1,12 @@
 // import { PacketStatsChart } from '@/components/PacketStatsChart';
 import { NodeActivityTable } from '@/components/NodeActivityTable';
 import { ConstellationsMap } from '@/components/nodes/ConstellationsMap';
-import { useNodesSuspense, useManagedNodesSuspense } from '@/hooks/api/useNodes';
-import { Card, CardHeader, CardTitle, CardDescription, CardFooter, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { NetworkIcon } from 'lucide-react';
+import { useNodesSuspense, useManagedNodesSuspense, useRecentNodeCountsSuspense } from '@/hooks/api/useNodes';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { ChartConfig } from '@/components/ui/chart';
 import { Suspense } from 'react';
 import { PacketStatsChart } from '@/components/PacketStatsChart';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const packetChartConfig = {
   value: {
@@ -16,38 +15,49 @@ const packetChartConfig = {
   },
 } satisfies ChartConfig;
 
+const COUNT_COLUMNS = [
+  { key: '2', label: '2 hours' },
+  { key: '24', label: '24h' },
+  { key: '168', label: '7 days' },
+  { key: '720', label: '30 days' },
+  { key: '2160', label: '90 days' },
+  { key: 'all', label: 'All time' },
+] as const;
+
 function DashboardContent() {
+  const counts = useRecentNodeCountsSuspense();
   const { nodes } = useNodesSuspense();
   const { managedNodes } = useManagedNodesSuspense();
 
-  const recentNodes =
-    nodes?.filter((node) => {
-      if (!node.last_heard) return false;
-      const lastHeard = node.last_heard;
-      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-      return lastHeard > twoHoursAgo;
-    }) || [];
-
   return (
     <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-      <div className="*:data-[slot=card]:shadow-xs @xl/main:grid-cols-2 @5xl/main:grid-cols-4 grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card lg:px-6">
-        <Card className="@container/card">
-          <CardHeader className="relative">
-            <CardDescription>Recent Nodes</CardDescription>
-            <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
-              {recentNodes.length}
-            </CardTitle>
-            <div className="absolute right-4 top-4">
-              <Badge variant="outline" className="flex gap-1 rounded-lg text-xs">
-                <NetworkIcon className="size-3" />
-                Active
-              </Badge>
-            </div>
+      <div className="px-4 lg:px-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Recently Active Nodes</CardTitle>
           </CardHeader>
-          <CardFooter className="flex-col items-start gap-1 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium">{recentNodes.length} nodes seen in last 2 hours</div>
-            <div className="text-muted-foreground">{nodes?.length || 0} total nodes in network</div>
-          </CardFooter>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {COUNT_COLUMNS.map((col) => (
+                    <TableHead key={col.key} className="text-center">
+                      {col.label}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  {COUNT_COLUMNS.map((col) => (
+                    <TableCell key={col.key} className="text-center font-mono tabular-nums">
+                      {counts[col.key] ?? '—'}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableBody>
+            </Table>
+          </CardContent>
         </Card>
       </div>
       <div className="px-4 lg:px-6">
