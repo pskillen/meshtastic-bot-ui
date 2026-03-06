@@ -22,14 +22,9 @@ jobs:
       LATEST_TAG: ${{ steps.set_tags.outputs.LATEST_TAG }}
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
       - name: Setup vars
         id: set_tags
         run: |
-          PLATFORM_TAG=$(echo "${{ matrix.platform }}" | sed 's|/|-|g')
-          echo "PLATFORM_TAG=$PLATFORM_TAG" >> $GITHUB_ENV
           if [[ "${{ inputs.ENVIRONMENT }}" == "dev" ]]; then
             LATEST_TAG=latest-dev
           elif [[ "${{ inputs.ENVIRONMENT }}" == "preprod" ]]; then
@@ -39,7 +34,6 @@ jobs:
           else
             LATEST_TAG=
           fi
-          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
           echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_OUTPUT
 
   build:
@@ -67,6 +61,7 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ github.repository }}:${{ needs.extract-tag.outputs.LATEST_TAG }}
+            ghcr.io/${{ github.repository }}:${{ inputs.VERSION_LABEL }}
           build-args: |
             VERSION=${{ inputs.VERSION_LABEL }}
           cache-from: type=gha
