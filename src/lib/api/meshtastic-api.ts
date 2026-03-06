@@ -34,6 +34,9 @@ export class MeshtasticApi extends BaseApi {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.append('page', params.page.toString());
     if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    if (params?.last_heard_after) {
+      searchParams.append('last_heard_after', params.last_heard_after.toISOString());
+    }
 
     const response = await this.get<PaginatedResponse<ObservedNode>>('/nodes/observed-nodes/', searchParams);
     return {

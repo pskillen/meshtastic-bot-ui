@@ -19,6 +19,7 @@ import { getKeyValue, roundDateParams } from './hooks-utils';
 export interface UseNodesOptions {
   pageSize?: number;
   enabled?: boolean;
+  lastHeardAfter?: Date;
 }
 
 /**
@@ -30,19 +31,23 @@ export function useNodes(options?: UseNodesOptions) {
   const pageSize = options?.pageSize || 100;
 
   // Query for observed nodes with automatic pagination
+  const lastHeardAfterKey = options?.lastHeardAfter
+    ? Math.floor(options.lastHeardAfter.getTime() / (5 * 60 * 1000)).toString()
+    : null;
   const nodesQuery = useInfiniteQuery<
     PaginatedResponse<ObservedNode>,
     Error,
     InfiniteData<PaginatedResponse<ObservedNode>>,
-    [string, number],
+    [string, number, string | null],
     number
   >({
     refetchInterval: 1000 * 60, // 1 minute
-    queryKey: ['nodes', 0],
+    queryKey: ['nodes', pageSize, lastHeardAfterKey],
     queryFn: async ({ pageParam = 1 }) => {
       return api.getNodes({
         page: pageParam,
         page_size: pageSize,
+        last_heard_after: options?.lastHeardAfter,
       });
     },
     initialPageParam: 1,
@@ -243,6 +248,12 @@ export function useNodeSearch() {
   };
 }
 
+/** Round timestamp to 5-minute window for stable query keys across Suspense remounts */
+function roundToFiveMinutes(date: Date): string {
+  const fiveMinMs = 5 * 60 * 1000;
+  return Math.floor(date.getTime() / fiveMinMs).toString();
+}
+
 /**
  * Suspense-enabled hook to fetch and manage observed nodes data
  * Use inside a <Suspense> boundary. No isLoading or error states are returned.
@@ -251,11 +262,17 @@ export function useNodeSearch() {
 export function useNodesSuspense(options?: UseNodesOptions) {
   const api = useMeshtasticApi();
   const pageSize = options?.pageSize || 500;
+  const lastHeardAfterKey = options?.lastHeardAfter ? roundToFiveMinutes(options.lastHeardAfter) : null;
 
   const nodesQuery = useSuspenseInfiniteQuery<PaginatedResponse<ObservedNode>, Error>({
     refetchInterval: 1000 * 60, // 1 minute
-    queryKey: ['nodes', pageSize],
-    queryFn: async ({ pageParam = 1 }) => api.getNodes({ page: pageParam as number, page_size: pageSize }),
+    queryKey: ['nodes', pageSize, lastHeardAfterKey],
+    queryFn: async ({ pageParam = 1 }) =>
+      api.getNodes({
+        page: pageParam as number,
+        page_size: pageSize,
+        last_heard_after: options?.lastHeardAfter,
+      }),
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) => (lastPage.next ? allPages.length + 1 : undefined),
   });

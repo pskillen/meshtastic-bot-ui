@@ -1,7 +1,6 @@
-import { useNodesSuspense } from '@/hooks/api/useNodes';
-import { subHours } from 'date-fns';
-import { useState, Suspense } from 'react';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { useNodes, useNodesSuspense } from '@/hooks/api/useNodes';
+import { subDays, subHours } from 'date-fns';
+import { useMemo, useState, Suspense } from 'react';
 import { NodeCard } from '@/components/nodes/NodeCard';
 import { NodesMap } from '@/components/nodes/NodesMap';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -11,19 +10,89 @@ import { Search } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { ObservedNode } from '@/lib/models';
+import { formatDistanceToNow } from 'date-fns';
+import { Link } from 'react-router-dom';
 
+type TimeRangeOption = '2h' | '24h' | '7d' | '30d' | 'all';
 type SortOption = 'last_heard' | 'name';
 
+const TIME_RANGE_OPTIONS: { value: TimeRangeOption; label: string }[] = [
+  { value: '2h', label: '2 hours' },
+  { value: '24h', label: '24 hours' },
+  { value: '7d', label: '7 days' },
+  { value: '30d', label: '30 days' },
+  { value: 'all', label: 'All time' },
+];
+
+function getLastHeardAfter(timeRange: TimeRangeOption): Date | undefined {
+  if (timeRange === 'all') return undefined;
+  const now = new Date();
+  switch (timeRange) {
+    case '2h':
+      return subHours(now, 2);
+    case '24h':
+      return subHours(now, 24);
+    case '7d':
+      return subDays(now, 7);
+    case '30d':
+      return subDays(now, 30);
+    default:
+      return subDays(now, 7);
+  }
+}
+
+function RecentNodeChip({ node }: { node: ObservedNode }) {
+  return (
+    <Link
+      to={`/nodes/${node.node_id}`}
+      className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors border border-primary/20"
+    >
+      <span className="font-medium text-sm truncate max-w-[120px]">{node.short_name}</span>
+      <span className="text-xs text-muted-foreground">
+        {node.last_heard ? formatDistanceToNow(node.last_heard, { addSuffix: true }) : 'Never'}
+      </span>
+    </Link>
+  );
+}
+
 function NodesListContent() {
-  const { nodes } = useNodesSuspense();
-  const [hoursThreshold, setHoursThreshold] = useState('2');
+  const now = useMemo(() => new Date(), []);
+  const twoHoursAgo = useMemo(() => subHours(now, 2), [now]);
+  const thirtyDaysAgo = useMemo(() => subDays(now, 30), [now]);
+
+  const [timeRange, setTimeRange] = useState<TimeRangeOption>('7d');
   const [sortBy, setSortBy] = useState<SortOption>('last_heard');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showOfflineNodes, setShowOfflineNodes] = useState(true);
+  const [showOlderNodes, setShowOlderNodes] = useState(false);
 
-  const now = new Date();
-  const threshold = subHours(now, Number(hoursThreshold));
+  const lastHeardAfter = useMemo(() => getLastHeardAfter(timeRange), [timeRange]);
+
+  // Recent bar: nodes seen in last 2 hours
+  const { nodes: recentNodes } = useNodesSuspense({
+    lastHeardAfter: twoHoursAgo,
+    pageSize: 20,
+  });
+
+  // Main list: nodes in selected time range
+  const {
+    nodes: mainListNodes,
+    totalNodes,
+    fetchNextPage,
+    hasNextPage,
+  } = useNodesSuspense({
+    lastHeardAfter,
+    pageSize: 100,
+  });
+
+  // Map: when "show older" is on and time range is not 30d or all, fetch 30d for map
+  const needsOlderMapFetch = showOlderNodes && timeRange !== '30d' && timeRange !== 'all';
+  const { nodes: olderMapNodes } = useNodes({
+    lastHeardAfter: thirtyDaysAgo,
+    pageSize: 500,
+    enabled: needsOlderMapFetch,
+  });
 
   const sortNodes = (nodes: ObservedNode[]) => {
     return [...nodes].sort((a, b) => {
@@ -32,7 +101,6 @@ function NodesListContent() {
         if (!b.last_heard) return -1;
         return b.last_heard.getTime() - a.last_heard.getTime();
       } else {
-        // Handle null values for long_name
         const aName = a.long_name || '';
         const bName = b.long_name || '';
         return aName.localeCompare(bName);
@@ -42,7 +110,6 @@ function NodesListContent() {
 
   const filterNodes = (nodes: ObservedNode[]) => {
     if (!searchQuery) return nodes;
-
     const query = searchQuery.toLowerCase();
     return nodes.filter(
       (node) =>
@@ -52,20 +119,12 @@ function NodesListContent() {
     );
   };
 
-  const onlineNodes = sortNodes(
-    filterNodes(nodes?.filter((node) => node.last_heard && node.last_heard > threshold) || [])
-  );
+  const displayedNodes = sortNodes(filterNodes(mainListNodes || []));
 
-  const offlineNodes = sortNodes(
-    filterNodes(nodes?.filter((node) => !node.last_heard || node.last_heard <= threshold) || [])
-  );
-
-  // Get nodes to show on map based on search and offline filter
-  const mapNodes = searchQuery
-    ? [...onlineNodes, ...offlineNodes]
-    : showOfflineNodes
-      ? nodes || []
-      : nodes?.filter((node) => node.last_heard && node.last_heard > threshold) || [];
+  // Map nodes: main list when showOlder is off, or 30d when on (and we have that data)
+  const mapSource =
+    showOlderNodes && timeRange !== '30d' && timeRange !== 'all' ? olderMapNodes || [] : mainListNodes || [];
+  const mapNodes = searchQuery ? filterNodes(mapSource) : mapSource;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -73,24 +132,24 @@ function NodesListContent() {
         <h1 className="text-3xl font-bold">Meshtastic Nodes</h1>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="flex items-center gap-2">
-            <label htmlFor="hours" className="text-sm text-gray-600">
-              Online threshold (hours):
+            <label htmlFor="time-range" className="text-sm text-muted-foreground">
+              Time range:
             </label>
-            <Select value={hoursThreshold} onValueChange={setHoursThreshold}>
-              <SelectTrigger className="w-[180px]" aria-label="Select hours threshold">
-                <SelectValue placeholder="Select hours" />
+            <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRangeOption)}>
+              <SelectTrigger className="w-[180px]" id="time-range" aria-label="Select time range">
+                <SelectValue placeholder="Select time range" />
               </SelectTrigger>
               <SelectContent>
-                {[1, 2, 4, 8, 12, 24].map((hours) => (
-                  <SelectItem key={hours} value={hours.toString()}>
-                    {hours} {hours === 1 ? 'hour' : 'hours'}
+                {TIME_RANGE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">Sort by:</label>
+            <label className="text-sm text-muted-foreground">Sort by:</label>
             <ToggleGroup
               type="single"
               value={sortBy}
@@ -107,8 +166,24 @@ function NodesListContent() {
         </div>
       </div>
 
+      {/* Recent bar: nodes seen in last 2 hours */}
+      {recentNodes.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader className="py-3">
+            <CardTitle className="text-base">Seen in last 2 hours</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
+              {recentNodes.map((node) => (
+                <RecentNodeChip key={node.internal_id} node={node} />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
         <Input
           type="text"
           placeholder="Search nodes by name or ID..."
@@ -122,8 +197,8 @@ function NodesListContent() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Node Locations</CardTitle>
           <div className="flex items-center space-x-2">
-            <Switch id="show-offline" checked={showOfflineNodes} onCheckedChange={setShowOfflineNodes} />
-            <Label htmlFor="show-offline">Show offline nodes</Label>
+            <Switch id="show-older" checked={showOlderNodes} onCheckedChange={setShowOlderNodes} />
+            <Label htmlFor="show-older">Show older nodes</Label>
           </div>
         </CardHeader>
         <CardContent>
@@ -131,28 +206,26 @@ function NodesListContent() {
         </CardContent>
       </Card>
 
-      <Accordion type="single" collapsible defaultValue="online" className="space-y-4">
-        <AccordionItem value="online">
-          <AccordionTrigger>Online Nodes ({onlineNodes.length})</AccordionTrigger>
-          <AccordionContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {onlineNodes.map((node) => (
-                <NodeCard key={node.internal_id} node={node} />
-              ))}
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="offline">
-          <AccordionTrigger>Offline Nodes ({offlineNodes.length})</AccordionTrigger>
-          <AccordionContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {offlineNodes.map((node) => (
-                <NodeCard key={node.internal_id} node={node} />
-              ))}
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">
+            Recent Nodes ({displayedNodes.length}
+            {totalNodes > displayedNodes.length ? ` of ${totalNodes}` : ''})
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {displayedNodes.map((node) => (
+            <NodeCard key={node.internal_id} node={node} />
+          ))}
+        </div>
+        {hasNextPage && (
+          <div className="flex justify-center pt-4">
+            <Button variant="outline" onClick={() => fetchNextPage()}>
+              Load more
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -162,7 +235,7 @@ export function NodesList() {
     <Suspense
       fallback={
         <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
         </div>
       }
     >

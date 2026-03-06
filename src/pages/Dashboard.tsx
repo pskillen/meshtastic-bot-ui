@@ -20,7 +20,7 @@ function DashboardContent() {
   const { nodes } = useNodesSuspense();
   const { managedNodes } = useManagedNodesSuspense();
 
-  const onlineNodes =
+  const recentNodes =
     nodes?.filter((node) => {
       if (!node.last_heard) return false;
       const lastHeard = node.last_heard;
@@ -33,9 +33,9 @@ function DashboardContent() {
       <div className="*:data-[slot=card]:shadow-xs @xl/main:grid-cols-2 @5xl/main:grid-cols-4 grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card lg:px-6">
         <Card className="@container/card">
           <CardHeader className="relative">
-            <CardDescription>Online Nodes</CardDescription>
+            <CardDescription>Recent Nodes</CardDescription>
             <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
-              {onlineNodes.length}
+              {recentNodes.length}
             </CardTitle>
             <div className="absolute right-4 top-4">
               <Badge variant="outline" className="flex gap-1 rounded-lg text-xs">
@@ -45,7 +45,7 @@ function DashboardContent() {
             </div>
           </CardHeader>
           <CardFooter className="flex-col items-start gap-1 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium">{onlineNodes.length} nodes active in last 2 hours</div>
+            <div className="line-clamp-1 flex gap-2 font-medium">{recentNodes.length} nodes seen in last 2 hours</div>
             <div className="text-muted-foreground">{nodes?.length || 0} total nodes in network</div>
           </CardFooter>
         </Card>
