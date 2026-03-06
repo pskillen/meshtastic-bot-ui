@@ -1,8 +1,8 @@
-name: Release
+name: Pre-release
 
 on:
   release:
-    types: [released]
+    types: [prereleased]
 
 permissions:
   contents: read
@@ -25,4 +25,4 @@ jobs:
     uses: ./.github/workflows/docker-build.yaml
     with:
       VERSION_LABEL: ${{ needs.extract-tag.outputs.VERSION_LABEL }}
-      ENVIRONMENT: prod # release → latest + semver tag (e.g. 1.2.3)
+      ENVIRONMENT: preprod # pre-release → latest-rc + semver tag (e.g. 1.2.3-rc.4)
