@@ -1,4 +1,4 @@
-import { BarChartIcon, NetworkIcon, RadioIcon, ActivityIcon, MessageSquareIcon } from 'lucide-react';
+import { BarChartIcon, NetworkIcon, RadioIcon, ActivityIcon, MessageSquareIcon, ServerIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import {
@@ -44,6 +44,14 @@ export function NavMain() {
               <Link to="/nodes/my-nodes">
                 <RadioIcon />
                 <span>My Nodes</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem key="Mesh Infrastructure">
+            <SidebarMenuButton asChild tooltip="Mesh Infrastructure">
+              <Link to="/nodes/infrastructure">
+                <ServerIcon />
+                <span>Mesh Infrastructure</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

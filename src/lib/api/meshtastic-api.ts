@@ -76,6 +76,36 @@ export class MeshtasticApi extends BaseApi {
   }
 
   /**
+   * Get infrastructure nodes (router, repeater, router_late, ROUTER_CLIENT).
+   * Optionally include CLIENT_BASE via includeClientBase.
+   */
+  async getInfrastructureNodes(params?: {
+    lastHeardAfter?: Date;
+    page?: number;
+    pageSize?: number;
+    includeClientBase?: boolean;
+  }): Promise<PaginatedResponse<ObservedNode>> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.pageSize) searchParams.append('page_size', params.pageSize.toString());
+    if (params?.lastHeardAfter) {
+      searchParams.append('last_heard_after', params.lastHeardAfter.toISOString());
+    }
+    if (params?.includeClientBase) {
+      searchParams.append('include_client_base', 'true');
+    }
+
+    const response = await this.get<PaginatedResponse<ObservedNode>>(
+      '/nodes/observed-nodes/infrastructure/',
+      searchParams
+    );
+    return {
+      ...response,
+      results: response.results.map((node) => parseObservedNodeFromAPI(node)),
+    };
+  }
+
+  /**
    * Search for observed nodes
    */
   async searchNodes(query: string): Promise<NodeSearchResult[]> {
@@ -83,6 +113,30 @@ export class MeshtasticApi extends BaseApi {
     const searchParams = new URLSearchParams();
     searchParams.append('q', query);
     return this.get<NodeSearchResult[]>('/nodes/observed-nodes/search/', searchParams);
+  }
+
+  /**
+   * Get device metrics for multiple nodes in one request (bulk).
+   * Returns flat list; frontend groups by node_id for per-node charts.
+   */
+  async getDeviceMetricsBulk(
+    nodeIds: number[],
+    params?: DateRangeParams
+  ): Promise<Array<DeviceMetrics & { node_id: number; node_id_str: string; short_name: string | null }>> {
+    if (nodeIds.length === 0) return [];
+    const searchParams = new URLSearchParams();
+    searchParams.append('node_ids', nodeIds.join(','));
+    if (params?.startDate) searchParams.append('start_date', params.startDate.toISOString());
+    if (params?.endDate) searchParams.append('end_date', params.endDate.toISOString());
+
+    const response = await this.get<{
+      results: Array<DeviceMetrics & { node_id: number; node_id_str: string; short_name: string | null }>;
+    }>('/nodes/device-metrics-bulk/', searchParams);
+    return (response.results || []).map((metric) => ({
+      ...metric,
+      logged_time: new Date(metric.logged_time),
+      reported_time: new Date(metric.reported_time),
+    }));
   }
 
   /**

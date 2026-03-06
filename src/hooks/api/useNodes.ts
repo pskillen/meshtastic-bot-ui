@@ -312,6 +312,53 @@ export function useNodesSuspense(options?: UseNodesOptions) {
   };
 }
 
+export interface UseInfrastructureNodesOptions {
+  pageSize?: number;
+  lastHeardAfter?: Date;
+  includeClientBase?: boolean;
+}
+
+/**
+ * Suspense-enabled hook to fetch infrastructure nodes (router, repeater, etc.)
+ */
+export function useInfrastructureNodesSuspense(options?: UseInfrastructureNodesOptions) {
+  const api = useMeshtasticApi();
+  const pageSize = options?.pageSize || 500;
+  const lastHeardAfterKey = options?.lastHeardAfter ? roundToFiveMinutes(options.lastHeardAfter) : null;
+
+  const nodesQuery = useSuspenseInfiniteQuery<PaginatedResponse<ObservedNode>, Error>({
+    refetchInterval: 1000 * 60, // 1 minute
+    queryKey: ['nodes', 'infrastructure', pageSize, lastHeardAfterKey, options?.includeClientBase ?? false],
+    queryFn: async ({ pageParam = 1 }) =>
+      api.getInfrastructureNodes({
+        page: pageParam as number,
+        pageSize,
+        lastHeardAfter: options?.lastHeardAfter,
+        includeClientBase: options?.includeClientBase,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => (lastPage.next ? allPages.length + 1 : undefined),
+  });
+
+  if (!nodesQuery.data) {
+    return {
+      nodes: [],
+      totalNodes: 0,
+      fetchNextPage: nodesQuery.fetchNextPage,
+      hasNextPage: false,
+    };
+  }
+
+  const allNodes = nodesQuery.data.pages.flatMap((page) => page.results);
+
+  return {
+    nodes: allNodes,
+    totalNodes: nodesQuery.data.pages[0]?.count || 0,
+    fetchNextPage: nodesQuery.fetchNextPage,
+    hasNextPage: nodesQuery.hasNextPage,
+  };
+}
+
 /**
  * Suspense-enabled hook to fetch managed nodes with pagination
  */

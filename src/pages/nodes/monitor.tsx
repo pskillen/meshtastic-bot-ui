@@ -3,6 +3,7 @@ import { useMonitoredNodes } from '@/hooks/useMonitoredNodes';
 import { NodesMap } from '@/components/nodes/NodesMap';
 import { MonitoredNodesTable } from '@/components/nodes/MonitoredNodesTable';
 import { MonitoredNodesBatteryChart } from '@/components/nodes/MonitoredNodesBatteryChart';
+import { MonitoredNodesChannelUtilChart } from '@/components/nodes/MonitoredNodesChannelUtilChart';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { NodeSelector } from '@/components/nodes/NodeSelector';
@@ -95,6 +96,10 @@ function MonitorNodesPageContent() {
 
           <div className="bg-background rounded-lg border">
             <MonitoredNodesBatteryChart nodes={nodesToDisplay} />
+          </div>
+
+          <div className="bg-background rounded-lg border">
+            <MonitoredNodesChannelUtilChart nodes={nodesToDisplay} />
           </div>
 
           <div className="bg-background rounded-lg border">
