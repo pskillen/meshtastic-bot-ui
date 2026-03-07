@@ -1,8 +1,10 @@
 import { useMemo, useState, Suspense } from 'react';
-import { subDays, subHours } from 'date-fns';
+import { Link } from 'react-router-dom';
+import { subDays, subHours, format } from 'date-fns';
 import { useInfrastructureNodesSuspense } from '@/hooks/api/useNodes';
 import { InfrastructureNodeCard } from '@/components/nodes/InfrastructureNodeCard';
 import { NodesMap } from '@/components/nodes/NodesMap';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MonitoredNodesBatteryChart } from '@/components/nodes/MonitoredNodesBatteryChart';
 import { MonitoredNodesChannelUtilChart } from '@/components/nodes/MonitoredNodesChannelUtilChart';
 import { TimeRangeSelect } from '@/components/TimeRangeSelect';
@@ -50,12 +52,28 @@ function getLastHeardAfter(timeRange: NodeListTimeRange): Date | undefined {
   }
 }
 
-function hasLocation(node: ObservedNode): boolean {
-  const pos = node.latest_position as { latitude?: number; longitude?: number } | null;
+const STALE_LOCATION_DAYS = 7;
+
+function getLastLocationReported(node: ObservedNode): Date | null {
+  const pos = node.latest_position as { reported_time?: Date | string } | null;
+  if (!pos?.reported_time) return null;
+  return new Date(pos.reported_time);
+}
+
+function hasRecentLocation(node: ObservedNode): boolean {
+  const pos = node.latest_position as {
+    latitude?: number;
+    longitude?: number;
+    reported_time?: Date | string;
+  } | null;
   if (!pos) return false;
   const lat = pos.latitude;
   const lon = pos.longitude;
-  return lat != null && lon != null && lat !== 0 && lon !== 0;
+  if (lat == null || lon == null || lat === 0 || lon === 0) return false;
+  const reportedTime = pos.reported_time ? new Date(pos.reported_time) : null;
+  if (!reportedTime) return false;
+  const cutoff = subDays(new Date(), STALE_LOCATION_DAYS);
+  return reportedTime >= cutoff;
 }
 
 function MeshInfrastructureContent() {
@@ -75,8 +93,8 @@ function MeshInfrastructureContent() {
     includeClientBase,
   });
 
-  const nodesWithLocation = useMemo(() => nodes.filter(hasLocation), [nodes]);
-  const nodesWithoutLocation = useMemo(() => nodes.filter((n) => !hasLocation(n)), [nodes]);
+  const nodesWithLocation = useMemo(() => nodes.filter(hasRecentLocation), [nodes]);
+  const nodesWithoutLocation = useMemo(() => nodes.filter((n) => !hasRecentLocation(n)), [nodes]);
 
   const sortedNodes = useMemo(
     () =>
@@ -139,18 +157,46 @@ function MeshInfrastructureContent() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MapPinOff className="h-5 w-5" />
-              Nodes without location
+              Nodes without recent location
             </CardTitle>
             <CardDescription>
-              Infrastructure nodes that do not publish location ({nodesWithoutLocation.length})
+              Infrastructure nodes that have not published location in the last 7 days ({nodesWithoutLocation.length})
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {nodesWithoutLocation.map((node) => (
-                <InfrastructureNodeCard key={node.internal_id} node={node} />
-              ))}
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Node</TableHead>
+                  <TableHead>Node ID</TableHead>
+                  <TableHead>Last Location Reported</TableHead>
+                  <TableHead>Owner</TableHead>
+                  <TableHead className="w-0"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {nodesWithoutLocation.map((node) => {
+                  const lastLocation = getLastLocationReported(node);
+                  return (
+                    <TableRow key={node.internal_id}>
+                      <TableCell>
+                        <Link to={`/nodes/${node.node_id}`} className="font-medium text-primary hover:underline">
+                          {node.long_name} ({node.short_name || node.node_id_str})
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{node.node_id_str}</TableCell>
+                      <TableCell>{lastLocation ? format(lastLocation, 'PPpp') : 'Never'}</TableCell>
+                      <TableCell>{node.owner?.username ?? '—'}</TableCell>
+                      <TableCell>
+                        <Link to={`/nodes/${node.node_id}`} className="text-primary text-sm hover:underline">
+                          View details
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       )}
