@@ -90,16 +90,18 @@ export function BatteryChartShadcn({
     return [String(value), name];
   };
 
-  // Transform metrics data to chart format
+  // Transform metrics data to chart format (skip metrics without reported_time)
   const chartData = React.useMemo(() => {
     if (!metrics) return [];
-    return metrics.map((metric: import('@/lib/models').DeviceMetrics) => ({
-      timestamp: metric.reported_time.getTime(),
-      voltage: metric.voltage,
-      batteryLevel: metric.battery_level,
-      chUtil: metric.channel_utilization,
-      airUtil: metric.air_util_tx,
-    }));
+    return metrics
+      .filter((metric: import('@/lib/models').DeviceMetrics) => metric.reported_time != null)
+      .map((metric: import('@/lib/models').DeviceMetrics) => ({
+        timestamp: metric.reported_time!.getTime(),
+        voltage: metric.voltage,
+        batteryLevel: metric.battery_level,
+        chUtil: metric.channel_utilization,
+        airUtil: metric.air_util_tx,
+      }));
   }, [metrics]);
 
   return (

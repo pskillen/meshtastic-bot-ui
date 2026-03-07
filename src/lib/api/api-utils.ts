@@ -8,15 +8,17 @@ export function parseObservedNodeFromAPI(node: ObservedNode): ObservedNode {
     latest_position: node.latest_position
       ? {
           ...node.latest_position,
-          logged_time: new Date(node.latest_position.logged_time),
-          reported_time: new Date(node.latest_position.reported_time),
+          logged_time: node.latest_position.logged_time ? new Date(node.latest_position.logged_time) : null,
+          reported_time: node.latest_position.reported_time ? new Date(node.latest_position.reported_time) : null,
         }
       : null,
     latest_device_metrics: node.latest_device_metrics
       ? {
           ...node.latest_device_metrics,
-          logged_time: new Date(node.latest_device_metrics.logged_time),
-          reported_time: new Date(node.latest_device_metrics.reported_time),
+          logged_time: node.latest_device_metrics.logged_time ? new Date(node.latest_device_metrics.logged_time) : null,
+          reported_time: node.latest_device_metrics.reported_time
+            ? new Date(node.latest_device_metrics.reported_time)
+            : null,
         }
       : null,
   };

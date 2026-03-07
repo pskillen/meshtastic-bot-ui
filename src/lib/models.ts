@@ -126,8 +126,8 @@ export interface TextMessageResponse {
 }
 
 export interface DeviceMetrics {
-  reported_time: Date;
-  logged_time: Date;
+  reported_time: Date | null;
+  logged_time: Date | null;
   battery_level: number;
   voltage: number;
   channel_utilization: number; // Changed from chUtil
@@ -136,11 +136,11 @@ export interface DeviceMetrics {
 }
 
 export interface Position {
-  reported_time: Date;
-  logged_time: Date;
+  reported_time: Date | null;
+  logged_time: Date | null;
   latitude: number;
   longitude: number;
-  altitude: number;
+  altitude: number | null;
   location_source: string;
 }
 

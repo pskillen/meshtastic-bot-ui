@@ -71,7 +71,9 @@ export function MonitoredNodesTable({
                   </div>
                 </TableCell>
                 <TableCell>
-                  {node.latest_position ? (
+                  {node.latest_position &&
+                  typeof node.latest_position.latitude === 'number' &&
+                  typeof node.latest_position.longitude === 'number' ? (
                     <div className="space-y-1">
                       <div>
                         {node.latest_position.latitude.toFixed(6)}, {node.latest_position.longitude.toFixed(6)}

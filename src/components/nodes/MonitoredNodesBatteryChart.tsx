@@ -79,7 +79,7 @@ export function MonitoredNodesBatteryChart({
       new Set(
         nodes.flatMap((node) => {
           const metrics = metricsMap[node.node_id] || [];
-          return metrics.map((metric) => new Date(metric.reported_time).getTime());
+          return metrics.filter((m) => m.reported_time != null).map((m) => new Date(m.reported_time!).getTime());
         })
       )
     ).sort((a, b) => a - b);
@@ -89,9 +89,11 @@ export function MonitoredNodesBatteryChart({
     nodes.forEach((node) => {
       const metrics = metricsMap[node.node_id] || [];
       const lookup: Record<number, number> = {};
-      metrics.forEach((metric) => {
-        lookup[new Date(metric.reported_time).getTime()] = metric.voltage;
-      });
+      metrics
+        .filter((m) => m.reported_time != null)
+        .forEach((m) => {
+          lookup[new Date(m.reported_time!).getTime()] = m.voltage;
+        });
       nodeLookups[node.short_name || node.node_id_str] = lookup;
     });
 
@@ -155,9 +157,11 @@ export function MonitoredNodesBatteryChart({
     nodes.forEach((node) => {
       const metrics = metricsMap[node.node_id] || [];
       const lookup: Record<number, number> = {};
-      metrics.forEach((metric) => {
-        lookup[new Date(metric.reported_time).getTime()] = metric.battery_level;
-      });
+      metrics
+        .filter((m) => m.reported_time != null)
+        .forEach((m) => {
+          lookup[new Date(m.reported_time!).getTime()] = m.battery_level;
+        });
       const name = node.short_name || node.node_id_str || String(node.node_id);
       nodeLookups[name] = lookup;
     });
