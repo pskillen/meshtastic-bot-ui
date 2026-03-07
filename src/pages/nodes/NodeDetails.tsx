@@ -48,9 +48,10 @@ function NodeDetailsContent({ claimStatus }: { claimStatus: NodeClaim | undefine
   const hasPositions =
     positions &&
     positions.length > 0 &&
+    typeof positions[0].latitude === 'number' &&
     positions[0].latitude !== 0 &&
-    positions[0].longitude !== 0 &&
-    positions[0].altitude !== 0;
+    typeof positions[0].longitude === 'number' &&
+    positions[0].longitude !== 0;
 
   // Determine claim status
   const hasPendingClaim = claimStatus && !claimStatus.accepted_at;
@@ -143,7 +144,9 @@ function NodeDetailsContent({ claimStatus }: { claimStatus: NodeClaim | undefine
               <div>
                 <CardTitle>Device Metrics</CardTitle>
                 <CardDescription>
-                  {formatDistanceToNow(node.latest_device_metrics.reported_time, { addSuffix: true })}
+                  {node.latest_device_metrics.reported_time
+                    ? formatDistanceToNow(node.latest_device_metrics.reported_time, { addSuffix: true })
+                    : '—'}
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
@@ -166,22 +169,34 @@ function NodeDetailsContent({ claimStatus }: { claimStatus: NodeClaim | undefine
             <CardContent>
               <div className="space-y-2">
                 <p>
-                  <span className="font-medium">Battery Level:</span> {node.latest_device_metrics.battery_level}%
+                  <span className="font-medium">Battery Level:</span>{' '}
+                  {node.latest_device_metrics.battery_level != null
+                    ? `${node.latest_device_metrics.battery_level}%`
+                    : '—'}
                 </p>
                 <p>
-                  <span className="font-medium">Voltage:</span> {node.latest_device_metrics.voltage.toFixed(2)}V
+                  <span className="font-medium">Voltage:</span>{' '}
+                  {node.latest_device_metrics.voltage != null
+                    ? `${node.latest_device_metrics.voltage.toFixed(2)}V`
+                    : '—'}
                 </p>
                 <p>
                   <span className="font-medium">Channel Utilization:</span>{' '}
-                  {node.latest_device_metrics.channel_utilization.toFixed(1)}%
+                  {node.latest_device_metrics.channel_utilization != null
+                    ? `${node.latest_device_metrics.channel_utilization.toFixed(1)}%`
+                    : '—'}
                 </p>
                 <p>
                   <span className="font-medium">Air Utilization:</span>{' '}
-                  {node.latest_device_metrics.air_util_tx.toFixed(1)}%
+                  {node.latest_device_metrics.air_util_tx != null
+                    ? `${node.latest_device_metrics.air_util_tx.toFixed(1)}%`
+                    : '—'}
                 </p>
                 <p>
                   <span className="font-medium">Uptime:</span>{' '}
-                  {Math.round(node.latest_device_metrics.uptime_seconds / 3600)} hours
+                  {node.latest_device_metrics.uptime_seconds != null
+                    ? `${Math.round(node.latest_device_metrics.uptime_seconds / 3600)} hours`
+                    : '—'}
                 </p>
               </div>
             </CardContent>
@@ -195,7 +210,10 @@ function NodeDetailsContent({ claimStatus }: { claimStatus: NodeClaim | undefine
             <CardTitle>Node Location</CardTitle>
             {hasPositions ? (
               <CardDescription>
-                Last position reported {formatDistanceToNow(positions[0].reported_time, { addSuffix: true })}
+                Last position reported{' '}
+                {positions[0].reported_time
+                  ? formatDistanceToNow(positions[0].reported_time, { addSuffix: true })
+                  : '—'}
               </CardDescription>
             ) : (
               <CardDescription>No position data available</CardDescription>
@@ -217,7 +235,9 @@ function NodeDetailsContent({ claimStatus }: { claimStatus: NodeClaim | undefine
                   <span className="hidden md:inline-block h-6 border-l border-gray-200 mx-2"></span>
                   <div className="flex flex-col items-start">
                     <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Alt</span>
-                    <span className="text-base font-mono">{positions[0].altitude.toFixed(1)}m</span>
+                    <span className="text-base font-mono">
+                      {positions[0].altitude != null ? `${positions[0].altitude.toFixed(1)}m` : '—'}
+                    </span>
                   </div>
                   {positions[0].location_source && (
                     <span className="ml-4 px-2 py-0.5 rounded bg-muted text-xs text-muted-foreground border border-gray-200">

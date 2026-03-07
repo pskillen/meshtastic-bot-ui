@@ -140,7 +140,7 @@ export interface Position {
   logged_time: Date;
   latitude: number;
   longitude: number;
-  altitude: number;
+  altitude: number | null;
   location_source: string;
 }
 
