@@ -20,7 +20,11 @@ function bulkResultsToMetricsMap(
   }
   // Sort each node's metrics by reported_time ascending (for chart ordering)
   for (const nodeId of Object.keys(map)) {
-    map[Number(nodeId)].sort((a, b) => new Date(a.reported_time).getTime() - new Date(b.reported_time).getTime());
+    map[Number(nodeId)].sort((a, b) => {
+      const ta = a.reported_time != null ? new Date(a.reported_time).getTime() : 0;
+      const tb = b.reported_time != null ? new Date(b.reported_time).getTime() : 0;
+      return ta - tb;
+    });
   }
   return map;
 }

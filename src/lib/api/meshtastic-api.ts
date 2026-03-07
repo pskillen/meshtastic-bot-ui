@@ -134,8 +134,8 @@ export class MeshtasticApi extends BaseApi {
     }>('/nodes/device-metrics-bulk/', searchParams);
     return (response.results || []).map((metric) => ({
       ...metric,
-      logged_time: new Date(metric.logged_time),
-      reported_time: new Date(metric.reported_time),
+      logged_time: metric.logged_time != null ? new Date(metric.logged_time) : null,
+      reported_time: metric.reported_time != null ? new Date(metric.reported_time) : null,
     }));
   }
 
@@ -150,8 +150,8 @@ export class MeshtasticApi extends BaseApi {
     const metrics = await this.get<DeviceMetrics[]>(`/nodes/observed-nodes/${id}/device_metrics/`, searchParams);
     return metrics.map((metric) => ({
       ...metric,
-      logged_time: new Date(metric.logged_time),
-      reported_time: new Date(metric.reported_time),
+      logged_time: metric.logged_time != null ? new Date(metric.logged_time) : null,
+      reported_time: metric.reported_time != null ? new Date(metric.reported_time) : null,
     }));
   }
 
@@ -166,8 +166,8 @@ export class MeshtasticApi extends BaseApi {
     const positions = await this.get<Position[]>(`/nodes/observed-nodes/${id}/positions/`, searchParams);
     return positions.map((position) => ({
       ...position,
-      logged_time: new Date(position.logged_time),
-      reported_time: new Date(position.reported_time),
+      logged_time: position.logged_time != null ? new Date(position.logged_time) : null,
+      reported_time: position.reported_time != null ? new Date(position.reported_time) : null,
     }));
   }
 

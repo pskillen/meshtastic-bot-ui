@@ -64,7 +64,7 @@ export function MonitoredNodesChannelUtilChart({
       new Set(
         nodes.flatMap((node) => {
           const metrics = metricsMap[node.node_id] || [];
-          return metrics.map((metric) => new Date(metric.reported_time).getTime());
+          return metrics.filter((m) => m.reported_time != null).map((m) => new Date(m.reported_time!).getTime());
         })
       )
     ).sort((a, b) => a - b);
@@ -73,9 +73,11 @@ export function MonitoredNodesChannelUtilChart({
     nodes.forEach((node) => {
       const metrics = metricsMap[node.node_id] || [];
       const lookup: Record<number, number> = {};
-      metrics.forEach((metric) => {
-        lookup[new Date(metric.reported_time).getTime()] = metric.channel_utilization;
-      });
+      metrics
+        .filter((m) => m.reported_time != null)
+        .forEach((m) => {
+          lookup[new Date(m.reported_time!).getTime()] = m.channel_utilization;
+        });
       nodeLookups[node.short_name || node.node_id_str] = lookup;
     });
 

@@ -27,7 +27,10 @@ export function NodeCard({ node }: NodeCardProps) {
         <p className="text-gray-600">Model: {node.hw_model}</p>
         <p className="text-gray-600">Version: {node.sw_version}</p>
         {node.latest_device_metrics && (
-          <p className="text-gray-600">Battery: {node.latest_device_metrics.battery_level}%</p>
+          <p className="text-gray-600">
+            Battery:{' '}
+            {node.latest_device_metrics.battery_level != null ? `${node.latest_device_metrics.battery_level}%` : '—'}
+          </p>
         )}
       </div>
     </Link>

@@ -44,9 +44,22 @@ export function InfrastructureNodeCard({ node }: InfrastructureNodeCardProps) {
         {node.owner && <p className="text-gray-600 dark:text-gray-400">Owner: {node.owner.username}</p>}
         {node.latest_device_metrics && (
           <div className="flex flex-wrap gap-3 text-sm">
-            <span>Battery: {node.latest_device_metrics.battery_level}%</span>
-            <span>Ch. util: {node.latest_device_metrics.channel_utilization?.toFixed(1)}%</span>
-            <span>Uptime: {Math.round(node.latest_device_metrics.uptime_seconds / 3600)}h</span>
+            <span>
+              Battery:{' '}
+              {node.latest_device_metrics.battery_level != null ? `${node.latest_device_metrics.battery_level}%` : '—'}
+            </span>
+            <span>
+              Ch. util:{' '}
+              {node.latest_device_metrics.channel_utilization != null
+                ? `${node.latest_device_metrics.channel_utilization.toFixed(1)}%`
+                : '—'}
+            </span>
+            <span>
+              Uptime:{' '}
+              {node.latest_device_metrics.uptime_seconds != null
+                ? `${Math.round(node.latest_device_metrics.uptime_seconds / 3600)}h`
+                : '—'}
+            </span>
           </div>
         )}
       </div>
