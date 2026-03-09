@@ -3,13 +3,27 @@ import L from 'leaflet';
 import { useEffect, useRef } from 'react';
 import 'leaflet/dist/leaflet.css';
 
+/** Role IDs from Meshtastic (matches InfrastructureNodeCard ROLE_LABELS). */
+const ROLE_COLORS: Record<number, string> = {
+  2: '#2563eb', // ROUTER – blue
+  3: '#16a34a', // ROUTER_CLIENT – green
+  4: '#ea580c', // REPEATER – orange
+  11: '#9333ea', // ROUTER_LATE – purple
+  12: '#0d9488', // CLIENT_BASE – teal
+};
+const DEFAULT_ROLE_COLOR = '#64748b'; // Unknown / no role – slate
+
+function getRoleColor(role: number | null | undefined): string {
+  return role != null && ROLE_COLORS[role] ? ROLE_COLORS[role] : DEFAULT_ROLE_COLOR;
+}
+
 // Create a custom marker icon function
-const createNodeIcon = (text: string) => {
+const createNodeIcon = (text: string, color: string) => {
   return L.divIcon({
     className: 'custom-node-marker',
     html: `
       <div class="marker-container">
-        <div class="marker-pin"></div>
+        <div class="marker-pin" style="background: ${color};"></div>
         <span class="marker-text">${text}</span>
       </div>
     `,
@@ -55,7 +69,6 @@ export function NodesMap({ nodes }: NodesMapProps) {
           width: 35px;
           height: 35px;
           border-radius: 50% 50% 50% 0;
-          background: #00a1e1;
           position: absolute;
           transform: rotate(-45deg);
           left: 50%;
@@ -140,7 +153,7 @@ export function NodesMap({ nodes }: NodesMapProps) {
         const position: L.LatLngExpression = [node.latest_position.latitude, node.latest_position.longitude];
 
         const marker = L.marker(position, {
-          icon: createNodeIcon(node.short_name || node.node_id_str.toString()),
+          icon: createNodeIcon(node.short_name || node.node_id_str.toString(), getRoleColor(node.role)),
         })
           .bindPopup(
             `
