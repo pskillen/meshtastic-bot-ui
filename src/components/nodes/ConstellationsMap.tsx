@@ -4,7 +4,12 @@ import { useEffect, useRef } from 'react';
 import 'leaflet/dist/leaflet.css';
 import * as turf from '@turf/turf';
 import * as d3 from 'd3';
-import type { Feature, Point, Polygon, Position } from 'geojson';
+import type { Feature, MultiPolygon, Point, Polygon, Position } from 'geojson';
+
+/** Radius (km) for constellation boundary polygon (circles at nodes/hull vertices, joined by tangent lines). Slightly larger than NODE_RADIUS_KM so the boundary is visibly an outer perimeter. */
+const HULL_OFFSET_KM = 2.5;
+/** Radius (km) for visible per-node dashed circles. */
+const NODE_RADIUS_KM = 2;
 
 // Create a custom marker icon function
 const createNodeIcon = (text: string, color: string) => {
@@ -21,6 +26,28 @@ const createNodeIcon = (text: string, color: string) => {
     popupAnchor: [0, -40],
   });
 };
+
+/**
+ * Build a boundary polygon from points using buffered convex hull.
+ * Uses HULL_OFFSET_KM for radius. Buffering the hull ensures one connected perimeter
+ * (union of circles can yield separate polygons when nodes are far apart).
+ */
+function boundaryPolygonFromPoints(points: Feature<Point>[]): Feature<Polygon> | Feature<MultiPolygon> | null {
+  if (points.length === 0) return null;
+
+  const bufferOpts = { units: 'kilometers' as const };
+
+  if (points.length === 1) {
+    return turf.buffer(points[0], HULL_OFFSET_KM, bufferOpts) as Feature<Polygon>;
+  }
+
+  const fc = turf.featureCollection(points);
+  const hull = turf.convex(fc) as Feature<Polygon> | undefined;
+  if (!hull?.geometry || hull.geometry.type !== 'Polygon') {
+    return turf.buffer(points[0], HULL_OFFSET_KM, bufferOpts) as Feature<Polygon>;
+  }
+  return turf.buffer(hull, HULL_OFFSET_KM, bufferOpts) as Feature<Polygon>;
+}
 
 interface ConstellationsMapProps {
   nodes: ManagedNode[];
@@ -173,16 +200,22 @@ export function ConstellationsMap({ nodes }: ConstellationsMapProps) {
       }
     });
 
-    // Process each constellation
+    // Pass 1: markers and per-node circles
+    const boundariesToDraw: {
+      boundary: Feature<Polygon> | Feature<MultiPolygon>;
+      color: string;
+      name: string;
+    }[] = [];
+
     Object.values(constellations).forEach((constellation) => {
-      // Collect point features for convex hull
       const points: Feature<Point>[] = [];
-      // Add markers and radii for each node in the constellation
+      const positionedCount = constellation.nodes.filter((n) => n.position?.latitude && n.position?.longitude).length;
+      const isSingleNode = positionedCount === 1;
+
       constellation.nodes.forEach((node) => {
         if (node.position?.latitude && node.position?.longitude) {
           const position: L.LatLngExpression = [node.position.latitude, node.position.longitude];
 
-          // Create marker
           const marker = L.marker(position, {
             icon: createNodeIcon(node.short_name || node.node_id_str.slice(4, 8), constellation.color),
           })
@@ -197,11 +230,23 @@ export function ConstellationsMap({ nodes }: ConstellationsMapProps) {
           markersRef.current.push(marker);
           bounds.extend(position);
 
-          // Add to hull points
           const point = turf.point([node.position.longitude, node.position.latitude]) as Feature<Point>;
           points.push(point);
-          const bufPoly = turf.buffer(point, 2, { units: 'kilometers' }) as Feature<Polygon>;
+          const bufPoly = turf.buffer(point, NODE_RADIUS_KM, { units: 'kilometers' }) as Feature<Polygon>;
           if (bufPoly && bufPoly.geometry) {
+            const circleStyle = isSingleNode
+              ? {
+                  fillOpacity: 0.2,
+                  weight: 4,
+                  opacity: 0.9,
+                  dashArray: '6 4',
+                }
+              : {
+                  fillOpacity: 0.08,
+                  weight: 2,
+                  opacity: 0.5,
+                  dashArray: '2 6',
+                };
             const drawCircle = (coords: Position[]) => {
               const latlngs = coords
                 .filter(
@@ -213,10 +258,7 @@ export function ConstellationsMap({ nodes }: ConstellationsMapProps) {
                 const circle = L.polygon(latlngs as [number, number][], {
                   color: constellation.color,
                   fillColor: constellation.color,
-                  fillOpacity: 0.08,
-                  weight: 2,
-                  opacity: 0.5,
-                  dashArray: '2 6',
+                  ...circleStyle,
                 }).addTo(map);
                 polygonsRef.current.push(circle);
               }
@@ -232,42 +274,48 @@ export function ConstellationsMap({ nodes }: ConstellationsMapProps) {
         }
       });
 
-      // Draw convex hull of nodes
-      if (points.length >= 3) {
-        const fc = turf.featureCollection(points);
-        const hull = turf.convex(fc) as Feature<Polygon> | undefined;
-        if (hull && hull.geometry) {
-          // Buffer hull for soft edge
-          const bufferedHull = turf.buffer(hull, 0.2, { units: 'kilometers' }) as Feature<Polygon>;
-          const drawHull = (coords: Position[]) => {
-            const latlngs = coords
-              .filter(
-                (c): c is [number, number] =>
-                  Array.isArray(c) && c.length === 2 && typeof c[0] === 'number' && typeof c[1] === 'number'
-              )
-              .map(([lng, lat]) => [lat, lng]);
-            if (latlngs.length > 2) {
-              const polygon = L.polygon(latlngs as [number, number][], {
-                color: constellation.color,
-                fillColor: constellation.color,
-                fillOpacity: 0.12,
-                weight: 3,
-                opacity: 0.8,
-                dashArray: '8 6',
-              })
-                .bindTooltip(`${constellation.name} boundary`)
-                .addTo(map);
-              polygonsRef.current.push(polygon);
-            }
-          };
-          if (bufferedHull.geometry.type === 'Polygon') {
-            (bufferedHull.geometry.coordinates as unknown as Position[][]).forEach(drawHull);
-          } else if (bufferedHull.geometry.type === 'MultiPolygon') {
-            (bufferedHull.geometry.coordinates as unknown as Position[][][]).forEach((polyArr) => {
-              polyArr.forEach(drawHull);
-            });
-          }
+      // Only draw boundary for multi-node constellations (n>=2); for n=1 it would just duplicate the per-node circle at larger radius
+      if (points.length >= 2) {
+        const boundary = boundaryPolygonFromPoints(points);
+        if (boundary?.geometry) {
+          boundariesToDraw.push({
+            boundary,
+            color: constellation.color,
+            name: constellation.name,
+          });
         }
+      }
+    });
+
+    // Pass 2: draw boundary polygons on top so they're always visible
+    boundariesToDraw.forEach(({ boundary, color, name }) => {
+      const drawBoundary = (coords: Position[]) => {
+        const latlngs = coords
+          .filter(
+            (c): c is [number, number] =>
+              Array.isArray(c) && c.length === 2 && typeof c[0] === 'number' && typeof c[1] === 'number'
+          )
+          .map(([lng, lat]) => [lat, lng]);
+        if (latlngs.length > 2) {
+          const polygon = L.polygon(latlngs as [number, number][], {
+            color,
+            fillColor: color,
+            fillOpacity: 0.12,
+            weight: 3,
+            opacity: 0.8,
+            dashArray: '8 6',
+          })
+            .bindTooltip(`${name} boundary`)
+            .addTo(map);
+          polygonsRef.current.push(polygon);
+        }
+      };
+      if (boundary.geometry.type === 'Polygon') {
+        (boundary.geometry.coordinates as unknown as Position[][]).forEach(drawBoundary);
+      } else if (boundary.geometry.type === 'MultiPolygon') {
+        (boundary.geometry.coordinates as unknown as Position[][][]).forEach((polyArr) => {
+          polyArr.forEach(drawBoundary);
+        });
       }
     });
 
