@@ -10,13 +10,10 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { useState, useEffect, Suspense, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Pause, Play, CheckCircle, Clock } from 'lucide-react';
-import { useNodeClaimStatusSuspense } from '@/hooks/api/useNodeClaims';
 import { Badge } from '@/components/ui/badge';
-import { ErrorBoundary, FallbackProps } from 'react-error-boundary';
-import { NotFoundError } from '@/lib/types';
-import { NodeClaim } from '@/lib/models';
+import { authService } from '@/lib/auth/authService';
 
-function NodeDetailsContent({ claimStatus }: { claimStatus: NodeClaim | undefined }) {
+function NodeDetailsContent() {
   const { id } = useParams<{ id: string }>();
   const nodeId = parseInt(id || '0', 10);
   const node = useNodeSuspense(nodeId);
@@ -53,9 +50,11 @@ function NodeDetailsContent({ claimStatus }: { claimStatus: NodeClaim | undefine
     typeof positions[0].longitude === 'number' &&
     positions[0].longitude !== 0;
 
-  // Determine claim status
-  const hasPendingClaim = claimStatus && !claimStatus.accepted_at;
-  const hasApprovedClaim = claimStatus && claimStatus.accepted_at;
+  // Determine claim status from embedded node.claim (or fallback to node.owner for older API)
+  const currentUser = authService.getCurrentUser();
+  const hasPendingClaim = node.claim && !node.claim.accepted_at;
+  const hasApprovedClaim =
+    (node.claim && node.claim.accepted_at) || (node.owner && currentUser && node.owner.id === currentUser.id);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -259,63 +258,71 @@ function NodeDetailsContent({ claimStatus }: { claimStatus: NodeClaim | undefine
       </div>
 
       <div className="mb-6">
-        <BatteryChartShadcn nodeId={nodeId} defaultTimeRange={'48h'} />
+        <Suspense
+          fallback={
+            <Card>
+              <CardHeader>
+                <CardTitle>Battery</CardTitle>
+                <CardDescription>Loading chart…</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[200px] flex items-center justify-center bg-muted rounded-md">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500" />
+                </div>
+              </CardContent>
+            </Card>
+          }
+        >
+          <BatteryChartShadcn nodeId={nodeId} defaultTimeRange={'48h'} />
+        </Suspense>
       </div>
 
       <div className="mb-6">
-        <PacketTypeChart nodeId={nodeId} defaultTimeRange={'48h'} />
+        <Suspense
+          fallback={
+            <Card>
+              <CardHeader>
+                <CardTitle>Packet Types</CardTitle>
+                <CardDescription>Loading chart…</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[200px] flex items-center justify-center bg-muted rounded-md">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500" />
+                </div>
+              </CardContent>
+            </Card>
+          }
+        >
+          <PacketTypeChart nodeId={nodeId} defaultTimeRange={'48h'} />
+        </Suspense>
       </div>
 
       {isManagedNode && (
         <div className="mb-6">
-          <ReceivedPacketTypeChart nodeId={nodeId} defaultTimeRange={'48h'} />
+          <Suspense
+            fallback={
+              <Card>
+                <CardHeader>
+                  <CardTitle>Received Packets</CardTitle>
+                  <CardDescription>Loading chart…</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[200px] flex items-center justify-center bg-muted rounded-md">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500" />
+                  </div>
+                </CardContent>
+              </Card>
+            }
+          >
+            <ReceivedPacketTypeChart nodeId={nodeId} defaultTimeRange={'48h'} />
+          </Suspense>
         </div>
       )}
     </div>
   );
 }
 
-function NodeClaimStatusBoundary({
-  nodeId,
-  children,
-}: {
-  nodeId: number;
-  children: (props: { claimStatus: NodeClaim | undefined }) => React.ReactNode;
-}) {
-  return (
-    <ErrorBoundary
-      fallbackRender={({ error }: FallbackProps) => {
-        if (error instanceof NotFoundError) {
-          // Not an error: node just isn't claimed
-          return children({ claimStatus: undefined });
-        }
-        // For other errors, show a generic error UI
-        return (
-          <div className="flex items-center justify-center min-h-screen text-red-600">
-            <div>Something went wrong: {error instanceof Error ? error.message : String(error)}</div>
-          </div>
-        );
-      }}
-    >
-      <NodeClaimStatusBoundaryInner nodeId={nodeId} children={children} />
-    </ErrorBoundary>
-  );
-}
-
-function NodeClaimStatusBoundaryInner({
-  nodeId,
-  children,
-}: {
-  nodeId: number;
-  children: (props: { claimStatus: NodeClaim | undefined }) => React.ReactNode;
-}) {
-  const { claimStatus } = useNodeClaimStatusSuspense(nodeId);
-  return <>{children({ claimStatus })}</>;
-}
-
 export function NodeDetails() {
-  const { id } = useParams<{ id: string }>();
-  const nodeId = parseInt(id || '0', 10);
   return (
     <Suspense
       fallback={
@@ -324,9 +331,7 @@ export function NodeDetails() {
         </div>
       }
     >
-      <NodeClaimStatusBoundary nodeId={nodeId}>
-        {({ claimStatus }) => <NodeDetailsContent claimStatus={claimStatus} />}
-      </NodeClaimStatusBoundary>
+      <NodeDetailsContent />
     </Suspense>
   );
 }

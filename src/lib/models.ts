@@ -10,6 +10,12 @@ export interface NodeOwnerInfo {
   username: string;
 }
 
+/** Embedded claim info for the current user on an ObservedNode (from node detail response). Does not include claim_key (sensitive; use claims API). */
+export interface ObservedNodeClaimEmbedded {
+  created_at: string;
+  accepted_at: string | null;
+}
+
 // ObservedNode from Meshflow API v2
 export interface ObservedNode {
   internal_id: number;
@@ -27,6 +33,8 @@ export interface ObservedNode {
   latest_device_metrics?: DeviceMetrics | null;
   latest_position?: Position | null;
   owner?: NodeOwnerInfo | null;
+  /** Current user's claim for this node, if any. Present when authenticated. */
+  claim?: ObservedNodeClaimEmbedded | null;
 }
 
 // ManagedNode from Meshflow API v2
