@@ -16,16 +16,59 @@ export function getRoleColor(role: number | null | undefined): string {
   return role != null && ROLE_COLORS[role] ? ROLE_COLORS[role] : DEFAULT_ROLE_COLOR;
 }
 
+/** Minimal node fields for popup content */
+export interface NodePopupData {
+  node_id: number;
+  node_id_str?: string;
+  long_name: string | null;
+  short_name: string | null;
+  /** Date or ISO string – API may return either; we normalize to locale format */
+  last_heard?: Date | string | null;
+  /** Constellation name when this is a managed node */
+  constellationName?: string | null;
+}
+
+/**
+ * Build HTML for a map marker popup.
+ * Format: **Long name (short name)** / Last seen: ... / [Constellation: ...] / Open details link
+ */
+export function buildNodePopupHtml(node: NodePopupData): string {
+  const displayName =
+    node.long_name && node.short_name
+      ? `${node.long_name} (${node.short_name})`
+      : node.long_name || node.short_name || node.node_id_str || `Node ${node.node_id}`;
+  const lastSeen = node.last_heard != null ? new Date(node.last_heard).toLocaleString() : 'Never';
+  const detailsUrl = `/nodes/${node.node_id}`;
+  const constellationLine =
+    node.constellationName != null && node.constellationName !== ''
+      ? `Constellation: ${escapeHtml(node.constellationName)}`
+      : null;
+  return `
+  <strong>${escapeHtml(displayName)}</strong><br>
+  Last seen: ${escapeHtml(lastSeen)}<br>
+  ${constellationLine ? `<span style="color: #666;">${constellationLine}</span><br>` : ''}
+  <a href="${detailsUrl}">Open details</a>
+  `;
+}
+
+function escapeHtml(s: string): string {
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
 /**
  * Create a custom marker icon with bottom-centre anchor.
  * The teardrop tip aligns with the map point.
+ * @param dimmed - When true, applies opacity 0.5 (for unselected nodes when one is selected)
  */
-export function createNodeIcon(text: string, color: string, highlighted = false): L.DivIcon {
+export function createNodeIcon(text: string, color: string, highlighted = false, dimmed = false): L.DivIcon {
   const highlightClass = highlighted ? ' marker-pin-highlighted' : '';
+  const dimmedStyle = dimmed ? 'opacity: 0.5;' : '';
   return L.divIcon({
     className: 'custom-node-marker',
     html: `
-      <div class="marker-container">
+      <div class="marker-container" style="${dimmedStyle}">
         <div class="marker-pin${highlightClass}" style="background: ${color};"></div>
         <span class="marker-text">${text}</span>
       </div>

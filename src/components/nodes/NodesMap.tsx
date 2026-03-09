@@ -2,7 +2,7 @@ import { ObservedNode } from '@/lib/models';
 import L from 'leaflet';
 import { useEffect, useRef } from 'react';
 import 'leaflet/dist/leaflet.css';
-import { createNodeIcon, getRoleColor } from './map-utils';
+import { createNodeIcon, getRoleColor, buildNodePopupHtml } from './map-utils';
 
 interface NodesMapProps {
   nodes: ObservedNode[];
@@ -126,13 +126,7 @@ export function NodesMap({ nodes }: NodesMapProps) {
         const marker = L.marker(position, {
           icon: createNodeIcon(node.short_name || node.node_id_str.toString(), getRoleColor(node.role), false),
         })
-          .bindPopup(
-            `
-            <strong>Node: ${node.long_name || node.node_id_str}</strong><br>
-            Battery: ${node.latest_device_metrics?.battery_level || 'Unknown'}%<br>
-            Last Seen: ${node.last_heard?.toLocaleString() || 'Never'}
-          `
-          )
+          .bindPopup(buildNodePopupHtml(node))
           .addTo(map);
 
         markersRef.current.push(marker);

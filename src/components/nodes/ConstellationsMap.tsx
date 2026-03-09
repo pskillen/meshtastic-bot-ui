@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import * as turf from '@turf/turf';
 import * as d3 from 'd3';
 import type { Feature, MultiPolygon, Point, Polygon, Position } from 'geojson';
-import { createNodeIcon, boundaryPolygonFromPoints } from './map-utils';
+import { createNodeIcon, boundaryPolygonFromPoints, buildNodePopupHtml } from './map-utils';
 
 /** Radius (km) for constellation boundary polygon. */
 const HULL_OFFSET_KM = 2.5;
@@ -182,13 +182,7 @@ export function ConstellationsMap({ nodes }: ConstellationsMapProps) {
           const marker = L.marker(position, {
             icon: createNodeIcon(node.short_name || node.node_id_str.slice(4, 8), constellation.color, false),
           })
-            .bindPopup(
-              `
-              <strong>Node: ${node.long_name || node.node_id_str}</strong><br>
-              Constellation: ${constellation.name}<br>
-              Last Seen: ${node.last_heard?.toLocaleString() || 'Never'}
-              `
-            )
+            .bindPopup(buildNodePopupHtml({ ...node, constellationName: constellation.name }))
             .addTo(map);
           markersRef.current.push(marker);
           bounds.extend(position);
