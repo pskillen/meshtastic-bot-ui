@@ -32,7 +32,8 @@ export function useClaimNode() {
     onSuccess: (_, nodeId) => {
       // Invalidate the claim status query for the specific node
       queryClient.invalidateQueries({ queryKey: ['nodes', nodeId, 'claim'] });
-
+      // Invalidate the node detail (claim is now embedded in node response)
+      queryClient.invalidateQueries({ queryKey: ['nodes', nodeId] });
       // Also invalidate the user's claimed nodes list
       queryClient.invalidateQueries({ queryKey: ['observed-nodes', 'mine'] });
     },
