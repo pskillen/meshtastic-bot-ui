@@ -1,12 +1,12 @@
-// import { PacketStatsChart } from '@/components/PacketStatsChart';
 import { NodeActivityTable } from '@/components/NodeActivityTable';
-import { ConstellationsMap } from '@/components/nodes/ConstellationsMap';
+import { NodesAndConstellationsMap } from '@/components/nodes/NodesAndConstellationsMap';
 import { useNodesSuspense, useManagedNodesSuspense, useRecentNodeCountsSuspense } from '@/hooks/api/useNodes';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { ChartConfig } from '@/components/ui/chart';
 import { Suspense } from 'react';
 import { PacketStatsChart } from '@/components/PacketStatsChart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Link } from 'react-router-dom';
 
 const packetChartConfig = {
   value: {
@@ -63,14 +63,24 @@ function DashboardContent() {
       <div className="px-4 lg:px-6">
         <Card>
           <CardHeader>
-            <CardTitle>Constellation Map</CardTitle>
+            <CardTitle>Meshflow Map</CardTitle>
             <CardDescription>
-              Constellations represent local regions on the mesh. Below is a map of nodes which report into Meshflow.
+              <p>
+                Constellations represent local regions on the mesh. Below is a map of nodes which report into Meshflow.
+              </p>
+              <p>
+                Click on a node to view more information about it. View the <Link to="nodes">Nodes page</Link> for a
+                list of all nodes.
+              </p>
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[400px] w-full">
-              <ConstellationsMap nodes={managedNodes || []} />
+            <div className="h-[600px] w-full">
+              <NodesAndConstellationsMap
+                managedNodes={managedNodes || []}
+                showConstellation={true}
+                showUnmanagedNodes={false}
+              />
             </div>
           </CardContent>
         </Card>

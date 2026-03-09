@@ -1,9 +1,9 @@
 import { useMemo, useState, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { subDays, subHours, format } from 'date-fns';
-import { useInfrastructureNodesSuspense } from '@/hooks/api/useNodes';
+import { useInfrastructureNodesSuspense, useManagedNodesSuspense } from '@/hooks/api/useNodes';
 import { InfrastructureNodeCard } from '@/components/nodes/InfrastructureNodeCard';
-import { NodesMap } from '@/components/nodes/NodesMap';
+import { NodesAndConstellationsMap } from '@/components/nodes/NodesAndConstellationsMap';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MonitoredNodesBatteryChart } from '@/components/nodes/MonitoredNodesBatteryChart';
 import { MonitoredNodesChannelUtilChart } from '@/components/nodes/MonitoredNodesChannelUtilChart';
@@ -93,6 +93,8 @@ function MeshInfrastructureContent() {
     includeClientBase,
   });
 
+  const { managedNodes } = useManagedNodesSuspense(500);
+
   const nodesWithLocation = useMemo(() => nodes.filter(hasRecentLocation), [nodes]);
   const nodesWithoutLocation = useMemo(() => nodes.filter((n) => !hasRecentLocation(n)), [nodes]);
 
@@ -147,7 +149,14 @@ function MeshInfrastructureContent() {
             <CardTitle>Infrastructure Node Locations</CardTitle>
           </CardHeader>
           <CardContent>
-            <NodesMap nodes={nodesWithLocation} />
+            <NodesAndConstellationsMap
+              observedNodes={nodesWithLocation}
+              managedNodes={managedNodes}
+              showConstellation={true}
+              showUnmanagedNodes={true}
+              drawPositionUncertainty={true}
+              enableBubbles={true}
+            />
           </CardContent>
         </Card>
       </div>
