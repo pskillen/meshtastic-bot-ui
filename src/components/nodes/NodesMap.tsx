@@ -2,36 +2,7 @@ import { ObservedNode } from '@/lib/models';
 import L from 'leaflet';
 import { useEffect, useRef } from 'react';
 import 'leaflet/dist/leaflet.css';
-
-/** Role IDs from Meshtastic (matches InfrastructureNodeCard ROLE_LABELS). */
-const ROLE_COLORS: Record<number, string> = {
-  2: '#2563eb', // ROUTER – blue
-  3: '#16a34a', // ROUTER_CLIENT – green
-  4: '#ea580c', // REPEATER – orange
-  11: '#9333ea', // ROUTER_LATE – purple
-  12: '#0d9488', // CLIENT_BASE – teal
-};
-const DEFAULT_ROLE_COLOR = '#64748b'; // Unknown / no role – slate
-
-function getRoleColor(role: number | null | undefined): string {
-  return role != null && ROLE_COLORS[role] ? ROLE_COLORS[role] : DEFAULT_ROLE_COLOR;
-}
-
-// Create a custom marker icon function
-const createNodeIcon = (text: string, color: string) => {
-  return L.divIcon({
-    className: 'custom-node-marker',
-    html: `
-      <div class="marker-container">
-        <div class="marker-pin" style="background: ${color};"></div>
-        <span class="marker-text">${text}</span>
-      </div>
-    `,
-    iconSize: [40, 40],
-    iconAnchor: [20, 40],
-    popupAnchor: [0, -40],
-  });
-};
+import { createNodeIcon, getRoleColor, buildNodePopupHtml } from './map-utils';
 
 interface NodesMapProps {
   nodes: ObservedNode[];
@@ -73,7 +44,7 @@ export function NodesMap({ nodes }: NodesMapProps) {
           transform: rotate(-45deg);
           left: 50%;
           top: 50%;
-          margin: -15px 0 0 -10px;
+          margin: -17.5px 0 0 -17.5px;
           box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
         .marker-text {
@@ -153,15 +124,9 @@ export function NodesMap({ nodes }: NodesMapProps) {
         const position: L.LatLngExpression = [node.latest_position.latitude, node.latest_position.longitude];
 
         const marker = L.marker(position, {
-          icon: createNodeIcon(node.short_name || node.node_id_str.toString(), getRoleColor(node.role)),
+          icon: createNodeIcon(node.short_name || node.node_id_str.toString(), getRoleColor(node.role), false),
         })
-          .bindPopup(
-            `
-            <strong>Node: ${node.long_name || node.node_id_str}</strong><br>
-            Battery: ${node.latest_device_metrics?.battery_level || 'Unknown'}%<br>
-            Last Seen: ${node.last_heard?.toLocaleString() || 'Never'}
-          `
-          )
+          .bindPopup(buildNodePopupHtml(node))
           .addTo(map);
 
         markersRef.current.push(marker);

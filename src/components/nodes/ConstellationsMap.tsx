@@ -5,49 +5,12 @@ import 'leaflet/dist/leaflet.css';
 import * as turf from '@turf/turf';
 import * as d3 from 'd3';
 import type { Feature, MultiPolygon, Point, Polygon, Position } from 'geojson';
+import { createNodeIcon, boundaryPolygonFromPoints, buildNodePopupHtml } from './map-utils';
 
-/** Radius (km) for constellation boundary polygon (circles at nodes/hull vertices, joined by tangent lines). Slightly larger than NODE_RADIUS_KM so the boundary is visibly an outer perimeter. */
+/** Radius (km) for constellation boundary polygon. */
 const HULL_OFFSET_KM = 2.5;
 /** Radius (km) for visible per-node dashed circles. */
 const NODE_RADIUS_KM = 2;
-
-// Create a custom marker icon function
-const createNodeIcon = (text: string, color: string) => {
-  return L.divIcon({
-    className: 'custom-node-marker',
-    html: `
-      <div class="marker-container">
-        <div class="marker-pin" style="background: ${color};"></div>
-        <span class="marker-text">${text}</span>
-      </div>
-    `,
-    iconSize: [40, 40],
-    iconAnchor: [20, 40],
-    popupAnchor: [0, -40],
-  });
-};
-
-/**
- * Build a boundary polygon from points using buffered convex hull.
- * Uses HULL_OFFSET_KM for radius. Buffering the hull ensures one connected perimeter
- * (union of circles can yield separate polygons when nodes are far apart).
- */
-function boundaryPolygonFromPoints(points: Feature<Point>[]): Feature<Polygon> | Feature<MultiPolygon> | null {
-  if (points.length === 0) return null;
-
-  const bufferOpts = { units: 'kilometers' as const };
-
-  if (points.length === 1) {
-    return turf.buffer(points[0], HULL_OFFSET_KM, bufferOpts) as Feature<Polygon>;
-  }
-
-  const fc = turf.featureCollection(points);
-  const hull = turf.convex(fc) as Feature<Polygon> | undefined;
-  if (!hull?.geometry || hull.geometry.type !== 'Polygon') {
-    return turf.buffer(points[0], HULL_OFFSET_KM, bufferOpts) as Feature<Polygon>;
-  }
-  return turf.buffer(hull, HULL_OFFSET_KM, bufferOpts) as Feature<Polygon>;
-}
 
 interface ConstellationsMapProps {
   nodes: ManagedNode[];
@@ -90,7 +53,7 @@ export function ConstellationsMap({ nodes }: ConstellationsMapProps) {
           transform: rotate(-45deg);
           left: 50%;
           top: 50%;
-          margin: -15px 0 0 -10px;
+          margin: -17.5px 0 0 -17.5px;
           box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
         .marker-text {
@@ -217,15 +180,9 @@ export function ConstellationsMap({ nodes }: ConstellationsMapProps) {
           const position: L.LatLngExpression = [node.position.latitude, node.position.longitude];
 
           const marker = L.marker(position, {
-            icon: createNodeIcon(node.short_name || node.node_id_str.slice(4, 8), constellation.color),
+            icon: createNodeIcon(node.short_name || node.node_id_str.slice(4, 8), constellation.color, false),
           })
-            .bindPopup(
-              `
-              <strong>Node: ${node.long_name || node.node_id_str}</strong><br>
-              Constellation: ${constellation.name}<br>
-              Last Seen: ${node.last_heard?.toLocaleString() || 'Never'}
-              `
-            )
+            .bindPopup(buildNodePopupHtml({ ...node, constellationName: constellation.name }))
             .addTo(map);
           markersRef.current.push(marker);
           bounds.extend(position);
@@ -276,7 +233,7 @@ export function ConstellationsMap({ nodes }: ConstellationsMapProps) {
 
       // Only draw boundary for multi-node constellations (n>=2); for n=1 it would just duplicate the per-node circle at larger radius
       if (points.length >= 2) {
-        const boundary = boundaryPolygonFromPoints(points);
+        const boundary = boundaryPolygonFromPoints(points, HULL_OFFSET_KM);
         if (boundary?.geometry) {
           boundariesToDraw.push({
             boundary,

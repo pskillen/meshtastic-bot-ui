@@ -1,8 +1,8 @@
-import { useNodesSuspense } from '@/hooks/api/useNodes';
+import { useNodesSuspense, useManagedNodesSuspense } from '@/hooks/api/useNodes';
 import { subDays, subHours } from 'date-fns';
 import { useMemo, useState, Suspense } from 'react';
 import { NodeCard } from '@/components/nodes/NodeCard';
-import { NodesMap } from '@/components/nodes/NodesMap';
+import { NodesAndConstellationsMap } from '@/components/nodes/NodesAndConstellationsMap';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Input } from '@/components/ui/input';
@@ -81,6 +81,8 @@ function NodesListContent() {
     lastHeardAfter,
     pageSize: 100,
   });
+
+  const { managedNodes } = useManagedNodesSuspense(500);
 
   const sortNodes = (nodes: ObservedNode[]) => {
     return [...nodes].sort((a, b) => {
@@ -181,10 +183,17 @@ function NodesListContent() {
 
       <Card className="mb-8">
         <CardHeader>
-          <CardTitle>Node Locations</CardTitle>
+          <CardTitle>Mesh Nodes and Monitoring</CardTitle>
         </CardHeader>
         <CardContent>
-          <NodesMap nodes={mapNodes} />
+          <div className="h-[600px] w-full">
+            <NodesAndConstellationsMap
+              managedNodes={managedNodes}
+              observedNodes={mapNodes}
+              showConstellation={true}
+              showUnmanagedNodes={true}
+            />
+          </div>
         </CardContent>
       </Card>
 

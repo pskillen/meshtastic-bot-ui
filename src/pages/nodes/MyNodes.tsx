@@ -9,7 +9,7 @@ import { ObservedNode } from '@/lib/models';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SetupManagedNode } from '@/components/nodes/SetupManagedNode';
-import { NodesMap } from '@/components/nodes/NodesMap';
+import { NodesAndConstellationsMap } from '@/components/nodes/NodesAndConstellationsMap';
 import { MonitoredNodesBatteryChart } from '@/components/nodes/MonitoredNodesBatteryChart';
 import { useQuery } from '@tanstack/react-query';
 import { useMeshtasticApi } from '@/hooks/api/useApi';
@@ -295,11 +295,16 @@ function MyNodesContent() {
       {allNodes.length > 0 ? (
         <>
           <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-2">Node Map</h2>
+            <h2 className="text-lg font-semibold mb-2">Nodes and Constellations</h2>
             {/* Collapsible map section */}
-            <CollapsibleSection title="Node Map" defaultOpen>
-              <div className="h-[400px] bg-background rounded-lg border">
-                <NodesMap nodes={allNodes} />
+            <CollapsibleSection title="Nodes and Constellations" defaultOpen>
+              <div className="h-[600px] bg-background rounded-lg border">
+                <NodesAndConstellationsMap
+                  managedNodes={myManagedNodes}
+                  observedNodes={myClaimedNodes}
+                  showConstellation={true}
+                  showUnmanagedNodes={true}
+                />
               </div>
             </CollapsibleSection>
           </div>

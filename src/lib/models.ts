@@ -56,6 +56,7 @@ export interface ManagedNode {
   position: {
     latitude: number | null;
     longitude: number | null;
+    precision_bits?: number | null;
   };
 }
 
@@ -150,6 +151,8 @@ export interface Position {
   longitude: number;
   altitude: number | null;
   location_source: string;
+  /** Meshtastic precision_bits – lower = larger uncertainty. 16≈365m, 17≈182m, 18≈91m, etc. */
+  precision_bits?: number | null;
 }
 
 // API response types
