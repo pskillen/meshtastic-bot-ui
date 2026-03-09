@@ -10,6 +10,9 @@ lerna-debug.log*
 # OS files
 .DS_Store
 
+# Outputs
+tmp/
+
 
 # React, typescript, tailwind, shadcn, etc.
 node_modules
