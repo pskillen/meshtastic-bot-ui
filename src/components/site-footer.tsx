@@ -6,7 +6,7 @@ export function SiteFooter() {
   return (
     <footer className="border-t py-4 px-4">
       <div className="container flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">MeshtasticBot UI v{config.version}</div>
+        <div className="text-sm text-muted-foreground">MeshtasticBot UI {config.version}</div>
         <div className="text-sm text-muted-foreground">© {new Date().getFullYear()} MeshtasticBot</div>
       </div>
     </footer>
