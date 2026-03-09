@@ -1,4 +1,4 @@
-import { useNodes, useNodesSuspense } from '@/hooks/api/useNodes';
+import { useNodesSuspense } from '@/hooks/api/useNodes';
 import { subDays, subHours } from 'date-fns';
 import { useMemo, useState, Suspense } from 'react';
 import { NodeCard } from '@/components/nodes/NodeCard';
@@ -8,8 +8,6 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { ObservedNode } from '@/lib/models';
 import { formatDistanceToNow } from 'date-fns';
@@ -60,12 +58,10 @@ function RecentNodeChip({ node }: { node: ObservedNode }) {
 function NodesListContent() {
   const now = useMemo(() => new Date(), []);
   const twoHoursAgo = useMemo(() => subHours(now, 2), [now]);
-  const thirtyDaysAgo = useMemo(() => subDays(now, 30), [now]);
 
   const [timeRange, setTimeRange] = useState<TimeRangeOption>('7d');
   const [sortBy, setSortBy] = useState<SortOption>('last_heard');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showOlderNodes, setShowOlderNodes] = useState(false);
 
   const lastHeardAfter = useMemo(() => getLastHeardAfter(timeRange), [timeRange]);
 
@@ -84,14 +80,6 @@ function NodesListContent() {
   } = useNodesSuspense({
     lastHeardAfter,
     pageSize: 100,
-  });
-
-  // Map: when "show older" is on and time range is not 30d or all, fetch 30d for map
-  const needsOlderMapFetch = showOlderNodes && timeRange !== '30d' && timeRange !== 'all';
-  const { nodes: olderMapNodes } = useNodes({
-    lastHeardAfter: thirtyDaysAgo,
-    pageSize: 500,
-    enabled: needsOlderMapFetch,
   });
 
   const sortNodes = (nodes: ObservedNode[]) => {
@@ -121,10 +109,8 @@ function NodesListContent() {
 
   const displayedNodes = sortNodes(filterNodes(mainListNodes || []));
 
-  // Map nodes: main list when showOlder is off, or 30d when on (and we have that data)
-  const mapSource =
-    showOlderNodes && timeRange !== '30d' && timeRange !== 'all' ? olderMapNodes || [] : mainListNodes || [];
-  const mapNodes = searchQuery ? filterNodes(mapSource) : mapSource;
+  // Map nodes: same as main list, filtered by time range and search
+  const mapNodes = searchQuery ? filterNodes(mainListNodes || []) : mainListNodes || [];
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -194,12 +180,8 @@ function NodesListContent() {
       </div>
 
       <Card className="mb-8">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader>
           <CardTitle>Node Locations</CardTitle>
-          <div className="flex items-center space-x-2">
-            <Switch id="show-older" checked={showOlderNodes} onCheckedChange={setShowOlderNodes} />
-            <Label htmlFor="show-older">Show older nodes</Label>
-          </div>
         </CardHeader>
         <CardContent>
           <NodesMap nodes={mapNodes} />
