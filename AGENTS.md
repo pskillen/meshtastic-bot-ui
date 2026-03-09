@@ -74,3 +74,8 @@ npm test             # Vitest
 - Default config in `config.ts`
 - Overridable via remote `config.json`
 - API base URL and auth configured per environment
+
+## Source control
+
+When asked to create a pull request description, follow the template at
+.github/pull_request_template.md, and output a markdown file named `tmp/PR.md`
