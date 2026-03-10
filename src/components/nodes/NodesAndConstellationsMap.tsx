@@ -5,6 +5,8 @@ import 'leaflet/dist/leaflet.css';
 import * as turf from '@turf/turf';
 import * as d3 from 'd3';
 import type { Feature, Point, Polygon, Position as GeoPosition } from 'geojson';
+import { getMapTileUrl, MAP_TILE_ATTRIBUTION } from '@/lib/map-tiles';
+import { useMapTheme } from '@/hooks/useMapTheme';
 import {
   createNodeIcon,
   getRoleColor,
@@ -69,12 +71,14 @@ export function NodesAndConstellationsMap({
 }: NodesAndConstellationsMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
   const polygonsRef = useRef<L.Polygon[]>([]);
   const markersRef = useRef<L.Marker[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const lastViewRef = useRef<{ center: L.LatLng; zoom: number } | null>(null);
   const onMapMoveRef = useRef(onMapMove);
   const onNodeSelectRef = useRef(onNodeSelect);
+  const isDark = useMapTheme();
   onMapMoveRef.current = onMapMove;
   onNodeSelectRef.current = onNodeSelect;
 
@@ -97,9 +101,10 @@ export function NodesAndConstellationsMap({
     if (mapRef.current && !mapInstanceRef.current) {
       const map = L.map(mapRef.current).setView(DEFAULT_CENTER, 13);
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      const tileLayer = L.tileLayer(getMapTileUrl(isDark ?? false), {
+        attribution: MAP_TILE_ATTRIBUTION,
       }).addTo(map);
+      tileLayerRef.current = tileLayer;
 
       map.on('moveend', () => {
         const center = map.getCenter();
@@ -161,10 +166,23 @@ export function NodesAndConstellationsMap({
       return () => {
         map.remove();
         mapInstanceRef.current = null;
+        tileLayerRef.current = null;
         style.remove();
       };
     }
   }, []);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const oldLayer = tileLayerRef.current;
+    if (map && oldLayer) {
+      map.removeLayer(oldLayer);
+      const newLayer = L.tileLayer(getMapTileUrl(isDark ?? false), {
+        attribution: MAP_TILE_ATTRIBUTION,
+      }).addTo(map);
+      tileLayerRef.current = newLayer;
+    }
+  }, [isDark]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;

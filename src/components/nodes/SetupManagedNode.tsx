@@ -22,6 +22,8 @@ import { Loader2, AlertCircle, CheckCircle2, Download } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { getMapTileUrl, MAP_TILE_ATTRIBUTION } from '@/lib/map-tiles';
+import { useMapTheme } from '@/hooks/useMapTheme';
 import { useConstellationsSuspense } from '@/hooks/api/useConstellations';
 
 interface SetupManagedNodeProps {
@@ -53,7 +55,9 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
   const [nodeLocation, setNodeLocation] = useState<{ lat: number; lng: number } | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
+  const isDark = useMapTheme();
 
   // Channel mappings state
   const [channelMappings, setChannelMappings] = useState<{
@@ -169,9 +173,10 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
       // Initialize the map
       const map = L.map(mapRef.current).setView([initialLocation.lat, initialLocation.lng], 13);
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      const tileLayer = L.tileLayer(getMapTileUrl(isDark ?? false), {
+        attribution: MAP_TILE_ATTRIBUTION,
       }).addTo(map);
+      tileLayerRef.current = tileLayer;
 
       // Add a marker at the initial location
       const marker = L.marker([initialLocation.lat, initialLocation.lng], {
@@ -212,6 +217,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
 
       return () => {
         style.remove();
+        tileLayerRef.current = null;
         // Enhanced cleanup: remove map, marker, and all controls/attribution
         if (markerRef.current) {
           markerRef.current.remove();
@@ -229,6 +235,19 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
       };
     }
   }, [currentStep, observedNode]);
+
+  useEffect(() => {
+    if (currentStep !== 'location') return;
+    const map = mapInstanceRef.current;
+    const oldLayer = tileLayerRef.current;
+    if (map && oldLayer) {
+      map.removeLayer(oldLayer);
+      const newLayer = L.tileLayer(getMapTileUrl(isDark ?? false), {
+        attribution: MAP_TILE_ATTRIBUTION,
+      }).addTo(map);
+      tileLayerRef.current = newLayer;
+    }
+  }, [currentStep, isDark]);
 
   // Handle channel mapping changes
   const handleChannelChange = (channelIndex: number, channelId: number | null) => {
@@ -351,7 +370,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
       <div className="space-y-4 py-4">
         <div className="space-y-2">
           <Label>Node Location</Label>
-          <p className="text-sm text-gray-500 mb-2">
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
             Click on the map or drag the marker to set the default location for your node.
             {observedNode?.latest_position
               ? " We've set the initial location based on the node's last reported position."
@@ -389,7 +408,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
       <div className="space-y-4 py-4">
         <div className="space-y-2 mt-4">
           <Label>Channel Mappings</Label>
-          <p className="text-sm text-gray-500 mb-2">
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
             Map your node's channels to known message channels in this constellation.
           </p>
 
@@ -557,7 +576,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
               Your API Key:
               {createdApiKey && (
                 <button
-                  className="ml-2 px-2 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300"
+                  className="ml-2 px-2 py-1 text-xs bg-slate-200 dark:bg-slate-700 rounded hover:bg-slate-300 dark:hover:bg-slate-600"
                   onClick={() => {
                     navigator.clipboard.writeText(createdApiKey.key);
                   }}
@@ -569,7 +588,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
               )}
             </h4>
             <div
-              className="bg-gray-100 p-2 rounded mt-1 font-mono text-sm break-all select-all whitespace-pre-wrap"
+              className="bg-slate-100 dark:bg-slate-800 p-2 rounded mt-1 font-mono text-sm break-all select-all whitespace-pre-wrap"
               style={{ wordBreak: 'break-all' }}
             >
               {createdApiKey ? createdApiKey.key : 'Use your selected API key'}
@@ -586,7 +605,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
               href="https://github.com/pskillen/meshtastic-bot"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 transition-colors"
             >
               <Download className="mr-2 h-4 w-4" />
               Download Bot Software

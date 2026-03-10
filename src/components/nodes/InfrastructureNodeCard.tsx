@@ -21,12 +21,12 @@ export function InfrastructureNodeCard({ node }: InfrastructureNodeCardProps) {
   return (
     <Link
       to={`/nodes/${node.node_id}`}
-      className="block p-6 bg-white dark:bg-gray-900 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 border border-gray-200 dark:border-gray-700"
+      className="block p-6 bg-white dark:bg-slate-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 border border-slate-200 dark:border-slate-700"
     >
       <div className="flex justify-between items-start mb-4">
         <div>
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">{node.short_name}</h2>
-          <p className="text-gray-600 dark:text-gray-400">{node.long_name}</p>
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{node.short_name}</h2>
+          <p className="text-slate-600 dark:text-slate-400">{node.long_name}</p>
         </div>
         <div className="flex flex-col items-end gap-1">
           {roleLabel && (
@@ -34,14 +34,14 @@ export function InfrastructureNodeCard({ node }: InfrastructureNodeCardProps) {
               {roleLabel}
             </Badge>
           )}
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-slate-500 dark:text-slate-400">
             {node.last_heard ? formatDistanceToNow(node.last_heard, { addSuffix: true }) : 'Never'}
           </span>
         </div>
       </div>
       <div className="space-y-2">
-        <p className="text-gray-600 dark:text-gray-400">ID: {node.node_id_str}</p>
-        {node.owner && <p className="text-gray-600 dark:text-gray-400">Owner: {node.owner.username}</p>}
+        <p className="text-slate-600 dark:text-slate-400">ID: {node.node_id_str}</p>
+        {node.owner && <p className="text-slate-600 dark:text-slate-400">Owner: {node.owner.username}</p>}
         {node.latest_device_metrics && (
           <div className="flex flex-wrap gap-3 text-sm">
             <span>
