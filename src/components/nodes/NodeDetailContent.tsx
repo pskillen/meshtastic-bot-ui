@@ -2,10 +2,13 @@ import { Link } from 'react-router-dom';
 import { useNodeSuspense, useNodePositions, useManagedNodesSuspense } from '@/hooks/api/useNodes';
 import { useRecentNodes } from '@/hooks/useRecentNodes';
 import { formatDistanceToNow } from 'date-fns';
+import { formatUptimeSeconds } from '@/lib/utils';
 import { BatteryChartShadcn } from '@/components/BatteryChartShadcn';
 import { PacketTypeChart } from '@/components/PacketTypeChart';
 import { ReceivedPacketTypeChart } from '@/components/ReceivedPacketTypeChart';
 import { NodesMap } from '@/components/nodes/NodesMap';
+import { BatteryGauge } from '@/components/nodes/BatteryGauge';
+import { PercentGauge } from '@/components/nodes/PercentGauge';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useState, useEffect, Suspense, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
@@ -220,35 +223,20 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <p>
-                  <span className="font-medium">Battery Level:</span>{' '}
-                  {node.latest_device_metrics.battery_level != null
-                    ? `${node.latest_device_metrics.battery_level}%`
-                    : '—'}
-                </p>
-                <p>
-                  <span className="font-medium">Voltage:</span>{' '}
-                  {node.latest_device_metrics.voltage != null
-                    ? `${node.latest_device_metrics.voltage.toFixed(2)}V`
-                    : '—'}
-                </p>
-                <p>
-                  <span className="font-medium">Channel Utilization:</span>{' '}
-                  {node.latest_device_metrics.channel_utilization != null
-                    ? `${node.latest_device_metrics.channel_utilization.toFixed(1)}%`
-                    : '—'}
-                </p>
-                <p>
-                  <span className="font-medium">Air Utilization:</span>{' '}
-                  {node.latest_device_metrics.air_util_tx != null
-                    ? `${node.latest_device_metrics.air_util_tx.toFixed(1)}%`
-                    : '—'}
-                </p>
+              <div className="space-y-4">
+                <BatteryGauge
+                  batteryLevel={node.latest_device_metrics.battery_level ?? null}
+                  voltage={node.latest_device_metrics.voltage ?? null}
+                />
+                <PercentGauge
+                  value={node.latest_device_metrics.channel_utilization ?? null}
+                  label="Channel Utilization"
+                />
+                <PercentGauge value={node.latest_device_metrics.air_util_tx ?? null} label="Air Utilization" />
                 <p>
                   <span className="font-medium">Uptime:</span>{' '}
                   {node.latest_device_metrics.uptime_seconds != null
-                    ? `${Math.round(node.latest_device_metrics.uptime_seconds / 3600)} hours`
+                    ? formatUptimeSeconds(node.latest_device_metrics.uptime_seconds)
                     : '—'}
                 </p>
               </div>
