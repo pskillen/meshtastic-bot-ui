@@ -82,7 +82,7 @@ function MeshInfrastructureContent() {
   const [includeClientBase, setIncludeClientBase] = useState(false);
   const [chartTimeRangeLabel, setChartTimeRangeLabel] = useState('7d');
   const [chartDateRange, setChartDateRange] = useState<{ startDate: Date; endDate: Date }>({
-    startDate: new Date(Date.now() - 48 * 60 * 60 * 1000),
+    startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
     endDate: new Date(),
   });
 
