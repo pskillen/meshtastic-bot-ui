@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import * as turf from '@turf/turf';
 import * as d3 from 'd3';
 import type { Feature, MultiPolygon, Point, Polygon, Position } from 'geojson';
+import { useMapTileUrl } from '@/hooks/useMapTileUrl';
 import { createNodeIcon, boundaryPolygonFromPoints, buildNodePopupHtml } from './map-utils';
 
 /** Radius (km) for constellation boundary polygon. */
@@ -22,17 +23,20 @@ const DEFAULT_CENTER: L.LatLngExpression = [55.8642, -4.2518];
 export function ConstellationsMap({ nodes }: ConstellationsMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const polygonsRef = useRef<L.Polygon[]>([]);
+  const { url: tileUrl, attribution } = useMapTileUrl();
 
   // Initialize the map
   useEffect(() => {
     if (mapRef.current && !mapInstanceRef.current) {
       const map = L.map(mapRef.current).setView(DEFAULT_CENTER, 13);
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      const tileLayer = L.tileLayer(tileUrl, {
+        attribution,
       }).addTo(map);
+      tileLayerRef.current = tileLayer;
 
       // Add CSS for custom markers and map container
       const style = document.createElement('style');
@@ -107,10 +111,23 @@ export function ConstellationsMap({ nodes }: ConstellationsMapProps) {
       return () => {
         map.remove();
         mapInstanceRef.current = null;
+        tileLayerRef.current = null;
         style.remove();
       };
     }
   }, []);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const oldLayer = tileLayerRef.current;
+    if (map && oldLayer) {
+      map.removeLayer(oldLayer);
+      const newLayer = L.tileLayer(tileUrl, {
+        attribution,
+      }).addTo(map);
+      tileLayerRef.current = newLayer;
+    }
+  }, [tileUrl, attribution]);
 
   // Handle nodes updates
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { NodesAndConstellationsMap, MapNode } from '@/components/nodes/NodesAndConstellationsMap';
+import { NodeDetailSheet } from '@/components/nodes/NodeDetailSheet';
 import { useNodesSuspense, useManagedNodesSuspense } from '@/hooks/api/useNodes';
 import { subDays, subHours } from 'date-fns';
 import { useMemo, useState, Suspense } from 'react';
@@ -198,9 +199,22 @@ function NodeMapContent() {
 
           {selectedNode && (
             <div className="text-sm text-muted-foreground">
-              Selected: {selectedNode.long_name || selectedNode.node_id_str}
+              Selected: {selectedNode.long_name || selectedNode.node_id_str}{' '}
+              <button
+                type="button"
+                onClick={() => setSelectedNode(null)}
+                className="text-teal-600 dark:text-teal-400 hover:underline ml-1"
+              >
+                (clear)
+              </button>
             </div>
           )}
+
+          <NodeDetailSheet
+            nodeId={selectedNode?.node_id ?? null}
+            open={selectedNode != null}
+            onOpenChange={(open) => !open && setSelectedNode(null)}
+          />
 
           <div className="h-[500px] w-full rounded-md overflow-hidden">
             <NodesAndConstellationsMap

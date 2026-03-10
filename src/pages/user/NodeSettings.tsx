@@ -169,7 +169,7 @@ function NodeSettingsContent() {
             <CardContent>
               {isLoadingClaims ? (
                 <div className="flex justify-center items-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+                  <Loader2 className="h-8 w-8 animate-spin text-slate-500 dark:text-slate-400" />
                 </div>
               ) : claimsError ? (
                 <div className="text-red-500 py-4">Error loading claims: {claimsError.message}</div>
@@ -182,9 +182,9 @@ function NodeSettingsContent() {
                         <div className="flex justify-between items-start">
                           <div>
                             <h3 className="font-medium">{claim.node.short_name || claim.node.node_id_str}</h3>
-                            <p className="text-sm text-gray-500">{claim.node.long_name}</p>
-                            <p className="text-xs text-gray-400">Node ID: {claim.node.node_id_str}</p>
-                            <p className="text-sm text-gray-500 mt-1">
+                            <p className="text-sm text-slate-500 dark:text-slate-400">{claim.node.long_name}</p>
+                            <p className="text-xs text-slate-400">Node ID: {claim.node.node_id_str}</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                               Claimed {formatDistanceToNow(new Date(claim.created_at), { addSuffix: true })}
                             </p>
                           </div>
@@ -200,7 +200,7 @@ function NodeSettingsContent() {
                             View Node
                           </Link>
                           {isPending && (
-                            <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                            <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-md">
                               <div className="flex justify-between items-center">
                                 <p className="text-sm font-medium">Claim Key:</p>
                                 <Button
@@ -249,7 +249,7 @@ function NodeSettingsContent() {
                   })}
                 </div>
               ) : (
-                <div className="text-gray-500 py-4">You don't have any node claims yet.</div>
+                <div className="text-slate-500 dark:text-slate-400 py-4">You don't have any node claims yet.</div>
               )}
             </CardContent>
           </Card>
@@ -269,7 +269,7 @@ function NodeSettingsContent() {
                       <div className="flex justify-between items-start">
                         <div>
                           <h3 className="font-medium">{node.short_name || node.node_id_str}</h3>
-                          <p className="text-sm text-gray-500">{node.long_name}</p>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">{node.long_name}</p>
                           <div className="flex items-center mt-1">
                             <Badge
                               style={{ backgroundColor: node.constellation.map_color }}
@@ -277,7 +277,7 @@ function NodeSettingsContent() {
                             >
                               {node.constellation.name}
                             </Badge>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
                               Last heard:{' '}
                               {node.last_heard
                                 ? formatDistanceToNow(new Date(node.last_heard), { addSuffix: true })
@@ -290,7 +290,7 @@ function NodeSettingsContent() {
                         <Link to={`/nodes/${node.node_id}`} className="text-blue-500 hover:text-blue-700 text-sm">
                           View Node Details
                         </Link>
-                        <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                        <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-md">
                           <p className="text-sm font-medium">Managed Node Setup Instructions:</p>
                           <Alert className="mt-2">
                             <Info className="h-4 w-4" />
@@ -308,7 +308,7 @@ function NodeSettingsContent() {
 
                           <div className="mt-3">
                             <p className="text-sm font-medium mb-1">Hardware Requirements:</p>
-                            <ul className="list-disc list-inside text-xs text-gray-600 space-y-1">
+                            <ul className="list-disc list-inside text-xs text-slate-600 dark:text-slate-400 space-y-1">
                               <li>Meshtastic-compatible device (e.g., T-Beam, T-Echo, etc.)</li>
                               <li>Computer or single-board computer (e.g., Raspberry Pi)</li>
                               <li>USB cable to connect the device</li>
@@ -317,7 +317,7 @@ function NodeSettingsContent() {
 
                           <div className="mt-3">
                             <p className="text-sm font-medium mb-1">Software Configuration:</p>
-                            <pre className="bg-gray-100 p-2 rounded text-xs overflow-x-auto mt-1">
+                            <pre className="bg-slate-100 dark:bg-slate-800 p-2 rounded text-xs overflow-x-auto mt-1">
                               {`# Example configuration
 MESHFLOW_API_URL=https://api.example.com
 MESHFLOW_API_KEY=<your_api_key>  # From API Keys tab
@@ -371,25 +371,28 @@ SERIAL_PORT=/dev/ttyUSB0  # Adjust for your system`}
             <CardContent>
               {isLoadingApiKeys ? (
                 <div className="flex justify-center items-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+                  <Loader2 className="h-8 w-8 animate-spin text-slate-500 dark:text-slate-400" />
                 </div>
               ) : apiKeys && apiKeys.length > 0 ? (
                 <div className="space-y-6">
                   <div className="grid md:grid-cols-2 gap-4">
                     {apiKeys.map((apiKey) => (
-                      <div key={apiKey.id} className="border rounded-md p-4 bg-white shadow-sm flex flex-col gap-2">
+                      <div
+                        key={apiKey.id}
+                        className="border border-slate-200 dark:border-slate-700 rounded-md p-4 bg-white dark:bg-slate-800 shadow-sm flex flex-col gap-2"
+                      >
                         <div className="flex justify-between items-start">
                           <div>
                             <h3 className="font-medium">{apiKey.name}</h3>
-                            <p className="text-xs text-gray-400">
+                            <p className="text-xs text-slate-400">
                               Created: {new Date(apiKey.created_at).toLocaleString()}
                             </p>
                             {apiKey.last_used && (
-                              <p className="text-xs text-gray-400">
+                              <p className="text-xs text-slate-400">
                                 Last used: {new Date(apiKey.last_used).toLocaleString()}
                               </p>
                             )}
-                            <p className="text-xs text-gray-400 mt-1">
+                            <p className="text-xs text-slate-400 mt-1">
                               Constellation:{' '}
                               {myManagedNodes.find((n) => n.constellation.id === apiKey.constellation)?.constellation
                                 .name || apiKey.constellation}
@@ -422,7 +425,7 @@ SERIAL_PORT=/dev/ttyUSB0  # Adjust for your system`}
                         <div className="mt-2 flex flex-col gap-1">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">API Key:</span>
-                            <span className="bg-gray-100 p-2 rounded font-mono text-sm truncate select-all">
+                            <span className="bg-slate-100 dark:bg-slate-800 p-2 rounded font-mono text-sm truncate select-all">
                               {apiKey.key}
                             </span>
                             <Button
@@ -452,7 +455,7 @@ SERIAL_PORT=/dev/ttyUSB0  # Adjust for your system`}
                                 );
                               })
                             ) : (
-                              <span className="text-xs text-gray-400">No nodes assigned</span>
+                              <span className="text-xs text-slate-400">No nodes assigned</span>
                             )}
                           </div>
                           <Button
@@ -470,7 +473,7 @@ SERIAL_PORT=/dev/ttyUSB0  # Adjust for your system`}
                             <AlertTitle>Setup Instructions</AlertTitle>
                             <AlertDescription className="text-xs">
                               To use this API key with your managed node, configure your Meshtastic Bot with this key.
-                              <pre className="mt-2 bg-gray-100 p-2 rounded text-xs overflow-x-auto">
+                              <pre className="mt-2 bg-slate-100 dark:bg-slate-800 p-2 rounded text-xs overflow-x-auto">
                                 {`# Example configuration\nMESHFLOW_API_URL=https://api.example.com\nMESHFLOW_API_KEY=${apiKey.key}\nSERIAL_PORT=/dev/ttyUSB0  # Adjust for your system`}
                               </pre>
                             </AlertDescription>
@@ -604,7 +607,7 @@ SERIAL_PORT=/dev/ttyUSB0  # Adjust for your system`}
               {/* Assign/Remove Nodes Modal */}
               {assignModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-                  <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+                  <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 w-full max-w-md border border-slate-200 dark:border-slate-700">
                     <h3 className="text-lg font-medium mb-2">Assign/Remove Nodes</h3>
                     <div className="mb-4">
                       <label className="block text-sm font-medium mb-1">Select nodes to assign to this API key:</label>
@@ -630,7 +633,7 @@ SERIAL_PORT=/dev/ttyUSB0  # Adjust for your system`}
                             </div>
                           ))
                         ) : (
-                          <span className="text-xs text-gray-400">No managed nodes available</span>
+                          <span className="text-xs text-slate-400">No managed nodes available</span>
                         )}
                       </div>
                     </div>

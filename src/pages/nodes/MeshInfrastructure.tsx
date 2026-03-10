@@ -1,7 +1,8 @@
-import { useMemo, useState, Suspense } from 'react';
+import { useMemo, useState, useCallback, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { subDays, subHours, format } from 'date-fns';
 import { useInfrastructureNodesSuspense, useManagedNodesSuspense } from '@/hooks/api/useNodes';
+import { useMultiNodeMetricsSuspense } from '@/hooks/api/useMultiNodeMetrics';
 import { InfrastructureNodeCard } from '@/components/nodes/InfrastructureNodeCard';
 import { NodesAndConstellationsMap } from '@/components/nodes/NodesAndConstellationsMap';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -77,15 +78,17 @@ function hasRecentLocation(node: ObservedNode): boolean {
 }
 
 function MeshInfrastructureContent() {
-  const [timeRange, setTimeRange] = useState<NodeListTimeRange>('7d');
+  const [timeRange, setTimeRange] = useState<NodeListTimeRange>('30d');
   const [includeClientBase, setIncludeClientBase] = useState(false);
-  const [chartTimeRangeLabel, setChartTimeRangeLabel] = useState('48h');
+  const [chartTimeRangeLabel, setChartTimeRangeLabel] = useState('7d');
   const [chartDateRange, setChartDateRange] = useState<{ startDate: Date; endDate: Date }>({
     startDate: new Date(Date.now() - 48 * 60 * 60 * 1000),
     endDate: new Date(),
   });
 
   const lastHeardAfter = useMemo(() => getLastHeardAfter(timeRange), [timeRange]);
+
+  const [selectedChartNodeIds, setSelectedChartNodeIds] = useState<Set<number>>(() => new Set());
 
   const { nodes, totalNodes, fetchNextPage, hasNextPage } = useInfrastructureNodesSuspense({
     lastHeardAfter,
@@ -94,6 +97,8 @@ function MeshInfrastructureContent() {
   });
 
   const { managedNodes } = useManagedNodesSuspense(500);
+
+  const { metricsMap } = useMultiNodeMetricsSuspense(nodes, chartDateRange);
 
   const nodesWithLocation = useMemo(() => nodes.filter(hasRecentLocation), [nodes]);
   const nodesWithoutLocation = useMemo(() => nodes.filter((n) => !hasRecentLocation(n)), [nodes]);
@@ -107,6 +112,26 @@ function MeshInfrastructureContent() {
       }),
     [nodes]
   );
+
+  const chartNodes = useMemo(
+    () => nodes.filter((n) => selectedChartNodeIds.has(n.node_id)),
+    [nodes, selectedChartNodeIds]
+  );
+
+  const handleCompareToggle = useCallback((nodeId: number, newState: boolean) => {
+    const savedScrollY = typeof window !== 'undefined' ? window.scrollY : 0;
+    setSelectedChartNodeIds((prev) => {
+      const next = new Set(prev);
+      if (newState) next.add(nodeId);
+      else next.delete(nodeId);
+      return next;
+    });
+    requestAnimationFrame(() => {
+      if (typeof window !== 'undefined' && Math.abs(window.scrollY - savedScrollY) > 5) {
+        window.scrollTo(0, savedScrollY);
+      }
+    });
+  }, []);
 
   const handleChartTimeRangeChange = (value: string, timeRange: { startDate: Date; endDate: Date }) => {
     setChartTimeRangeLabel(value);
@@ -123,7 +148,7 @@ function MeshInfrastructureContent() {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row flex-wrap justify-between items-start sm:items-center gap-4 mb-8">
         <div className="flex items-center gap-2">
           <label htmlFor="time-range" className="text-sm text-muted-foreground">
             Node list time range:
@@ -141,6 +166,16 @@ function MeshInfrastructureContent() {
             </SelectContent>
           </Select>
         </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor="chart-time-range" className="text-sm text-muted-foreground">
+            Chart time range:
+          </label>
+          <TimeRangeSelect
+            options={CHART_TIME_RANGE_OPTIONS}
+            value={chartTimeRangeLabel}
+            onChange={handleChartTimeRangeChange}
+          />
+        </div>
       </div>
 
       <div className="mb-8">
@@ -149,14 +184,16 @@ function MeshInfrastructureContent() {
             <CardTitle>Infrastructure Node Locations</CardTitle>
           </CardHeader>
           <CardContent>
-            <NodesAndConstellationsMap
-              observedNodes={nodesWithLocation}
-              managedNodes={managedNodes}
-              showConstellation={true}
-              showUnmanagedNodes={true}
-              drawPositionUncertainty={true}
-              enableBubbles={true}
-            />
+            <div className="h-[600px] w-full">
+              <NodesAndConstellationsMap
+                observedNodes={nodesWithLocation}
+                managedNodes={managedNodes}
+                showConstellation={true}
+                showUnmanagedNodes={true}
+                drawPositionUncertainty={true}
+                enableBubbles={true}
+              />
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -210,32 +247,6 @@ function MeshInfrastructureContent() {
         </Card>
       )}
 
-      {nodes.length > 0 && (
-        <Card className="mb-8">
-          <CardHeader className="relative">
-            <CardTitle>Battery & Channel Utilisation</CardTitle>
-            <CardDescription>Per-node metrics over time. Both charts share the same time range.</CardDescription>
-            <div className="absolute right-4 top-4">
-              <TimeRangeSelect
-                options={CHART_TIME_RANGE_OPTIONS}
-                value={chartTimeRangeLabel}
-                onChange={handleChartTimeRangeChange}
-              />
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-8">
-            <MonitoredNodesBatteryChart
-              nodes={nodes}
-              dateRange={chartDateRange}
-              timeRangeLabel={chartTimeRangeLabel}
-              onTimeRangeChange={handleChartTimeRangeChange}
-              hideTimeRangePicker
-            />
-            <MonitoredNodesChannelUtilChart nodes={nodes} dateRange={chartDateRange} hideTimeRangePicker />
-          </CardContent>
-        </Card>
-      )}
-
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">
@@ -245,7 +256,13 @@ function MeshInfrastructureContent() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sortedNodes.map((node) => (
-            <InfrastructureNodeCard key={node.internal_id} node={node} />
+            <InfrastructureNodeCard
+              key={node.internal_id}
+              node={node}
+              metrics={metricsMap[node.node_id] ?? []}
+              dateRange={chartDateRange}
+              onCompareToggle={handleCompareToggle}
+            />
           ))}
         </div>
         {hasNextPage && (
@@ -256,6 +273,45 @@ function MeshInfrastructureContent() {
           </div>
         )}
       </div>
+
+      {nodes.length > 0 && (
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle>Battery & Channel Utilisation</CardTitle>
+            <CardDescription>
+              {chartNodes.length > 0
+                ? `Comparing ${chartNodes.length} node${chartNodes.length === 1 ? '' : 's'}. Tick the checkbox on node cards above to add or remove.`
+                : 'Tick the checkbox on node cards above to add nodes to these charts.'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-8">
+            {chartNodes.length > 0 ? (
+              <>
+                <MonitoredNodesBatteryChart
+                  nodes={chartNodes}
+                  dateRange={chartDateRange}
+                  timeRangeLabel={chartTimeRangeLabel}
+                  onTimeRangeChange={handleChartTimeRangeChange}
+                  hideTimeRangePicker
+                  metricsMap={metricsMap}
+                  metricsQueryNodes={nodes}
+                />
+                <MonitoredNodesChannelUtilChart
+                  nodes={chartNodes}
+                  dateRange={chartDateRange}
+                  hideTimeRangePicker
+                  metricsMap={metricsMap}
+                  metricsQueryNodes={nodes}
+                />
+              </>
+            ) : (
+              <div className="py-12 text-center text-muted-foreground">
+                No nodes selected for comparison. Tick the &quot;Compare&quot; checkbox on any node card above.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

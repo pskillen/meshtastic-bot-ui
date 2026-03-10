@@ -139,7 +139,7 @@ export function ClaimNode() {
 
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Claim Node: {node.short_name}</h1>
-        <p className="text-gray-600">{node.long_name}</p>
+        <p className="text-slate-600 dark:text-slate-400">{node.long_name}</p>
       </div>
 
       {claimStatus === undefined ? (
@@ -183,7 +183,7 @@ export function ClaimNode() {
                 <CardDescription>Use this key to complete the claim process</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="p-4 bg-gray-100 rounded-md mb-4">
+                <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-md mb-4">
                   <p className="text-xl font-mono text-center">{claimKey}</p>
                 </div>
 
@@ -212,7 +212,11 @@ export function ClaimNode() {
             </CardHeader>
             <CardContent>
               <Alert
-                className={claimStatus.accepted_at ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'}
+                className={
+                  claimStatus.accepted_at
+                    ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                    : 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800'
+                }
               >
                 {claimStatus.accepted_at ? (
                   <CheckCircle2 className="h-4 w-4 text-green-500" />

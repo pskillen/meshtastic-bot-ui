@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ReferenceArea } from 'recharts';
 import { useMultiNodeMetricsSuspense } from '@/hooks/api/useMultiNodeMetrics';
-import { ObservedNode } from '@/lib/models';
+import { DeviceMetrics, ObservedNode } from '@/lib/models';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { TimeRangeSelect, TimeRangeOption } from '@/components/TimeRangeSelect';
@@ -24,6 +24,10 @@ interface MonitoredNodesBatteryChartProps {
   onTimeRangeChange?: (value: string, timeRange: { startDate: Date; endDate: Date }) => void;
   /** When true, hide the time range picker (for use inside a shared container) */
   hideTimeRangePicker?: boolean;
+  /** When provided, use this instead of fetching metrics internally */
+  metricsMap?: Record<number, DeviceMetrics[]>;
+  /** When provided with metricsMap, use these nodes for the metrics query (to hit parent cache and avoid suspend) */
+  metricsQueryNodes?: ObservedNode[];
 }
 
 export function MonitoredNodesBatteryChart({
@@ -41,6 +45,8 @@ export function MonitoredNodesBatteryChart({
   timeRangeLabel: controlledTimeRangeLabel,
   onTimeRangeChange,
   hideTimeRangePicker = false,
+  metricsMap: metricsMapProp,
+  metricsQueryNodes: metricsQueryNodesProp,
 }: MonitoredNodesBatteryChartProps) {
   const [internalTimeRangeLabel, setInternalTimeRangeLabel] = React.useState(defaultTimeRange);
   const [internalDateRange, setInternalDateRange] = React.useState<{ startDate: Date; endDate: Date }>({
@@ -53,7 +59,9 @@ export function MonitoredNodesBatteryChart({
   const dateRange = isControlled ? controlledDateRange : internalDateRange;
   const timeRangeLabel = isControlled ? (controlledTimeRangeLabel ?? defaultTimeRange) : internalTimeRangeLabel;
 
-  const { metricsMap } = useMultiNodeMetricsSuspense(nodes, dateRange);
+  const queryNodes = metricsMapProp != null && metricsQueryNodesProp != null ? metricsQueryNodesProp : nodes;
+  const { metricsMap: metricsMapFetched } = useMultiNodeMetricsSuspense(queryNodes, dateRange);
+  const metricsMap = metricsMapProp ?? metricsMapFetched;
 
   const handleTimeRangeChange = (value: string, timeRange: { startDate: Date; endDate: Date }) => {
     if (onTimeRangeChange) {
@@ -179,7 +187,89 @@ export function MonitoredNodesBatteryChart({
     });
   }, [displayMode, pivotedData, nodes, metricsMap]);
 
-  const colors = ['#d0a8ff', '#76d9c4', '#ff7b72', '#7ee787', '#a371f7', '#f778ba', '#79c0ff'];
+  const colors = [
+    '#d0a8ff',
+    '#76d9c4',
+    '#ff7b72',
+    '#7ee787',
+    '#a371f7',
+    '#f778ba',
+    '#79c0ff',
+    '#ffa657',
+    '#58a6ff',
+    '#bc8cff',
+    '#3fb950',
+    '#f85149',
+    '#8b949e',
+    '#c9d1d9',
+    '#d2a8ff',
+    '#83c092',
+    '#f0883e',
+    '#56d4dd',
+    '#eacb6f',
+    '#ffb3ba',
+  ];
+  const showDots = nodes.length <= 6;
+
+  const [visibleSeries, setVisibleSeries] = React.useState<Set<string>>(() => new Set(seriesNames));
+  React.useEffect(() => {
+    setVisibleSeries(new Set(seriesNames));
+  }, [seriesNames.join(',')]);
+
+  const handleLegendClick = React.useCallback((dataKey: string) => {
+    setVisibleSeries((prev) => {
+      const next = new Set(prev);
+      if (next.has(dataKey)) {
+        next.delete(dataKey);
+      } else {
+        next.add(dataKey);
+      }
+      return next;
+    });
+  }, []);
+
+  const showAll = React.useCallback(() => setVisibleSeries(new Set(seriesNames)), [seriesNames]);
+  const hideAll = React.useCallback(() => setVisibleSeries(new Set()), []);
+
+  const renderLegend = React.useCallback(
+    (props: Record<string, unknown>) => {
+      const payload = (props.payload ?? []) as Array<{ value?: string; dataKey?: string; color?: string }>;
+      return (
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 pt-2">
+          {payload.map((entry) => {
+            const dataKey = String(entry.dataKey ?? entry.value ?? '');
+            const isVisible = visibleSeries.has(dataKey);
+            return (
+              <button
+                key={dataKey}
+                type="button"
+                onClick={() => handleLegendClick(dataKey)}
+                className={`flex items-center gap-1.5 text-xs transition-opacity hover:opacity-100 ${
+                  isVisible ? 'opacity-100' : 'opacity-40 line-through'
+                }`}
+              >
+                <span
+                  className="inline-block h-2 w-2 rounded-sm shrink-0"
+                  style={{ backgroundColor: entry.color ?? '#888' }}
+                />
+                <span>{entry.value}</span>
+              </button>
+            );
+          })}
+          <div className="flex gap-1 ml-2">
+            <button type="button" onClick={showAll} className="text-xs text-muted-foreground hover:text-foreground">
+              Show all
+            </button>
+            <span className="text-muted-foreground">|</span>
+            <button type="button" onClick={hideAll} className="text-xs text-muted-foreground hover:text-foreground">
+              Hide all
+            </button>
+          </div>
+        </div>
+      );
+    },
+    [visibleSeries, handleLegendClick, showAll, hideAll]
+  );
 
   return (
     <Card className="@container/card">
@@ -206,7 +296,7 @@ export function MonitoredNodesBatteryChart({
         <ChartContainer config={chartConfig} className="aspect-auto h-[400px] w-full">
           <LineChart data={chartData}>
             <CartesianGrid vertical={false} />
-            <Legend verticalAlign="bottom" height={36} iconType="line" iconSize={8} />
+            <Legend verticalAlign="bottom" height={36} iconType="line" iconSize={8} content={renderLegend as never} />
             <XAxis
               dataKey="timestamp"
               tickLine={false}
@@ -273,18 +363,20 @@ export function MonitoredNodesBatteryChart({
                 />
               }
             />
-            {seriesNames.map((seriesName, index) => (
-              <Line
-                key={seriesName}
-                name={seriesName}
-                dataKey={seriesName}
-                stroke={colors[index % colors.length]}
-                strokeWidth={2}
-                dot={{ r: 3 }}
-                connectNulls={true}
-                type="monotone"
-              />
-            ))}
+            {seriesNames
+              .filter((seriesName) => visibleSeries.has(seriesName))
+              .map((seriesName) => (
+                <Line
+                  key={seriesName}
+                  name={seriesName}
+                  dataKey={seriesName}
+                  stroke={colors[seriesNames.indexOf(seriesName) % colors.length]}
+                  strokeWidth={2}
+                  dot={showDots ? { r: 3 } : false}
+                  connectNulls={true}
+                  type="monotone"
+                />
+              ))}
           </LineChart>
         </ChartContainer>
       </CardContent>
