@@ -36,6 +36,8 @@ function getBreadcrumbSegments(pathname: string): { path: string; label: string 
     segments.push({ path: '/user', label: 'User' });
     if (parts[1] === 'nodes') {
       segments.push({ path: '/user/nodes', label: 'Node Settings' });
+    } else if (parts[1] === 'settings') {
+      segments.push({ path: '/user/settings', label: 'Settings' });
     }
   }
 

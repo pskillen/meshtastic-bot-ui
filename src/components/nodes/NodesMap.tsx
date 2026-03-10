@@ -2,8 +2,7 @@ import { ObservedNode } from '@/lib/models';
 import L from 'leaflet';
 import { useEffect, useRef } from 'react';
 import 'leaflet/dist/leaflet.css';
-import { getMapTileUrl, MAP_TILE_ATTRIBUTION } from '@/lib/map-tiles';
-import { useMapTheme } from '@/hooks/useMapTheme';
+import { useMapTileUrl } from '@/hooks/useMapTileUrl';
 import { createNodeIcon, getRoleColor, buildNodePopupHtml } from './map-utils';
 
 interface NodesMapProps {
@@ -18,15 +17,15 @@ export function NodesMap({ nodes }: NodesMapProps) {
   const mapInstanceRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
-  const isDark = useMapTheme();
+  const { url: tileUrl, attribution } = useMapTileUrl();
 
   // Initialize the map
   useEffect(() => {
     if (mapRef.current && !mapInstanceRef.current) {
       const map = L.map(mapRef.current).setView(DEFAULT_CENTER, 13);
 
-      const tileLayer = L.tileLayer(getMapTileUrl(isDark ?? false), {
-        attribution: MAP_TILE_ATTRIBUTION,
+      const tileLayer = L.tileLayer(tileUrl, {
+        attribution,
       }).addTo(map);
       tileLayerRef.current = tileLayer;
 
@@ -114,12 +113,12 @@ export function NodesMap({ nodes }: NodesMapProps) {
     const oldLayer = tileLayerRef.current;
     if (map && oldLayer) {
       map.removeLayer(oldLayer);
-      const newLayer = L.tileLayer(getMapTileUrl(isDark ?? false), {
-        attribution: MAP_TILE_ATTRIBUTION,
+      const newLayer = L.tileLayer(tileUrl, {
+        attribution,
       }).addTo(map);
       tileLayerRef.current = newLayer;
     }
-  }, [isDark]);
+  }, [tileUrl, attribution]);
 
   // Handle nodes updates
   useEffect(() => {

@@ -5,8 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import * as turf from '@turf/turf';
 import * as d3 from 'd3';
 import type { Feature, Point, Polygon, Position as GeoPosition } from 'geojson';
-import { getMapTileUrl, MAP_TILE_ATTRIBUTION } from '@/lib/map-tiles';
-import { useMapTheme } from '@/hooks/useMapTheme';
+import { useMapTileUrl } from '@/hooks/useMapTileUrl';
 import {
   createNodeIcon,
   getRoleColor,
@@ -78,7 +77,7 @@ export function NodesAndConstellationsMap({
   const lastViewRef = useRef<{ center: L.LatLng; zoom: number } | null>(null);
   const onMapMoveRef = useRef(onMapMove);
   const onNodeSelectRef = useRef(onNodeSelect);
-  const isDark = useMapTheme();
+  const { url: tileUrl, attribution } = useMapTileUrl();
   onMapMoveRef.current = onMapMove;
   onNodeSelectRef.current = onNodeSelect;
 
@@ -101,8 +100,8 @@ export function NodesAndConstellationsMap({
     if (mapRef.current && !mapInstanceRef.current) {
       const map = L.map(mapRef.current).setView(DEFAULT_CENTER, 13);
 
-      const tileLayer = L.tileLayer(getMapTileUrl(isDark ?? false), {
-        attribution: MAP_TILE_ATTRIBUTION,
+      const tileLayer = L.tileLayer(tileUrl, {
+        attribution,
       }).addTo(map);
       tileLayerRef.current = tileLayer;
 
@@ -177,12 +176,12 @@ export function NodesAndConstellationsMap({
     const oldLayer = tileLayerRef.current;
     if (map && oldLayer) {
       map.removeLayer(oldLayer);
-      const newLayer = L.tileLayer(getMapTileUrl(isDark ?? false), {
-        attribution: MAP_TILE_ATTRIBUTION,
+      const newLayer = L.tileLayer(tileUrl, {
+        attribution,
       }).addTo(map);
       tileLayerRef.current = newLayer;
     }
-  }, [isDark]);
+  }, [tileUrl, attribution]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;

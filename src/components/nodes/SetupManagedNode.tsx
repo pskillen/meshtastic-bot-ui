@@ -22,8 +22,7 @@ import { Loader2, AlertCircle, CheckCircle2, Download } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { getMapTileUrl, MAP_TILE_ATTRIBUTION } from '@/lib/map-tiles';
-import { useMapTheme } from '@/hooks/useMapTheme';
+import { useMapTileUrl } from '@/hooks/useMapTileUrl';
 import { useConstellationsSuspense } from '@/hooks/api/useConstellations';
 
 interface SetupManagedNodeProps {
@@ -57,7 +56,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
   const mapInstanceRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
-  const isDark = useMapTheme();
+  const { url: tileUrl, attribution } = useMapTileUrl();
 
   // Channel mappings state
   const [channelMappings, setChannelMappings] = useState<{
@@ -173,8 +172,8 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
       // Initialize the map
       const map = L.map(mapRef.current).setView([initialLocation.lat, initialLocation.lng], 13);
 
-      const tileLayer = L.tileLayer(getMapTileUrl(isDark ?? false), {
-        attribution: MAP_TILE_ATTRIBUTION,
+      const tileLayer = L.tileLayer(tileUrl, {
+        attribution,
       }).addTo(map);
       tileLayerRef.current = tileLayer;
 
@@ -242,12 +241,12 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
     const oldLayer = tileLayerRef.current;
     if (map && oldLayer) {
       map.removeLayer(oldLayer);
-      const newLayer = L.tileLayer(getMapTileUrl(isDark ?? false), {
-        attribution: MAP_TILE_ATTRIBUTION,
+      const newLayer = L.tileLayer(tileUrl, {
+        attribution,
       }).addTo(map);
       tileLayerRef.current = newLayer;
     }
-  }, [currentStep, isDark]);
+  }, [currentStep, tileUrl, attribution]);
 
   // Handle channel mapping changes
   const handleChannelChange = (channelIndex: number, channelId: number | null) => {

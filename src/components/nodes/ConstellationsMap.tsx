@@ -5,8 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import * as turf from '@turf/turf';
 import * as d3 from 'd3';
 import type { Feature, MultiPolygon, Point, Polygon, Position } from 'geojson';
-import { getMapTileUrl, MAP_TILE_ATTRIBUTION } from '@/lib/map-tiles';
-import { useMapTheme } from '@/hooks/useMapTheme';
+import { useMapTileUrl } from '@/hooks/useMapTileUrl';
 import { createNodeIcon, boundaryPolygonFromPoints, buildNodePopupHtml } from './map-utils';
 
 /** Radius (km) for constellation boundary polygon. */
@@ -27,15 +26,15 @@ export function ConstellationsMap({ nodes }: ConstellationsMapProps) {
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const polygonsRef = useRef<L.Polygon[]>([]);
-  const isDark = useMapTheme();
+  const { url: tileUrl, attribution } = useMapTileUrl();
 
   // Initialize the map
   useEffect(() => {
     if (mapRef.current && !mapInstanceRef.current) {
       const map = L.map(mapRef.current).setView(DEFAULT_CENTER, 13);
 
-      const tileLayer = L.tileLayer(getMapTileUrl(isDark ?? false), {
-        attribution: MAP_TILE_ATTRIBUTION,
+      const tileLayer = L.tileLayer(tileUrl, {
+        attribution,
       }).addTo(map);
       tileLayerRef.current = tileLayer;
 
@@ -123,12 +122,12 @@ export function ConstellationsMap({ nodes }: ConstellationsMapProps) {
     const oldLayer = tileLayerRef.current;
     if (map && oldLayer) {
       map.removeLayer(oldLayer);
-      const newLayer = L.tileLayer(getMapTileUrl(isDark ?? false), {
-        attribution: MAP_TILE_ATTRIBUTION,
+      const newLayer = L.tileLayer(tileUrl, {
+        attribution,
       }).addTo(map);
       tileLayerRef.current = newLayer;
     }
-  }, [isDark]);
+  }, [tileUrl, attribution]);
 
   // Handle nodes updates
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { LogOutIcon, MoreVerticalIcon, UserCircleIcon, RadioIcon } from 'lucide-react';
+import { LogOutIcon, MoreVerticalIcon, UserCircleIcon, RadioIcon, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -69,6 +69,12 @@ export function NavUser({ user }: { user: User | null }) {
                 <Link to="/user">
                   <UserCircleIcon className="mr-2 h-4 w-4" />
                   Account
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/user/settings">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>
