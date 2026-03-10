@@ -21,13 +21,15 @@ export interface ObservedNode {
   internal_id: number;
   node_id: number;
   node_id_str: string;
-  mac_addr: string;
+  mac_addr: string | null;
   long_name: string | null;
   short_name: string | null;
   hw_model: string | null;
   sw_version: string | null;
   public_key: string | null;
   role?: number | null;
+  is_licensed?: boolean | null;
+  is_unmessagable?: boolean | null;
   // Additional fields for UI compatibility
   last_heard?: Date | null;
   latest_device_metrics?: DeviceMetrics | null;

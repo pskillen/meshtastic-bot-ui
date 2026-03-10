@@ -2,7 +2,7 @@ import L from 'leaflet';
 import * as turf from '@turf/turf';
 import type { Feature, MultiPolygon, Point, Polygon } from 'geojson';
 
-/** Role IDs from Meshtastic (matches InfrastructureNodeCard ROLE_LABELS). */
+/** Role IDs from Meshtastic (matches ROLE_LABELS in lib/meshtastic). */
 export const ROLE_COLORS: Record<number, string> = {
   2: '#2563eb', // ROUTER – blue
   3: '#16a34a', // ROUTER_CLIENT – green

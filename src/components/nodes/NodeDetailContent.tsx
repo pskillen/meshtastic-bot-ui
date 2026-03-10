@@ -2,16 +2,20 @@ import { Link } from 'react-router-dom';
 import { useNodeSuspense, useNodePositions, useManagedNodesSuspense } from '@/hooks/api/useNodes';
 import { useRecentNodes } from '@/hooks/useRecentNodes';
 import { formatDistanceToNow } from 'date-fns';
+import { formatUptimeSeconds } from '@/lib/utils';
 import { BatteryChartShadcn } from '@/components/BatteryChartShadcn';
 import { PacketTypeChart } from '@/components/PacketTypeChart';
 import { ReceivedPacketTypeChart } from '@/components/ReceivedPacketTypeChart';
 import { NodesMap } from '@/components/nodes/NodesMap';
+import { BatteryGauge } from '@/components/nodes/BatteryGauge';
+import { PercentGauge } from '@/components/nodes/PercentGauge';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useState, useEffect, Suspense, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Pause, Play, CheckCircle, Clock } from 'lucide-react';
+import { Pause, Play, CheckCircle, Clock, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { authService } from '@/lib/auth/authService';
+import { getRoleLabel } from '@/lib/meshtastic';
 
 interface NodeDetailContentProps {
   nodeId: number;
@@ -24,6 +28,10 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
   const positionsQuery = useNodePositions(nodeId);
   const { recentNodes, addRecentNode } = useRecentNodes();
   const [autoRefresh, setAutoRefresh] = useState(true);
+
+  const handleCopyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
 
   const { managedNodes } = useManagedNodesSuspense();
 
@@ -49,6 +57,7 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
     positions[0].longitude !== 0;
 
   const currentUser = authService.getCurrentUser();
+  const roleLabel = getRoleLabel(node.role);
   const hasPendingClaim = node.claim && !node.claim.accepted_at;
   const hasApprovedClaim =
     (node.claim && node.claim.accepted_at) || (node.owner && currentUser && node.owner.id === currentUser.id);
@@ -123,11 +132,47 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
                 <span className="font-medium">Node ID:</span> <span className="font-mono">{node.node_id_str}</span>
               </p>
               <p>
-                <span className="font-medium">Hardware Model:</span> {node.hw_model}
+                <span className="font-medium">Hardware Model:</span> {node.hw_model ?? '—'}
               </p>
               <p>
-                <span className="font-medium">Meshtastic Version:</span> {node.sw_version}
+                <span className="font-medium">Meshtastic Version:</span> {node.sw_version ?? '—'}
               </p>
+              {roleLabel && (
+                <p>
+                  <span className="font-medium">Role:</span> {roleLabel}
+                </p>
+              )}
+              {node.mac_addr && (
+                <p>
+                  <span className="font-medium">MAC Address:</span> <span className="font-mono">{node.mac_addr}</span>
+                </p>
+              )}
+              {node.public_key && (
+                <p className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium shrink-0">Public Key:</span>
+                  <span className="font-mono text-sm break-all">{node.public_key}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 shrink-0"
+                    onClick={() => handleCopyToClipboard(node.public_key!)}
+                    title="Copy public key"
+                  >
+                    <Copy className="h-3 w-3 mr-1" />
+                    Copy
+                  </Button>
+                </p>
+              )}
+              {(node.is_licensed === true || node.is_licensed === false) && (
+                <p>
+                  <span className="font-medium">Licensed Operator:</span> {node.is_licensed ? 'Yes' : 'No'}
+                </p>
+              )}
+              {(node.is_unmessagable === true || node.is_unmessagable === false) && (
+                <p>
+                  <span className="font-medium">Messagable:</span> {node.is_unmessagable ? 'No' : 'Yes'}
+                </p>
+              )}
               <p>
                 <span className="font-medium">Last Heard:</span>{' '}
                 {node.last_heard ? formatDistanceToNow(node.last_heard, { addSuffix: true }) : 'Never'}
@@ -164,35 +209,20 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <p>
-                  <span className="font-medium">Battery Level:</span>{' '}
-                  {node.latest_device_metrics.battery_level != null
-                    ? `${node.latest_device_metrics.battery_level}%`
-                    : '—'}
-                </p>
-                <p>
-                  <span className="font-medium">Voltage:</span>{' '}
-                  {node.latest_device_metrics.voltage != null
-                    ? `${node.latest_device_metrics.voltage.toFixed(2)}V`
-                    : '—'}
-                </p>
-                <p>
-                  <span className="font-medium">Channel Utilization:</span>{' '}
-                  {node.latest_device_metrics.channel_utilization != null
-                    ? `${node.latest_device_metrics.channel_utilization.toFixed(1)}%`
-                    : '—'}
-                </p>
-                <p>
-                  <span className="font-medium">Air Utilization:</span>{' '}
-                  {node.latest_device_metrics.air_util_tx != null
-                    ? `${node.latest_device_metrics.air_util_tx.toFixed(1)}%`
-                    : '—'}
-                </p>
+              <div className="space-y-4">
+                <BatteryGauge
+                  batteryLevel={node.latest_device_metrics.battery_level ?? null}
+                  voltage={node.latest_device_metrics.voltage ?? null}
+                />
+                <PercentGauge
+                  value={node.latest_device_metrics.channel_utilization ?? null}
+                  label="Channel Utilization"
+                />
+                <PercentGauge value={node.latest_device_metrics.air_util_tx ?? null} label="Air Utilization" />
                 <p>
                   <span className="font-medium">Uptime:</span>{' '}
                   {node.latest_device_metrics.uptime_seconds != null
-                    ? `${Math.round(node.latest_device_metrics.uptime_seconds / 3600)} hours`
+                    ? formatUptimeSeconds(node.latest_device_metrics.uptime_seconds)
                     : '—'}
                 </p>
               </div>
