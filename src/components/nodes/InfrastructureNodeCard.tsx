@@ -1,18 +1,11 @@
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { DeviceMetrics, ObservedNode } from '@/lib/models';
+import { getRoleLabel } from '@/lib/meshtastic';
 import { Badge } from '@/components/ui/badge';
 import { NodeMiniChart } from '@/components/nodes/NodeMiniChart';
 import { Check, ChevronRight } from 'lucide-react';
 import { useState, memo } from 'react';
-
-const ROLE_LABELS: Record<number, string> = {
-  2: 'ROUTER',
-  3: 'ROUTER_CLIENT',
-  4: 'REPEATER',
-  11: 'ROUTER_LATE',
-  12: 'CLIENT_BASE',
-};
 
 interface InfrastructureNodeCardProps {
   node: ObservedNode;
@@ -26,7 +19,7 @@ interface InfrastructureNodeCardProps {
 }
 
 function InfrastructureNodeCardInner({ node, metrics, dateRange, onCompareToggle }: InfrastructureNodeCardProps) {
-  const roleLabel = node.role != null ? (ROLE_LABELS[node.role] ?? `Role ${node.role}`) : null;
+  const roleLabel = getRoleLabel(node.role);
   const [compareSelected, setCompareSelected] = useState(false);
 
   return (
