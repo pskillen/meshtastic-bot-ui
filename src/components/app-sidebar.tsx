@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { Link } from 'react-router-dom';
 
-import { MeshFlowLogo } from '@/components/MeshFlowLogo';
 import { NavMain } from '@/components/nav-main';
 import { NavSecondary } from '@/components/nav-secondary';
 import { NavUser } from '@/components/nav-user';
@@ -27,8 +26,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:!p-1.5">
-              <Link to="/" className="flex items-center text-foreground">
-                <MeshFlowLogo className="h-10 w-auto" />
+              <Link to="/">
+                <img src="/img/meshflow-logo.png" alt="MeshFlow" className="h-12" />
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
