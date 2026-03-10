@@ -15,28 +15,13 @@ import { Button } from '@/components/ui/button';
 import { Pause, Play, CheckCircle, Clock, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { authService } from '@/lib/auth/authService';
+import { getRoleLabel } from '@/lib/meshtastic';
 
 interface NodeDetailContentProps {
   nodeId: number;
   /** When true, hide the "Back to Nodes" link (e.g. when shown in slide-over) */
   compact?: boolean;
 }
-
-const ROLE_LABELS: Record<number, string> = {
-  0: 'CLIENT',
-  1: 'CLIENT_MUTE',
-  2: 'ROUTER',
-  3: 'ROUTER_CLIENT',
-  4: 'REPEATER',
-  5: 'TRACKER',
-  6: 'SENSOR',
-  7: 'TAK',
-  8: 'CLIENT_HIDDEN',
-  9: 'LOST_AND_FOUND',
-  10: 'TAK_TRACKER',
-  11: 'ROUTER_LATE',
-  12: 'CLIENT_BASE',
-};
 
 export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContentProps) {
   const node = useNodeSuspense(nodeId);
@@ -72,6 +57,7 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
     positions[0].longitude !== 0;
 
   const currentUser = authService.getCurrentUser();
+  const roleLabel = getRoleLabel(node.role);
   const hasPendingClaim = node.claim && !node.claim.accepted_at;
   const hasApprovedClaim =
     (node.claim && node.claim.accepted_at) || (node.owner && currentUser && node.owner.id === currentUser.id);
@@ -151,9 +137,9 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
               <p>
                 <span className="font-medium">Meshtastic Version:</span> {node.sw_version ?? '—'}
               </p>
-              {node.role != null && (
+              {roleLabel && (
                 <p>
-                  <span className="font-medium">Role:</span> {ROLE_LABELS[node.role] ?? `Role ${node.role}`}
+                  <span className="font-medium">Role:</span> {roleLabel}
                 </p>
               )}
               {node.mac_addr && (
