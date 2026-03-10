@@ -9,7 +9,7 @@ import { NodesMap } from '@/components/nodes/NodesMap';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useState, useEffect, Suspense, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Pause, Play, CheckCircle, Clock } from 'lucide-react';
+import { Pause, Play, CheckCircle, Clock, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { authService } from '@/lib/auth/authService';
 
@@ -19,11 +19,31 @@ interface NodeDetailContentProps {
   compact?: boolean;
 }
 
+const ROLE_LABELS: Record<number, string> = {
+  0: 'CLIENT',
+  1: 'CLIENT_MUTE',
+  2: 'ROUTER',
+  3: 'ROUTER_CLIENT',
+  4: 'REPEATER',
+  5: 'TRACKER',
+  6: 'SENSOR',
+  7: 'TAK',
+  8: 'CLIENT_HIDDEN',
+  9: 'LOST_AND_FOUND',
+  10: 'TAK_TRACKER',
+  11: 'ROUTER_LATE',
+  12: 'CLIENT_BASE',
+};
+
 export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContentProps) {
   const node = useNodeSuspense(nodeId);
   const positionsQuery = useNodePositions(nodeId);
   const { recentNodes, addRecentNode } = useRecentNodes();
   const [autoRefresh, setAutoRefresh] = useState(true);
+
+  const handleCopyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
 
   const { managedNodes } = useManagedNodesSuspense();
 
@@ -123,11 +143,47 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
                 <span className="font-medium">Node ID:</span> <span className="font-mono">{node.node_id_str}</span>
               </p>
               <p>
-                <span className="font-medium">Hardware Model:</span> {node.hw_model}
+                <span className="font-medium">Hardware Model:</span> {node.hw_model ?? '—'}
               </p>
               <p>
-                <span className="font-medium">Meshtastic Version:</span> {node.sw_version}
+                <span className="font-medium">Meshtastic Version:</span> {node.sw_version ?? '—'}
               </p>
+              {node.role != null && (
+                <p>
+                  <span className="font-medium">Role:</span> {ROLE_LABELS[node.role] ?? `Role ${node.role}`}
+                </p>
+              )}
+              {node.mac_addr && (
+                <p>
+                  <span className="font-medium">MAC Address:</span> <span className="font-mono">{node.mac_addr}</span>
+                </p>
+              )}
+              {node.public_key && (
+                <p className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium shrink-0">Public Key:</span>
+                  <span className="font-mono text-sm break-all">{node.public_key}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 shrink-0"
+                    onClick={() => handleCopyToClipboard(node.public_key!)}
+                    title="Copy public key"
+                  >
+                    <Copy className="h-3 w-3 mr-1" />
+                    Copy
+                  </Button>
+                </p>
+              )}
+              {(node.is_licensed === true || node.is_licensed === false) && (
+                <p>
+                  <span className="font-medium">Licensed Operator:</span> {node.is_licensed ? 'Yes' : 'No'}
+                </p>
+              )}
+              {(node.is_unmessagable === true || node.is_unmessagable === false) && (
+                <p>
+                  <span className="font-medium">Messagable:</span> {node.is_unmessagable ? 'No' : 'Yes'}
+                </p>
+              )}
               <p>
                 <span className="font-medium">Last Heard:</span>{' '}
                 {node.last_heard ? formatDistanceToNow(node.last_heard, { addSuffix: true }) : 'Never'}
