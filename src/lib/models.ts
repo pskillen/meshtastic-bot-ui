@@ -25,7 +25,6 @@ export interface ObservedNode {
   long_name: string | null;
   short_name: string | null;
   hw_model: string | null;
-  sw_version: string | null;
   public_key: string | null;
   role?: number | null;
   is_licensed?: boolean | null;

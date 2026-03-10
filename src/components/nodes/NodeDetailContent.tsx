@@ -134,9 +134,6 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
               <p>
                 <span className="font-medium">Hardware Model:</span> {node.hw_model ?? '—'}
               </p>
-              <p>
-                <span className="font-medium">Meshtastic Version:</span> {node.sw_version ?? '—'}
-              </p>
               {roleLabel && (
                 <p>
                   <span className="font-medium">Role:</span> {roleLabel}
