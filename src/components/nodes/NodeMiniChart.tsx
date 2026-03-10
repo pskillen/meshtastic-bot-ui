@@ -79,14 +79,7 @@ export function NodeMiniChart({ metrics, dateRange }: NodeMiniChartProps) {
             />
           }
         />
-        <Line
-          type="monotone"
-          dataKey="battery_level"
-          stroke="#76d9c4"
-          strokeWidth={1.5}
-          dot={false}
-          connectNulls
-        />
+        <Line type="monotone" dataKey="battery_level" stroke="#76d9c4" strokeWidth={1.5} dot={false} connectNulls />
         <Line
           type="monotone"
           dataKey="channel_utilization"

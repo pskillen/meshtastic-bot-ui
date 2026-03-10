@@ -1,4 +1,4 @@
-import { useMemo, useState, Suspense } from 'react';
+import { useMemo, useState, useCallback, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { subDays, subHours, format } from 'date-fns';
 import { useInfrastructureNodesSuspense, useManagedNodesSuspense } from '@/hooks/api/useNodes';
@@ -118,6 +118,21 @@ function MeshInfrastructureContent() {
     [nodes, selectedChartNodeIds]
   );
 
+  const handleCompareToggle = useCallback((nodeId: number, newState: boolean) => {
+    const savedScrollY = typeof window !== 'undefined' ? window.scrollY : 0;
+    setSelectedChartNodeIds((prev) => {
+      const next = new Set(prev);
+      if (newState) next.add(nodeId);
+      else next.delete(nodeId);
+      return next;
+    });
+    requestAnimationFrame(() => {
+      if (typeof window !== 'undefined' && Math.abs(window.scrollY - savedScrollY) > 5) {
+        window.scrollTo(0, savedScrollY);
+      }
+    });
+  }, []);
+
   const handleChartTimeRangeChange = (value: string, timeRange: { startDate: Date; endDate: Date }) => {
     setChartTimeRangeLabel(value);
     setChartDateRange(timeRange);
@@ -169,15 +184,15 @@ function MeshInfrastructureContent() {
             <CardTitle>Infrastructure Node Locations</CardTitle>
           </CardHeader>
           <CardContent>
-          <div className="h-[600px] w-full">
-            <NodesAndConstellationsMap
-              observedNodes={nodesWithLocation}
-              managedNodes={managedNodes}
-              showConstellation={true}
-              showUnmanagedNodes={true}
-              drawPositionUncertainty={true}
-              enableBubbles={true}
-            />
+            <div className="h-[600px] w-full">
+              <NodesAndConstellationsMap
+                observedNodes={nodesWithLocation}
+                managedNodes={managedNodes}
+                showConstellation={true}
+                showUnmanagedNodes={true}
+                drawPositionUncertainty={true}
+                enableBubbles={true}
+              />
             </div>
           </CardContent>
         </Card>
@@ -246,14 +261,7 @@ function MeshInfrastructureContent() {
               node={node}
               metrics={metricsMap[node.node_id] ?? []}
               dateRange={chartDateRange}
-              onCompareToggle={(newState) => {
-                setSelectedChartNodeIds((prev) => {
-                  const next = new Set(prev);
-                  if (newState) next.add(node.node_id);
-                  else next.delete(node.node_id);
-                  return next;
-                });
-              }}
+              onCompareToggle={handleCompareToggle}
             />
           ))}
         </div>
@@ -286,12 +294,14 @@ function MeshInfrastructureContent() {
                   onTimeRangeChange={handleChartTimeRangeChange}
                   hideTimeRangePicker
                   metricsMap={metricsMap}
+                  metricsQueryNodes={nodes}
                 />
                 <MonitoredNodesChannelUtilChart
                   nodes={chartNodes}
                   dateRange={chartDateRange}
                   hideTimeRangePicker
                   metricsMap={metricsMap}
+                  metricsQueryNodes={nodes}
                 />
               </>
             ) : (

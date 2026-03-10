@@ -21,6 +21,8 @@ interface MonitoredNodesChannelUtilChartProps {
   hideTimeRangePicker?: boolean;
   /** When provided, use this instead of fetching metrics internally */
   metricsMap?: Record<number, DeviceMetrics[]>;
+  /** When provided with metricsMap, use these nodes for the metrics query (to hit parent cache and avoid suspend) */
+  metricsQueryNodes?: ObservedNode[];
 }
 
 export function MonitoredNodesChannelUtilChart({
@@ -37,6 +39,7 @@ export function MonitoredNodesChannelUtilChart({
   dateRange: controlledDateRange,
   hideTimeRangePicker = false,
   metricsMap: metricsMapProp,
+  metricsQueryNodes: metricsQueryNodesProp,
 }: MonitoredNodesChannelUtilChartProps) {
   const [internalTimeRangeLabel, setInternalTimeRangeLabel] = React.useState(defaultTimeRange);
   const [internalDateRange, setInternalDateRange] = React.useState<{ startDate: Date; endDate: Date }>({
@@ -47,7 +50,8 @@ export function MonitoredNodesChannelUtilChart({
   const isControlled = controlledDateRange != null;
   const dateRange = isControlled ? controlledDateRange : internalDateRange;
 
-  const { metricsMap: metricsMapFetched } = useMultiNodeMetricsSuspense(nodes, dateRange);
+  const queryNodes = metricsMapProp != null && metricsQueryNodesProp != null ? metricsQueryNodesProp : nodes;
+  const { metricsMap: metricsMapFetched } = useMultiNodeMetricsSuspense(queryNodes, dateRange);
   const metricsMap = metricsMapProp ?? metricsMapFetched;
 
   const handleTimeRangeChange = (value: string, timeRange: { startDate: Date; endDate: Date }) => {
@@ -105,9 +109,26 @@ export function MonitoredNodesChannelUtilChart({
   };
 
   const colors = [
-    '#d0a8ff', '#76d9c4', '#ff7b72', '#7ee787', '#a371f7', '#f778ba', '#79c0ff',
-    '#ffa657', '#58a6ff', '#bc8cff', '#3fb950', '#f85149', '#8b949e', '#c9d1d9',
-    '#d2a8ff', '#83c092', '#f0883e', '#56d4dd', '#eacb6f', '#ffb3ba',
+    '#d0a8ff',
+    '#76d9c4',
+    '#ff7b72',
+    '#7ee787',
+    '#a371f7',
+    '#f778ba',
+    '#79c0ff',
+    '#ffa657',
+    '#58a6ff',
+    '#bc8cff',
+    '#3fb950',
+    '#f85149',
+    '#8b949e',
+    '#c9d1d9',
+    '#d2a8ff',
+    '#83c092',
+    '#f0883e',
+    '#56d4dd',
+    '#eacb6f',
+    '#ffb3ba',
   ];
   const showDots = nodes.length <= 6;
 
@@ -131,7 +152,8 @@ export function MonitoredNodesChannelUtilChart({
   const showAll = React.useCallback(() => setVisibleSeries(new Set(seriesNames)), [seriesNames]);
   const hideAll = React.useCallback(() => setVisibleSeries(new Set()), []);
 
-  const renderLegend = React.useCallback((props: Record<string, unknown>) => {
+  const renderLegend = React.useCallback(
+    (props: Record<string, unknown>) => {
       const payload = (props.payload ?? []) as Array<{ value?: string; dataKey?: string; color?: string }>;
       return (
         <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 pt-2">
@@ -191,13 +213,7 @@ export function MonitoredNodesChannelUtilChart({
         <ChartContainer config={chartConfig} className="aspect-auto h-[400px] w-full">
           <LineChart data={pivotedData}>
             <CartesianGrid vertical={false} />
-            <Legend
-              verticalAlign="bottom"
-              height={36}
-              iconType="line"
-              iconSize={8}
-              content={renderLegend as never}
-            />
+            <Legend verticalAlign="bottom" height={36} iconType="line" iconSize={8} content={renderLegend as never} />
             <XAxis
               dataKey="timestamp"
               tickLine={false}

@@ -2,10 +2,9 @@ import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { DeviceMetrics, ObservedNode } from '@/lib/models';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import { NodeMiniChart } from '@/components/nodes/NodeMiniChart';
-import { ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { Check, ChevronRight } from 'lucide-react';
+import { useState, memo } from 'react';
 
 const ROLE_LABELS: Record<number, string> = {
   2: 'ROUTER',
@@ -22,16 +21,11 @@ interface InfrastructureNodeCardProps {
   dateRange?: { startDate: Date; endDate: Date };
   /** When true, this node is included in the comparison charts */
   compareSelected?: boolean;
-  /** Called when the compare checkbox is toggled */
-  onCompareToggle?: (newState: boolean) => void;
+  /** Called when the compare checkbox is toggled. Receives (nodeId, newState). */
+  onCompareToggle?: (nodeId: number, newState: boolean) => void;
 }
 
-export function InfrastructureNodeCard({
-  node,
-  metrics,
-  dateRange,
-  onCompareToggle,
-}: InfrastructureNodeCardProps) {
+function InfrastructureNodeCardInner({ node, metrics, dateRange, onCompareToggle }: InfrastructureNodeCardProps) {
   const roleLabel = node.role != null ? (ROLE_LABELS[node.role] ?? `Role ${node.role}`) : null;
   const [compareSelected, setCompareSelected] = useState(false);
 
@@ -44,23 +38,29 @@ export function InfrastructureNodeCard({
         </div>
         <div className="flex flex-col items-end gap-1">
           {onCompareToggle != null && (
-            <div className="flex items-center gap-1.5">
-              <Checkbox
-                id={`compare-${node.node_id}`}
-                checked={compareSelected}
-                onCheckedChange={() => {
-                  const newState = !compareSelected;
-                  setCompareSelected(newState); 
-                  if (onCompareToggle) onCompareToggle(newState);
-                }}
-              />
-              <label
-                htmlFor={`compare-${node.node_id}`}
-                className="text-xs text-muted-foreground cursor-pointer select-none"
+            <button
+              type="button"
+              tabIndex={0}
+              role="checkbox"
+              aria-checked={compareSelected}
+              aria-label={`Compare ${node.short_name || node.node_id_str}`}
+              className="flex items-center gap-1.5 cursor-pointer bg-transparent border-0 p-0 text-left text-xs text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
+              onClick={(e) => {
+                e.preventDefault();
+                const newState = !compareSelected;
+                setCompareSelected(newState);
+                onCompareToggle?.(node.node_id, newState);
+              }}
+            >
+              <span
+                className={`h-4 w-4 shrink-0 rounded-sm border border-primary shadow flex items-center justify-center ${
+                  compareSelected ? 'bg-primary text-primary-foreground' : 'bg-background'
+                }`}
               >
-                Compare
-              </label>
-            </div>
+                {compareSelected && <Check className="h-2.5 w-2.5" />}
+              </span>
+              Compare
+            </button>
           )}
           {roleLabel && (
             <Badge variant="secondary" className="text-xs">
@@ -113,3 +113,5 @@ export function InfrastructureNodeCard({
     </div>
   );
 }
+
+export const InfrastructureNodeCard = memo(InfrastructureNodeCardInner);
