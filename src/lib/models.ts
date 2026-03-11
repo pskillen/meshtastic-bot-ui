@@ -201,6 +201,26 @@ export interface PacketStats {
   intervals: PacketStatsInterval[];
 }
 
+export interface NeighbourStatsCandidate {
+  node_id: number;
+  node_id_str: string;
+  short_name: string | null;
+}
+
+export interface NeighbourStatsBySource {
+  source: number;
+  source_type: 'lsb' | 'full';
+  count: number;
+  candidates: NeighbourStatsCandidate[];
+}
+
+export interface NeighbourStats {
+  start_date: string | null;
+  end_date: string | null;
+  by_source: NeighbourStatsBySource[];
+  total_packets: number;
+}
+
 export interface MessageChannel {
   id: number;
   name: string;
