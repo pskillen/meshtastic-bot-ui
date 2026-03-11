@@ -8,6 +8,7 @@ import {
   NodeSearchResult,
   PaginatedResponse,
   GlobalStats,
+  NeighbourStats,
   Constellation,
   MessageChannel,
   TextMessage,
@@ -431,5 +432,16 @@ export class MeshtasticApi extends BaseApi {
         end_date: new Date(interval.end_date).toISOString(),
       })),
     };
+  }
+
+  /**
+   * Get neighbour stats (packets received by source node) for a managed node
+   */
+  async getNodeNeighbourStats(nodeId: number, params?: DateRangeParams): Promise<NeighbourStats> {
+    const searchParams = new URLSearchParams();
+    if (params?.startDate) searchParams.append('start_date', params.startDate.toISOString());
+    if (params?.endDate) searchParams.append('end_date', params.endDate.toISOString());
+
+    return this.get(`/stats/nodes/${nodeId}/neighbours/`, searchParams);
   }
 }

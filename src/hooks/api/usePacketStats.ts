@@ -1,6 +1,6 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { useMeshtasticApi } from './useApi';
-import { GlobalStats } from '@/lib/models';
+import { GlobalStats, NeighbourStats } from '@/lib/models';
 import { StatsQueryParams } from '@/lib/types';
 import { getKeyValue, roundDateParams } from './hooks-utils';
 
@@ -95,6 +95,74 @@ export function useReceivedPacketStatsSuspense(params?: StatsQueryParams) {
           },
         };
       }
+    },
+  });
+
+  return {
+    stats: query.data,
+  };
+}
+
+type NeighbourStatsParams = StatsQueryParams & { nodeId: number; enabled?: boolean };
+
+/**
+ * Hook to fetch neighbour stats for a managed node (lazy-loadable via enabled).
+ */
+export function useNeighbourStats(params?: NeighbourStatsParams) {
+  const api = useMeshtasticApi();
+  const enabled = params?.enabled ?? true;
+  const queryParams: (StatsQueryParams & { nodeId: number }) | undefined = params
+    ? { ...params, nodeId: params.nodeId }
+    : undefined;
+  const roundedParams = roundDateParams(queryParams);
+  const nodeId = roundedParams?.nodeId ?? params?.nodeId ?? 0;
+  const keyValue = getKeyValue(roundedParams);
+  const key = ['neighbour-stats', nodeId, keyValue];
+
+  return useQuery<NeighbourStats, Error>({
+    refetchInterval: 5 * 1000 * 60, // 5 minutes
+    queryKey: key,
+    queryFn: async () => {
+      const startDate = roundedParams?.startDate ?? params?.startDate;
+      const endDate = roundedParams?.endDate ?? params?.endDate;
+      if (!nodeId) {
+        return {
+          start_date: null,
+          end_date: null,
+          by_source: [],
+          total_packets: 0,
+        };
+      }
+      return api.getNodeNeighbourStats(nodeId, { startDate, endDate });
+    },
+    enabled: enabled && !!nodeId,
+  });
+}
+
+/**
+ * Suspense-enabled hook to fetch neighbour stats for a managed node
+ * Use inside a <Suspense> boundary. No isLoading or error states are returned.
+ */
+export function useNeighbourStatsSuspense(params?: StatsQueryParams & { nodeId: number }) {
+  const api = useMeshtasticApi();
+  params = roundDateParams(params);
+  const keyValue = getKeyValue(params);
+  const key = ['neighbour-stats', params?.nodeId ?? 0, keyValue];
+
+  const query = useSuspenseQuery<NeighbourStats, Error>({
+    refetchInterval: 5 * 1000 * 60, // 5 minutes
+    queryKey: key,
+    queryFn: async () => {
+      const { startDate, endDate, nodeId } = params || {};
+      if (!nodeId) {
+        return {
+          start_date: null,
+          end_date: null,
+          by_source: [],
+          total_packets: 0,
+        };
+      }
+      return api.getNodeNeighbourStats(nodeId, { startDate, endDate });
     },
   });
 
