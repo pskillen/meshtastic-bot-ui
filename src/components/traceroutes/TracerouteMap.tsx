@@ -113,12 +113,12 @@ export function TracerouteMap({ traceroute }: { traceroute: AutoTraceRoute }) {
         .marker-pin {
           width: 35px; height: 35px; border-radius: 50% 50% 50% 0;
           position: absolute; transform: rotate(-45deg);
-          left: 50%; top: 50%; margin: -17.5px 0 0 -17.5px;
+          left: 50%; top: 50%; margin: -2.5px 0 0 -17.5px;
           box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
         .marker-text {
           position: absolute; width: 40px; left: 60%; transform: translateX(-50%);
-          top: -5px; text-align: center; color: white; font-weight: bold; font-size: 12px;
+          top: 5px; text-align: center; color: white; font-weight: bold; font-size: 12px;
           text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
         }
         .traceroute-unknown-label { font-size: 11px; font-family: monospace; background: rgba(255,255,255,0.9); border: 1px dashed #999; padding: 2px 6px; }

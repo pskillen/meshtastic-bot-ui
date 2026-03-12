@@ -57,7 +57,7 @@ export function ConstellationsMap({ nodes }: ConstellationsMapProps) {
           transform: rotate(-45deg);
           left: 50%;
           top: 50%;
-          margin: -17.5px 0 0 -17.5px;
+          margin: -2.5px 0 0 -17.5px;
           box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
         .marker-text {
@@ -65,7 +65,7 @@ export function ConstellationsMap({ nodes }: ConstellationsMapProps) {
           width: 40px;
           left: 60%;
           transform: translateX(-50%);
-          top: -5px;
+          top: 5px;
           text-align: center;
           color: white;
           font-weight: bold;
