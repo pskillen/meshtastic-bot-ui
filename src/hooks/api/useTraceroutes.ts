@@ -21,6 +21,15 @@ export function useTraceroutes(params?: UseTraceroutesParams) {
   });
 }
 
+export function useTraceroute(id: number | null) {
+  const api = useMeshtasticApi();
+  return useQuery({
+    queryKey: ['traceroutes', 'detail', id],
+    queryFn: () => api.getTraceroute(id!),
+    enabled: id != null,
+  });
+}
+
 export function useCanTriggerTraceroute() {
   const api = useMeshtasticApi();
   return useQuery({

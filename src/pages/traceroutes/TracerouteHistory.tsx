@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useTraceroutes, useCanTriggerTraceroute, useTriggerTraceroute } from '@/hooks/api/useTraceroutes';
 import { useManagedNodesSuspense, useNodesSuspense } from '@/hooks/api/useNodes';
 import { TriggerTracerouteModal } from './TriggerTracerouteModal';
+import { TracerouteDetailModal } from './TracerouteDetailModal';
 import { AutoTraceRoute } from '@/lib/models';
 import { RouteIcon, RotateCw } from 'lucide-react';
 
@@ -41,6 +42,7 @@ export function TracerouteHistory() {
   const [successFilter, setSuccessFilter] = useState<boolean | null>(true);
   const [triggerModalOpen, setTriggerModalOpen] = useState(false);
   const [triggerMode, setTriggerMode] = useState<'user' | 'auto'>('user');
+  const [selectedTracerouteId, setSelectedTracerouteId] = useState<number | null>(null);
 
   const { data, isLoading, error } = useTraceroutes({
     status: successFilter === true ? 'completed' : successFilter === false ? 'failed' : undefined,
@@ -132,7 +134,11 @@ export function TracerouteHistory() {
               </TableHeader>
               <TableBody>
                 {traceroutes.map((tr) => (
-                  <TableRow key={tr.id}>
+                  <TableRow
+                    key={tr.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => setSelectedTracerouteId(tr.id)}
+                  >
                     <TableCell>{tr.source_node?.short_name ?? tr.source_node?.node_id_str ?? '—'}</TableCell>
                     <TableCell>{tr.target_node?.short_name ?? tr.target_node?.node_id_str ?? '—'}</TableCell>
                     <TableCell>{tr.trigger_type}</TableCell>
@@ -146,7 +152,7 @@ export function TracerouteHistory() {
                     <TableCell>{tr.triggered_at ? format(new Date(tr.triggered_at), 'PPp') : '—'}</TableCell>
                     <TableCell>{tr.completed_at ? format(new Date(tr.completed_at), 'PPp') : '—'}</TableCell>
                     {canTrigger && (
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -172,6 +178,12 @@ export function TracerouteHistory() {
           )}
         </CardContent>
       </Card>
+
+      <TracerouteDetailModal
+        tracerouteId={selectedTracerouteId}
+        open={selectedTracerouteId != null}
+        onOpenChange={(open) => !open && setSelectedTracerouteId(null)}
+      />
 
       <TriggerTracerouteModal
         open={triggerModalOpen}
