@@ -17,6 +17,7 @@ import {
   CreateManagedNode,
   NodeApiKey,
   CreateNodeApiKey,
+  AutoTraceRoute,
 } from '../models';
 import { ApiConfig, DateRangeParams, DateRangeIntervalParams, PaginationParams } from '@/lib/types';
 import { parseObservedNodeFromAPI } from './api-utils';
@@ -443,5 +444,57 @@ export class MeshtasticApi extends BaseApi {
     if (params?.endDate) searchParams.append('end_date', params.endDate.toISOString());
 
     return this.get(`/stats/nodes/${nodeId}/neighbours/`, searchParams);
+  }
+
+  // ===== Traceroutes API =====
+
+  /**
+   * Get traceroute history with optional filters
+   */
+  async getTraceroutes(params?: {
+    managed_node?: number;
+    source_node?: number;
+    target_node?: number;
+    status?: string;
+    trigger_type?: string;
+    triggered_after?: string;
+    triggered_before?: string;
+    page?: number;
+    page_size?: number;
+  }): Promise<PaginatedResponse<AutoTraceRoute>> {
+    const searchParams = new URLSearchParams();
+    if (params?.managed_node) searchParams.append('managed_node', params.managed_node.toString());
+    if (params?.source_node) searchParams.append('source_node', params.source_node.toString());
+    if (params?.target_node) searchParams.append('target_node', params.target_node.toString());
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.trigger_type) searchParams.append('trigger_type', params.trigger_type);
+    if (params?.triggered_after) searchParams.append('triggered_after', params.triggered_after);
+    if (params?.triggered_before) searchParams.append('triggered_before', params.triggered_before);
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    return this.get<PaginatedResponse<AutoTraceRoute>>('/traceroutes/', searchParams);
+  }
+
+  /**
+   * Get a single traceroute by ID
+   */
+  async getTraceroute(id: number): Promise<AutoTraceRoute> {
+    return this.get<AutoTraceRoute>(`/traceroutes/${id}/`);
+  }
+
+  /**
+   * Trigger a traceroute manually
+   */
+  async triggerTraceroute(managedNodeId: number, targetNodeId?: number): Promise<AutoTraceRoute> {
+    const data: { managed_node_id: number; target_node_id?: number } = { managed_node_id: managedNodeId };
+    if (targetNodeId != null) data.target_node_id = targetNodeId;
+    return this.post<AutoTraceRoute>('/traceroutes/trigger/', data);
+  }
+
+  /**
+   * Check if the current user can trigger traceroutes
+   */
+  async canTriggerTraceroute(): Promise<{ can_trigger: boolean }> {
+    return this.get<{ can_trigger: boolean }>('/traceroutes/can_trigger/');
   }
 }

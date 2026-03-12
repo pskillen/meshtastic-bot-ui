@@ -92,6 +92,35 @@ export interface CreateManagedNode {
   channel_7: number | null;
 }
 
+/** Enriched route node with position for map display (from API route_nodes/route_back_nodes) */
+export interface TracerouteRouteNode {
+  node_id: number;
+  node_id_str: string;
+  short_name: string | null;
+  position: { latitude: number; longitude: number } | null;
+  snr?: number | null;
+}
+
+// Traceroute interfaces
+export interface AutoTraceRoute {
+  id: number;
+  source_node: ManagedNode;
+  target_node: ObservedNode;
+  trigger_type: 'auto' | 'user';
+  triggered_by: number | null;
+  triggered_by_username: string | null;
+  trigger_source: string | null;
+  triggered_at: string;
+  status: 'pending' | 'sent' | 'completed' | 'failed';
+  route: Array<{ node_id: number; snr: number | null }> | null;
+  route_back: Array<{ node_id: number; snr: number | null }> | null;
+  route_nodes?: TracerouteRouteNode[];
+  route_back_nodes?: TracerouteRouteNode[];
+  raw_packet: string | null;
+  completed_at: string | null;
+  error_message: string | null;
+}
+
 // Message interfaces (API v2)
 export interface TextMessageSender {
   node_id_str: string;
