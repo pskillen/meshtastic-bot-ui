@@ -54,6 +54,7 @@ export interface ManagedNode {
     name?: string;
     map_color?: string;
   };
+  allow_auto_traceroute?: boolean;
   position: {
     latitude: number | null;
     longitude: number | null;

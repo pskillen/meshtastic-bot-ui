@@ -51,6 +51,7 @@ export function TracerouteHistory() {
   const { data: canTriggerData } = useCanTriggerTraceroute();
   const canTrigger = canTriggerData?.can_trigger ?? false;
   const { managedNodes } = useManagedNodesSuspense(500);
+  const tracerouteEligibleNodes = managedNodes.filter((n) => n.allow_auto_traceroute === true);
   const { nodes: observedNodes } = useNodesSuspense({
     lastHeardAfter: subDays(new Date(), 7),
     pageSize: 500,
@@ -163,7 +164,7 @@ export function TracerouteHistory() {
                               targetNodeId: tr.target_node.node_id,
                             })
                           }
-                          disabled={triggerMutation.isPending}
+                          disabled={triggerMutation.isPending || tr.source_node.allow_auto_traceroute === false}
                           title="Repeat this traceroute"
                           aria-label="Repeat traceroute"
                         >
@@ -189,7 +190,7 @@ export function TracerouteHistory() {
         open={triggerModalOpen}
         onOpenChange={setTriggerModalOpen}
         mode={triggerMode}
-        managedNodes={managedNodes}
+        managedNodes={tracerouteEligibleNodes}
         observedNodes={observedNodes}
         onTrigger={async (managedNodeId, targetNodeId) => {
           await triggerMutation.mutateAsync({ managedNodeId, targetNodeId });
