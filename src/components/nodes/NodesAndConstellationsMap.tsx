@@ -52,6 +52,8 @@ export interface NodesAndConstellationsMapProps {
   enableBubbles?: boolean;
   onMapMove?: (center: L.LatLng, zoom: number) => void;
   onNodeSelect?: (node: MapNode | null) => boolean;
+  /** When provided, highlights this node (e.g. selection from external source like search) */
+  selectedNodeId?: number | null;
 }
 
 export function NodesAndConstellationsMap({
@@ -67,13 +69,15 @@ export function NodesAndConstellationsMap({
   enableBubbles = true,
   onMapMove,
   onNodeSelect,
+  selectedNodeId: selectedNodeIdProp,
 }: NodesAndConstellationsMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const polygonsRef = useRef<L.Polygon[]>([]);
   const markersRef = useRef<L.Marker[]>([]);
-  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
+  const [internalSelectedNodeId, setInternalSelectedNodeId] = useState<number | null>(null);
+  const selectedNodeId = selectedNodeIdProp ?? internalSelectedNodeId;
   const lastViewRef = useRef<{ center: L.LatLng; zoom: number } | null>(null);
   const onMapMoveRef = useRef(onMapMove);
   const onNodeSelectRef = useRef(onNodeSelect);
@@ -86,12 +90,12 @@ export function NodesAndConstellationsMap({
       const handler = onNodeSelectRef.current;
       const nodeId = getNodeId(node);
       if (selectedNodeId === nodeId) {
-        setSelectedNodeId(null);
+        setInternalSelectedNodeId(null);
         handler?.(null);
         return;
       }
       const shouldHighlight = handler?.(node) ?? false;
-      setSelectedNodeId(shouldHighlight ? nodeId : null);
+      setInternalSelectedNodeId(shouldHighlight ? nodeId : null);
     },
     [selectedNodeId]
   );

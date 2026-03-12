@@ -1,4 +1,12 @@
-import { BarChartIcon, NetworkIcon, RadioIcon, ActivityIcon, MessageSquareIcon, ServerIcon } from 'lucide-react';
+import {
+  BarChartIcon,
+  NetworkIcon,
+  RadioIcon,
+  ActivityIcon,
+  MessageSquareIcon,
+  ServerIcon,
+  RouteIcon,
+} from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import {
@@ -60,6 +68,14 @@ export function NavMain() {
               <Link to="/nodes/monitor">
                 <ActivityIcon />
                 <span>Monitor</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem key="Traceroutes">
+            <SidebarMenuButton asChild tooltip="Traceroutes">
+              <Link to="/traceroutes">
+                <RouteIcon />
+                <span>Traceroutes</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

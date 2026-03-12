@@ -92,6 +92,24 @@ export interface CreateManagedNode {
   channel_7: number | null;
 }
 
+// Traceroute interfaces
+export interface AutoTraceRoute {
+  id: number;
+  source_node: ManagedNode;
+  target_node: ObservedNode;
+  trigger_type: 'auto' | 'user';
+  triggered_by: number | null;
+  triggered_by_username: string | null;
+  trigger_source: string | null;
+  triggered_at: string;
+  status: 'pending' | 'sent' | 'completed' | 'failed';
+  route: Array<{ node_id: number; snr: number | null }> | null;
+  route_back: Array<{ node_id: number; snr: number | null }> | null;
+  raw_packet: string | null;
+  completed_at: string | null;
+  error_message: string | null;
+}
+
 // Message interfaces (API v2)
 export interface TextMessageSender {
   node_id_str: string;

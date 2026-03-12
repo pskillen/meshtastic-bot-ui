@@ -1,14 +1,22 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useNodes } from '@/hooks/api/useNodes';
-import { SearchIcon } from 'lucide-react';
+import { SearchIcon, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 interface NodeSearchProps {
-  onNodeSelect?: (nodeId: number) => void;
+  onNodeSelect?: (
+    nodeId: number,
+    node?: { short_name?: string | null; long_name?: string | null; node_id_str?: string }
+  ) => void;
+  /** When set, shows the selected node name instead of search (e.g. after selection from map) */
+  displayValue?: string | null;
+  /** Called when user clears the selection */
+  onClearSelection?: () => void;
 }
 
-export function NodeSearch({ onNodeSelect }: NodeSearchProps) {
+export function NodeSearch({ onNodeSelect, displayValue, onClearSelection }: NodeSearchProps) {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -34,6 +42,26 @@ export function NodeSearch({ onNodeSelect }: NodeSearchProps) {
 
     return () => clearTimeout(timeoutId);
   }, [query, searchNodes]);
+
+  if (displayValue != null && displayValue !== '') {
+    return (
+      <div className="flex items-center gap-2">
+        <Input type="text" readOnly className="h-9 flex-1 bg-muted" value={displayValue} />
+        {onClearSelection && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 shrink-0"
+            onClick={onClearSelection}
+            aria-label="Clear selection"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div ref={searchRef} className="relative w-full">
@@ -69,8 +97,9 @@ export function NodeSearch({ onNodeSelect }: NodeSearchProps) {
                     className="block px-4 py-2 hover:bg-accent"
                     onClick={() => {
                       setIsOpen(false);
+                      setQuery('');
                       if (onNodeSelect) {
-                        onNodeSelect(node.node_id);
+                        onNodeSelect(node.node_id, node);
                       }
                     }}
                   >
