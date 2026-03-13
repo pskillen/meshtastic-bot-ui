@@ -6,7 +6,6 @@ import { TracerouteFlowDiagram } from '@/components/traceroutes/TracerouteFlowDi
 import { TracerouteMap } from '@/components/traceroutes/TracerouteMap';
 
 function displayStatus(tr: { completed_at: string | null; status: string }): string {
-  if (tr.completed_at) return 'completed';
   return tr.status;
 }
 
@@ -62,7 +61,8 @@ export function TracerouteDetailModal({ tracerouteId, open, onOpenChange }: Trac
               <Badge>{displayStatus(traceroute)}</Badge>
               <span className="text-sm text-muted-foreground">
                 Triggered {traceroute.triggered_at ? format(new Date(traceroute.triggered_at), 'PPp') : '—'}
-                {traceroute.completed_at && ` • Completed ${format(new Date(traceroute.completed_at), 'PPp')}`}
+                {traceroute.completed_at &&
+                  ` • ${traceroute.status === 'failed' ? 'Failed' : 'Completed'} ${format(new Date(traceroute.completed_at), 'PPp')}`}
               </span>
             </div>
 

@@ -24,7 +24,6 @@ function routeSummary(tr: AutoTraceRoute): string {
 }
 
 function displayStatus(tr: AutoTraceRoute): string {
-  if (tr.completed_at) return 'completed';
   return tr.status;
 }
 
