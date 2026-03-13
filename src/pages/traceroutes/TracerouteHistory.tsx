@@ -5,7 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { useTraceroutes, useCanTriggerTraceroute, useTriggerTraceroute } from '@/hooks/api/useTraceroutes';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useTraceroutesWithWebSocket } from '@/hooks/useTraceroutesWithWebSocket';
+import { useCanTriggerTraceroute, useTriggerTraceroute } from '@/hooks/api/useTraceroutes';
 import { useManagedNodesSuspense, useNodesSuspense } from '@/hooks/api/useNodes';
 import { TriggerTracerouteModal } from './TriggerTracerouteModal';
 import { TracerouteDetailModal } from './TracerouteDetailModal';
@@ -39,13 +41,17 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export function TracerouteHistory() {
-  const [successFilter, setSuccessFilter] = useState<boolean | null>(true);
+  const [tabFilter, setTabFilter] = useState<'success' | 'all'>('success');
+  const [sourceNodeId, setSourceNodeId] = useState<number | null>(null);
+  const [targetNodeId, setTargetNodeId] = useState<number | null>(null);
   const [triggerModalOpen, setTriggerModalOpen] = useState(false);
   const [triggerMode, setTriggerMode] = useState<'user' | 'auto'>('user');
   const [selectedTracerouteId, setSelectedTracerouteId] = useState<number | null>(null);
 
-  const { data, isLoading, error } = useTraceroutes({
-    status: successFilter === true ? 'completed' : successFilter === false ? 'failed' : undefined,
+  const { data, isLoading, error } = useTraceroutesWithWebSocket({
+    status: tabFilter === 'success' ? 'completed,pending,sent' : undefined,
+    source_node: sourceNodeId ?? undefined,
+    target_node: targetNodeId ?? undefined,
     page_size: 50,
   });
   const { data: canTriggerData } = useCanTriggerTraceroute();
@@ -85,28 +91,49 @@ export function TracerouteHistory() {
           )}
         </CardHeader>
         <CardContent>
-          <div className="mb-4 flex gap-2">
+          <div className="mb-4 flex flex-wrap gap-2 items-center">
             <Button
-              variant={successFilter === true ? 'default' : 'outline'}
+              variant={tabFilter === 'success' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setSuccessFilter(true)}
+              onClick={() => setTabFilter('success')}
             >
               Success
             </Button>
-            <Button
-              variant={successFilter === false ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSuccessFilter(false)}
-            >
-              Failed
-            </Button>
-            <Button
-              variant={successFilter === null ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSuccessFilter(null)}
-            >
+            <Button variant={tabFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setTabFilter('all')}>
               All
             </Button>
+            <Select
+              value={sourceNodeId != null ? String(sourceNodeId) : 'all'}
+              onValueChange={(v) => setSourceNodeId(v === 'all' ? null : parseInt(v, 10))}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Source (sender)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All sources</SelectItem>
+                {tracerouteEligibleNodes.map((n) => (
+                  <SelectItem key={n.node_id} value={String(n.node_id)}>
+                    {n.short_name ?? n.node_id_str ?? String(n.node_id)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={targetNodeId != null ? String(targetNodeId) : 'all'}
+              onValueChange={(v) => setTargetNodeId(v === 'all' ? null : parseInt(v, 10))}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Target (recipient)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All targets</SelectItem>
+                {observedNodes.map((n) => (
+                  <SelectItem key={n.node_id} value={String(n.node_id)}>
+                    {n.short_name ?? n.node_id_str ?? String(n.node_id)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {isLoading && <div className="py-8 text-center text-muted-foreground">Loading...</div>}
