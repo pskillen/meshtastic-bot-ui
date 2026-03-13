@@ -92,10 +92,10 @@ jobs:
     if: always() && !cancelled() && needs.build-and-push.result == 'success'
     steps:
       - name: Delete untagged images
-        uses: quartx-analytics/ghcr-cleaner@v1
+        uses: Chizkiyahu/delete-untagged-ghcr-action@v6.1.0
         with:
-          owner-type: user
           token: ${{ secrets.GITHUB_TOKEN }}
           repository_owner: ${{ github.repository_owner }}
-          package-name: meshtastic-bot-ui
-          delete-untagged: true
+          package_name: meshtastic-bot-ui
+          owner_type: user
+          untagged_only: true
