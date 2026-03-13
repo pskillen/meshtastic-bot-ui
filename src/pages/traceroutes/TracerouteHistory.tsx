@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { subDays } from 'date-fns';
+import { AxiosError } from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
 import { useTraceroutesWithWebSocket } from '@/hooks/useTraceroutesWithWebSocket';
 import { useCanTriggerTraceroute, useTriggerTraceroute } from '@/hooks/api/useTraceroutes';
 import { useManagedNodesSuspense, useNodesSuspense } from '@/hooks/api/useNodes';
@@ -13,6 +15,28 @@ import { TriggerTracerouteModal } from './TriggerTracerouteModal';
 import { TracerouteDetailModal } from './TracerouteDetailModal';
 import { AutoTraceRoute } from '@/lib/models';
 import { RouteIcon, RotateCw } from 'lucide-react';
+
+function getTracerouteErrorMessage(error: unknown): string {
+  // API client transforms errors: throws { message, status, data } with data = response body
+  const err = error as { status?: number; data?: { detail?: string }; message?: string };
+  const detail =
+    err.data?.detail ??
+    (error instanceof AxiosError ? (error.response?.data as { detail?: string })?.detail : undefined);
+  const status = err.status ?? (error instanceof AxiosError ? error.response?.status : undefined);
+
+  if (typeof detail === 'string') {
+    if (status === 429 || detail.toLowerCase().includes('rate limited')) {
+      return detail.includes('Try again in')
+        ? detail
+        : 'Traceroute rate limited. The radio needs at least 30 seconds between traceroutes. Please try again shortly.';
+    }
+    if (detail.toLowerCase().includes('allow_auto_traceroute')) {
+      return "This node doesn't allow traceroutes. Enable it in the node settings.";
+    }
+    return detail;
+  }
+  return err.message ?? (error instanceof Error ? error.message : 'Failed to trigger traceroute. Please try again.');
+}
 
 function routeSummary(tr: AutoTraceRoute): string {
   const route = tr.route;
@@ -185,10 +209,19 @@ export function TracerouteHistory() {
                           size="icon"
                           className="h-8 w-8"
                           onClick={() =>
-                            triggerMutation.mutate({
-                              managedNodeId: tr.source_node.node_id,
-                              targetNodeId: tr.target_node.node_id,
-                            })
+                            triggerMutation.mutate(
+                              {
+                                managedNodeId: tr.source_node.node_id,
+                                targetNodeId: tr.target_node.node_id,
+                              },
+                              {
+                                onError: (err) => {
+                                  toast.error('Traceroute failed', {
+                                    description: getTracerouteErrorMessage(err),
+                                  });
+                                },
+                              }
+                            )
                           }
                           disabled={triggerMutation.isPending || tr.source_node.allow_auto_traceroute === false}
                           title="Repeat this traceroute"
@@ -219,8 +252,14 @@ export function TracerouteHistory() {
         managedNodes={tracerouteEligibleNodes}
         observedNodes={observedNodes}
         onTrigger={async (managedNodeId, targetNodeId) => {
-          await triggerMutation.mutateAsync({ managedNodeId, targetNodeId });
-          setTriggerModalOpen(false);
+          try {
+            await triggerMutation.mutateAsync({ managedNodeId, targetNodeId });
+            setTriggerModalOpen(false);
+          } catch (err) {
+            toast.error('Traceroute failed', {
+              description: getTracerouteErrorMessage(err),
+            });
+          }
         }}
         isSubmitting={triggerMutation.isPending}
       />
