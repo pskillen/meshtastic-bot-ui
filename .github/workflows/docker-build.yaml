@@ -9,7 +9,7 @@ on:
       ENVIRONMENT:
         required: true
         type: string
-        description: "dev | preprod | prod"
+        description: 'dev | preprod | prod'
 
 permissions:
   contents: read

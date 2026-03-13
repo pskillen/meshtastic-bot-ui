@@ -1,6 +1,6 @@
 name: dev
 
-on: 
+on:
   push:
     branches:
       - dev
@@ -8,7 +8,6 @@ on:
 permissions:
   contents: read
   packages: write
-
 
 jobs:
   extract-dev-tag:

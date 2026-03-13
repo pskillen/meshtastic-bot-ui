@@ -6,7 +6,6 @@ import { TracerouteFlowDiagram } from '@/components/traceroutes/TracerouteFlowDi
 import { TracerouteMap } from '@/components/traceroutes/TracerouteMap';
 
 function displayStatus(tr: { completed_at: string | null; status: string }): string {
-  if (tr.completed_at) return 'completed';
   return tr.status;
 }
 
@@ -23,6 +22,14 @@ export function TracerouteDetailModal({ tracerouteId, open, onOpenChange }: Trac
     traceroute &&
     ((traceroute.route_nodes && traceroute.route_nodes.length > 0) ||
       (traceroute.route_back_nodes && traceroute.route_back_nodes.length > 0));
+
+  const hasSourceOrTargetPosition =
+    traceroute &&
+    (() => {
+      const src = traceroute.source_node?.position;
+      const tgt = traceroute.target_node?.latest_position;
+      return (src?.latitude != null && src?.longitude != null) || (tgt?.latitude != null && tgt?.longitude != null);
+    })();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -54,7 +61,8 @@ export function TracerouteDetailModal({ tracerouteId, open, onOpenChange }: Trac
               <Badge>{displayStatus(traceroute)}</Badge>
               <span className="text-sm text-muted-foreground">
                 Triggered {traceroute.triggered_at ? format(new Date(traceroute.triggered_at), 'PPp') : '—'}
-                {traceroute.completed_at && ` • Completed ${format(new Date(traceroute.completed_at), 'PPp')}`}
+                {traceroute.completed_at &&
+                  ` • ${traceroute.status === 'failed' ? 'Failed' : 'Completed'} ${format(new Date(traceroute.completed_at), 'PPp')}`}
               </span>
             </div>
 
@@ -74,9 +82,25 @@ export function TracerouteDetailModal({ tracerouteId, open, onOpenChange }: Trac
               </>
             )}
 
-            {traceroute && !hasRouteData && traceroute.route === null && traceroute.route_back === null && (
-              <p className="text-sm text-muted-foreground">{displayStatus(traceroute)} — no route data yet</p>
+            {hasSourceOrTargetPosition && !hasRouteData && (
+              <div>
+                <h3 className="mb-2 text-sm font-medium">Map</h3>
+                <div className="h-[400px] overflow-hidden rounded-md border">
+                  <TracerouteMap traceroute={traceroute} />
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {displayStatus(traceroute)} — showing known node positions
+                </p>
+              </div>
             )}
+
+            {traceroute &&
+              !hasRouteData &&
+              !hasSourceOrTargetPosition &&
+              traceroute.route === null &&
+              traceroute.route_back === null && (
+                <p className="text-sm text-muted-foreground">{displayStatus(traceroute)} — no route data yet</p>
+              )}
           </div>
         )}
       </DialogContent>
