@@ -25,7 +25,17 @@ jobs:
         run: npm run lint
 
       - name: Run Tests
-        run: npm test
+        run: |
+          mkdir -p reports
+          npm test
+
+      - name: Test Report
+        uses: dorny/test-reporter@v2
+        with:
+          name: vitest
+          path: reports/junit.xml
+          reporter: jest-junit
+        if: always()
 
   build:
     needs: verify
