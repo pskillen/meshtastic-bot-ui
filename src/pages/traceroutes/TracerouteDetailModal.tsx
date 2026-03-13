@@ -24,6 +24,14 @@ export function TracerouteDetailModal({ tracerouteId, open, onOpenChange }: Trac
     ((traceroute.route_nodes && traceroute.route_nodes.length > 0) ||
       (traceroute.route_back_nodes && traceroute.route_back_nodes.length > 0));
 
+  const hasSourceOrTargetPosition =
+    traceroute &&
+    (() => {
+      const src = traceroute.source_node?.position;
+      const tgt = traceroute.target_node?.latest_position;
+      return (src?.latitude != null && src?.longitude != null) || (tgt?.latitude != null && tgt?.longitude != null);
+    })();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -74,9 +82,25 @@ export function TracerouteDetailModal({ tracerouteId, open, onOpenChange }: Trac
               </>
             )}
 
-            {traceroute && !hasRouteData && traceroute.route === null && traceroute.route_back === null && (
-              <p className="text-sm text-muted-foreground">{displayStatus(traceroute)} — no route data yet</p>
+            {hasSourceOrTargetPosition && !hasRouteData && (
+              <div>
+                <h3 className="mb-2 text-sm font-medium">Map</h3>
+                <div className="h-[400px] overflow-hidden rounded-md border">
+                  <TracerouteMap traceroute={traceroute} />
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {displayStatus(traceroute)} — showing known node positions
+                </p>
+              </div>
             )}
+
+            {traceroute &&
+              !hasRouteData &&
+              !hasSourceOrTargetPosition &&
+              traceroute.route === null &&
+              traceroute.route_back === null && (
+                <p className="text-sm text-muted-foreground">{displayStatus(traceroute)} — no route data yet</p>
+              )}
           </div>
         )}
       </DialogContent>

@@ -4,12 +4,13 @@ import { createNodeIcon } from '@/components/nodes/map-utils';
 import L from 'leaflet';
 import { useEffect, useRef } from 'react';
 import 'leaflet/dist/leaflet.css';
-import 'leaflet-arrowheads';
 
 const DEFAULT_CENTER: L.LatLngExpression = [55.8642, -4.2518];
 const SOURCE_COLOR = '#2563eb';
 const TARGET_COLOR = '#16a34a';
 const INTERMEDIATE_COLOR = '#64748b';
+const PENDING_LINE_COLOR = '#94a3b8';
+const FAILED_LINE_COLOR = '#dc2626';
 const UNKNOWN_NODE_ID = 0xffffffff;
 
 type LatLng = [number, number];
@@ -153,117 +154,137 @@ export function TracerouteMap({ traceroute }: { traceroute: AutoTraceRoute }) {
 
     const bounds = L.latLngBounds([]);
 
-    if (!sourcePos || !targetPos) {
-      return;
-    }
-
+    // Show source and/or target markers when positions are known (e.g. pending TRs)
     const sourceLabel = traceroute.source_node?.short_name ?? traceroute.source_node?.node_id_str ?? 'S';
     const targetLabel = traceroute.target_node?.short_name ?? traceroute.target_node?.node_id_str ?? 'T';
 
-    const sourceMarker = L.marker(sourcePos, {
-      icon: createNodeIcon(sourceLabel, SOURCE_COLOR, false),
-    }).addTo(map);
-    layersRef.current.push(sourceMarker);
-    bounds.extend(sourcePos);
-
-    const targetMarker = L.marker(targetPos, {
-      icon: createNodeIcon(targetLabel, TARGET_COLOR, false),
-    }).addTo(map);
-    layersRef.current.push(targetMarker);
-    bounds.extend(targetPos);
-
-    const outboundSegments = buildSegments(sourcePos, routeNodes, targetPos);
-    const returnSegments = buildSegments(targetPos, routeBackNodes, sourcePos);
-
-    outboundSegments.forEach((seg) => {
-      const poly = L.polyline(seg.latlngs, {
-        color: SOURCE_COLOR,
-        weight: 4,
-        dashArray: seg.dashed ? '10, 10' : undefined,
-        className: 'traceroute-outbound',
+    if (sourcePos) {
+      const sourceMarker = L.marker(sourcePos, {
+        icon: createNodeIcon(sourceLabel, SOURCE_COLOR, false),
       }).addTo(map);
-      poly.arrowheads({ size: '12px', frequency: 'endonly' });
-      layersRef.current.push(poly);
-
-      seg.latlngs.forEach((p) => bounds.extend(p));
-
-      if (seg.dashed && seg.unknownLabels.length > 0 && seg.latlngs.length >= 2) {
-        const mid = midpoint(seg.latlngs[0], seg.latlngs[seg.latlngs.length - 1]);
-        seg.unknownLabels.forEach((label) => {
-          const tooltip = L.tooltip({
-            permanent: true,
-            direction: 'center',
-            className: 'traceroute-unknown-label',
-          })
-            .setContent(label.node_id_str)
-            .setLatLng(mid);
-          tooltip.addTo(map);
-          layersRef.current.push(tooltip);
-        });
-      }
-    });
-
-    returnSegments.forEach((seg) => {
-      const poly = L.polyline(seg.latlngs, {
-        color: TARGET_COLOR,
-        weight: 4,
-        dashArray: seg.dashed ? '10, 10' : undefined,
-        className: 'traceroute-return',
-      }).addTo(map);
-      poly.arrowheads({ size: '12px', frequency: 'endonly' });
-      layersRef.current.push(poly);
-
-      seg.latlngs.forEach((p) => bounds.extend(p));
-
-      if (seg.dashed && seg.unknownLabels.length > 0 && seg.latlngs.length >= 2) {
-        const mid = midpoint(seg.latlngs[0], seg.latlngs[seg.latlngs.length - 1]);
-        seg.unknownLabels.forEach((label) => {
-          const tooltip = L.tooltip({
-            permanent: true,
-            direction: 'center',
-            className: 'traceroute-unknown-label',
-          })
-            .setContent(label.node_id_str)
-            .setLatLng(mid);
-          tooltip.addTo(map);
-          layersRef.current.push(tooltip);
-        });
-      }
-    });
-
-    const intermediateByNodeId = new Map<number, { pos: LatLng; label: string }>();
-    for (const node of [...routeNodes, ...routeBackNodes]) {
-      if (node.position && node.node_id !== UNKNOWN_NODE_ID && !intermediateByNodeId.has(node.node_id)) {
-        intermediateByNodeId.set(node.node_id, {
-          pos: [node.position.latitude, node.position.longitude],
-          label: node.short_name ?? node.node_id_str,
-        });
-      }
+      layersRef.current.push(sourceMarker);
+      bounds.extend(sourcePos);
     }
-    intermediateByNodeId.forEach(({ pos, label }) => {
-      const marker = L.marker(pos, {
-        icon: createNodeIcon(label, INTERMEDIATE_COLOR, false),
+
+    if (targetPos) {
+      const targetMarker = L.marker(targetPos, {
+        icon: createNodeIcon(targetLabel, TARGET_COLOR, false),
       }).addTo(map);
-      layersRef.current.push(marker);
-      bounds.extend(pos);
-    });
+      layersRef.current.push(targetMarker);
+      bounds.extend(targetPos);
+    }
+
+    // Pending/sent/failed: show dashed direct line between source and target
+    const statusLower = traceroute.status?.toLowerCase();
+    const needsDirectLine = statusLower === 'pending' || statusLower === 'sent' || statusLower === 'failed';
+    if (needsDirectLine && sourcePos && targetPos) {
+      const lineColor = statusLower === 'failed' ? FAILED_LINE_COLOR : PENDING_LINE_COLOR;
+      const directLine = L.polyline([sourcePos, targetPos], {
+        color: lineColor,
+        weight: 3,
+        dashArray: '10, 10',
+        className: statusLower === 'failed' ? 'traceroute-failed' : 'traceroute-pending',
+      }).addTo(map);
+      layersRef.current.push(directLine);
+    }
+
+    // Route segments only when completed
+    const isCompleted = statusLower === 'completed';
+    if (isCompleted) {
+      const outboundSegments = sourcePos && targetPos ? buildSegments(sourcePos, routeNodes, targetPos) : [];
+      const returnSegments = sourcePos && targetPos ? buildSegments(targetPos, routeBackNodes, sourcePos) : [];
+
+      outboundSegments.forEach((seg) => {
+        const poly = L.polyline(seg.latlngs, {
+          color: SOURCE_COLOR,
+          weight: 4,
+          dashArray: seg.dashed ? '10, 10' : undefined,
+          className: 'traceroute-outbound',
+        }).addTo(map);
+        layersRef.current.push(poly);
+
+        seg.latlngs.forEach((p) => bounds.extend(p));
+
+        if (seg.dashed && seg.unknownLabels.length > 0 && seg.latlngs.length >= 2) {
+          const mid = midpoint(seg.latlngs[0], seg.latlngs[seg.latlngs.length - 1]);
+          seg.unknownLabels.forEach((label) => {
+            const tooltip = L.tooltip({
+              permanent: true,
+              direction: 'center',
+              className: 'traceroute-unknown-label',
+            })
+              .setContent(label.node_id_str)
+              .setLatLng(mid);
+            tooltip.addTo(map);
+            layersRef.current.push(tooltip);
+          });
+        }
+      });
+
+      returnSegments.forEach((seg) => {
+        const poly = L.polyline(seg.latlngs, {
+          color: TARGET_COLOR,
+          weight: 4,
+          dashArray: seg.dashed ? '10, 10' : undefined,
+          className: 'traceroute-return',
+        }).addTo(map);
+        layersRef.current.push(poly);
+
+        seg.latlngs.forEach((p) => bounds.extend(p));
+
+        if (seg.dashed && seg.unknownLabels.length > 0 && seg.latlngs.length >= 2) {
+          const mid = midpoint(seg.latlngs[0], seg.latlngs[seg.latlngs.length - 1]);
+          seg.unknownLabels.forEach((label) => {
+            const tooltip = L.tooltip({
+              permanent: true,
+              direction: 'center',
+              className: 'traceroute-unknown-label',
+            })
+              .setContent(label.node_id_str)
+              .setLatLng(mid);
+            tooltip.addTo(map);
+            layersRef.current.push(tooltip);
+          });
+        }
+      });
+
+      const intermediateByNodeId = new Map<number, { pos: LatLng; label: string }>();
+      for (const node of [...routeNodes, ...routeBackNodes]) {
+        if (node.position && node.node_id !== UNKNOWN_NODE_ID && !intermediateByNodeId.has(node.node_id)) {
+          intermediateByNodeId.set(node.node_id, {
+            pos: [node.position.latitude, node.position.longitude],
+            label: node.short_name ?? node.node_id_str,
+          });
+        }
+      }
+      intermediateByNodeId.forEach(({ pos, label }) => {
+        const marker = L.marker(pos, {
+          icon: createNodeIcon(label, INTERMEDIATE_COLOR, false),
+        }).addTo(map);
+        layersRef.current.push(marker);
+        bounds.extend(pos);
+      });
+    }
 
     if (bounds.isValid()) {
-      // Invalidate size first (map in Dialog may have wrong dimensions until visible)
       map.invalidateSize();
-      // Defer fitBounds to avoid race with marker rendering; run after layout settles
       const t = setTimeout(() => {
         if (mapInstanceRef.current !== map) return;
         map.invalidateSize();
-        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
-        // Refresh after zoom completes (fixes markers disappearing in modal)
+        const c = bounds.getCenter();
+        const singlePoint = bounds.getNorthEast().equals(bounds.getSouthWest());
+        if (singlePoint) {
+          map.setView(c, 13);
+        } else {
+          map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+        }
         map.once('moveend', () => map.invalidateSize());
       }, 50);
       return () => clearTimeout(t);
     }
   }, [traceroute, sourcePos, targetPos, routeNodes, routeBackNodes]);
 
-  if (!sourcePos || !targetPos) {
+  if (!sourcePos && !targetPos) {
     return (
       <div className="flex min-h-[200px] items-center justify-center rounded-md border bg-muted/30 text-muted-foreground">
         Position data unavailable for source or target
