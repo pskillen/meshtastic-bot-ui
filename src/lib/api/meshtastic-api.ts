@@ -497,4 +497,47 @@ export class MeshtasticApi extends BaseApi {
   async canTriggerTraceroute(): Promise<{ can_trigger: boolean }> {
     return this.get<{ can_trigger: boolean }>('/traceroutes/can_trigger/');
   }
+
+  /**
+   * Get aggregated heatmap edges and nodes for traceroute visualization
+   */
+  async getHeatmapEdges(params?: {
+    triggered_at_after?: string;
+    constellation_id?: number;
+    bbox?: [number, number, number, number];
+  }): Promise<{
+    edges: Array<{
+      from_node_id: number;
+      to_node_id: number;
+      from_lat: number;
+      from_lng: number;
+      to_lat: number;
+      to_lng: number;
+      weight: number;
+    }>;
+    nodes: Array<{
+      node_id: number;
+      node_id_str: string;
+      lat: number;
+      lng: number;
+      short_name?: string;
+      long_name?: string;
+    }>;
+    meta: {
+      active_nodes_count: number;
+      total_trace_routes_count: number;
+    };
+  }> {
+    const searchParams = new URLSearchParams();
+    if (params?.triggered_at_after) {
+      searchParams.append('triggered_at_after', params.triggered_at_after);
+    }
+    if (params?.constellation_id != null) {
+      searchParams.append('constellation_id', params.constellation_id.toString());
+    }
+    if (params?.bbox && params.bbox.length >= 4) {
+      searchParams.append('bbox', params.bbox.join(','));
+    }
+    return this.get('/traceroutes/heatmap-edges/', searchParams);
+  }
 }

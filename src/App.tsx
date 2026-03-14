@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { TracerouteHistory } from '@/pages/traceroutes/TracerouteHistory';
+import { TracerouteHeatmapPage } from '@/pages/traceroutes/TracerouteHeatmapPage';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 import { ConfigProvider } from '@/providers/ConfigProvider';
@@ -53,6 +54,7 @@ function App() {
                   <Route path="/map" element={<NodeMap />} />
                   <Route path="/messages" element={<MessageHistory />} />
                   <Route path="/traceroutes" element={<TracerouteHistory />} />
+                  <Route path="/traceroutes/heatmap" element={<TracerouteHeatmapPage />} />
                   <Route path="/user/nodes" element={<NodeSettings />} />
                   <Route path="/user/settings" element={<SettingsPage />} />
                   <Route path="/user" element={<UserPage />} />

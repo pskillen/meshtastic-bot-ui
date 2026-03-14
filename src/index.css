@@ -84,3 +84,17 @@
     @apply bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 font-sans transition-colors duration-200;
   }
 }
+
+/* Traceroute heatmap popup: dark theme, render above deck.gl overlay */
+.traceroute-heatmap-popup {
+  z-index: 10000;
+}
+.traceroute-heatmap-popup .mapboxgl-popup-content {
+  background: transparent;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+}
+.traceroute-heatmap-popup .mapboxgl-popup-tip {
+  border-top-color: rgb(30 41 59);
+}

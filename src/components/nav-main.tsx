@@ -6,6 +6,7 @@ import {
   MessageSquareIcon,
   ServerIcon,
   RouteIcon,
+  MapIcon,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -76,6 +77,14 @@ export function NavMain() {
               <Link to="/traceroutes">
                 <RouteIcon />
                 <span>Traceroutes</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem key="Traceroute Heatmap">
+            <SidebarMenuButton asChild tooltip="Traceroute Heatmap">
+              <Link to="/traceroutes/heatmap">
+                <MapIcon />
+                <span>Traceroute Heatmap</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
