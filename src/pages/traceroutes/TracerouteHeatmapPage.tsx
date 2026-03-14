@@ -3,6 +3,7 @@ import { subHours, subDays } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { useHeatmapEdges } from '@/hooks/api/useHeatmapEdges';
 import { TracerouteHeatmapMap } from '@/components/traceroutes/TracerouteHeatmapMap';
 import { RouteIcon } from 'lucide-react';
@@ -12,6 +13,7 @@ type TimeRange = '24h' | '7d' | 'custom';
 export function TracerouteHeatmapPage() {
   const [timeRange, setTimeRange] = useState<TimeRange>('24h');
   const [intensity, setIntensity] = useState(0.7);
+  const [showLabels, setShowLabels] = useState(true);
   const [routeMetric] = useState<'success' | 'latency'>('success'); // Latency placeholder for Phase 2b
 
   const triggeredAtAfter = useMemo(() => {
@@ -79,6 +81,12 @@ export function TracerouteHeatmapPage() {
                 className="w-full accent-primary"
               />
             </div>
+            <div className="flex items-center justify-between space-x-2">
+              <Label htmlFor="show-labels" className="flex-1">
+                Node labels
+              </Label>
+              <Switch id="show-labels" checked={showLabels} onCheckedChange={setShowLabels} />
+            </div>
           </CardContent>
         </Card>
 
@@ -96,7 +104,9 @@ export function TracerouteHeatmapPage() {
                   Loading heatmap data...
                 </div>
               )}
-              {!error && !isLoading && <TracerouteHeatmapMap edges={edges} nodes={nodes} intensity={intensity} />}
+              {!error && !isLoading && (
+                <TracerouteHeatmapMap edges={edges} nodes={nodes} intensity={intensity} showLabels={showLabels} />
+              )}
             </CardContent>
           </Card>
 
