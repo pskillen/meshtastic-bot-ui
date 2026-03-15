@@ -16,6 +16,11 @@ lerna-debug.log*
 # Outputs
 tmp/
 
+# Playwright
+playwright-report/
+test-results/
+blob-report/
+reports/
 
 # React, typescript, tailwind, shadcn, etc.
 node_modules
