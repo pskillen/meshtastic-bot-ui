@@ -1,0 +1,189 @@
+import * as React from 'react';
+import { Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
+import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
+import { Button } from '@/components/ui/button';
+import { ChevronDown } from 'lucide-react';
+import type { NodeTracerouteLinkSnrHistory } from '@/hooks/api/useNodeTracerouteLinks';
+import type { Formatter, Payload } from 'recharts/types/component/DefaultTooltipContent';
+import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
+
+interface LinkSNRChartsProps {
+  snrHistory: NodeTracerouteLinkSnrHistory[];
+  /** Number of links to show initially (default 3) */
+  initialVisible?: number;
+  /** Max number of links when expanded; omit to show all links on the map */
+  maxLinks?: number;
+}
+
+const chartConfig: ChartConfig = {
+  inbound: { color: '#3b82f6', label: 'SNR In (dB)' },
+  outbound: { color: '#22c55e', label: 'SNR Out (dB)' },
+};
+
+function mergeSnrPoints(
+  inbound: Array<{ triggered_at: string; snr: number }>,
+  outbound: Array<{ triggered_at: string; snr: number }>
+): Array<{ timestamp: number; inbound?: number; outbound?: number }> {
+  const byTime = new Map<number, { inbound?: number; outbound?: number }>();
+  for (const p of inbound) {
+    const t = new Date(p.triggered_at).getTime();
+    const existing = byTime.get(t) ?? {};
+    existing.inbound = p.snr;
+    byTime.set(t, existing);
+  }
+  for (const p of outbound) {
+    const t = new Date(p.triggered_at).getTime();
+    const existing = byTime.get(t) ?? {};
+    existing.outbound = p.snr;
+    byTime.set(t, existing);
+  }
+  return Array.from(byTime.entries())
+    .map(([timestamp, v]) => ({ timestamp, ...v }))
+    .sort((a, b) => a.timestamp - b.timestamp);
+}
+
+function LinkSNRChart({
+  inbound,
+  outbound,
+}: {
+  inbound: Array<{ triggered_at: string; snr: number }>;
+  outbound: Array<{ triggered_at: string; snr: number }>;
+}) {
+  const chartData = React.useMemo(() => mergeSnrPoints(inbound, outbound), [inbound, outbound]);
+
+  const formatter: Formatter<ValueType, NameType> = (value: ValueType, name: NameType) => {
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    if (typeof numValue !== 'number' || isNaN(numValue)) return ['-', name];
+    return [`${numValue.toFixed(1)} dB`, name];
+  };
+
+  if (chartData.length === 0) {
+    return (
+      <div className="flex h-[120px] items-center justify-center rounded border border-dashed text-xs text-muted-foreground">
+        No data
+      </div>
+    );
+  }
+
+  const minTs = Math.min(...chartData.map((d) => d.timestamp));
+  const maxTs = Math.max(...chartData.map((d) => d.timestamp));
+
+  return (
+    <ChartContainer config={chartConfig} className="aspect-auto h-[120px] w-full min-w-0">
+      <LineChart data={chartData} margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
+        <CartesianGrid vertical={false} strokeDasharray="2 2" className="opacity-50" />
+        <XAxis
+          dataKey="timestamp"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={4}
+          minTickGap={24}
+          domain={[minTs, maxTs]}
+          tickFormatter={(value: number) => {
+            const date = new Date(value);
+            return date.toLocaleString('en-GB', {
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+          }}
+          scale="time"
+          type="number"
+          tick={{ fontSize: 10 }}
+        />
+        <YAxis domain={['auto', 'auto']} tickFormatter={(v) => `${v} dB`} tick={{ fontSize: 10 }} width={36} />
+        <Tooltip
+          content={
+            <ChartTooltipContent
+              labelFormatter={(_, payload: Payload<ValueType, NameType>[]) => {
+                if (payload?.[0]?.payload?.timestamp) {
+                  const date = new Date(payload[0].payload.timestamp);
+                  return date.toLocaleString('en-GB', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: 'numeric',
+                  });
+                }
+                return '';
+              }}
+              formatter={formatter}
+            />
+          }
+        />
+        <Line
+          type="monotone"
+          dataKey="inbound"
+          stroke="#3b82f6"
+          strokeWidth={1.5}
+          dot={false}
+          connectNulls
+          name="SNR In"
+        />
+        <Line
+          type="monotone"
+          dataKey="outbound"
+          stroke="#22c55e"
+          strokeWidth={1.5}
+          dot={false}
+          connectNulls
+          name="SNR Out"
+        />
+      </LineChart>
+    </ChartContainer>
+  );
+}
+
+export function LinkSNRCharts({ snrHistory, initialVisible = 3, maxLinks }: LinkSNRChartsProps) {
+  const [expanded, setExpanded] = React.useState(false);
+
+  const allLinksSorted = React.useMemo(() => {
+    const sorted = snrHistory
+      .map((h) => {
+        const inboundTs = h.inbound.map((p) => new Date(p.triggered_at).getTime());
+        const outboundTs = h.outbound.map((p) => new Date(p.triggered_at).getTime());
+        const allTs = [...inboundTs, ...outboundTs];
+        return {
+          ...h,
+          totalPoints: h.inbound.length + h.outbound.length,
+          latestTs: allTs.length ? Math.max(...allTs) : 0,
+        };
+      })
+      .sort((a, b) => b.totalPoints - a.totalPoints || b.latestTs - a.latestTs);
+    return maxLinks != null ? sorted.slice(0, maxLinks) : sorted;
+  }, [snrHistory, maxLinks]);
+
+  const linksToShow = expanded ? allLinksSorted : allLinksSorted.slice(0, initialVisible);
+  const hasMore = allLinksSorted.length > initialVisible;
+  const hiddenCount = allLinksSorted.length - initialVisible;
+
+  if (allLinksSorted.length === 0) {
+    return (
+      <div className="flex h-[120px] items-center justify-center rounded border border-dashed text-sm text-muted-foreground">
+        No SNR history for links
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {linksToShow.map((link) => (
+          <div key={link.peer_node_id} className="rounded-lg border p-3">
+            <div className="mb-2 text-sm font-medium text-muted-foreground">
+              Link to {link.peer_short_name || `!${link.peer_node_id.toString(16)}`}
+            </div>
+            <LinkSNRChart inbound={link.inbound} outbound={link.outbound} />
+          </div>
+        ))}
+      </div>
+      {hasMore && !expanded && (
+        <Button variant="outline" size="sm" onClick={() => setExpanded(true)} className="w-full sm:w-auto">
+          <ChevronDown className="mr-1 h-4 w-4" />
+          Show all links ({hiddenCount} more)
+        </Button>
+      )}
+    </div>
+  );
+}

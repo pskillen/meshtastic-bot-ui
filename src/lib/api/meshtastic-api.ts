@@ -547,4 +547,44 @@ export class MeshtasticApi extends BaseApi {
     }
     return this.get('/traceroutes/heatmap-edges/', searchParams);
   }
+
+  /**
+   * Get traceroute links for a specific node (from Neo4j)
+   */
+  async getNodeTracerouteLinks(
+    nodeId: number,
+    params?: { triggered_at_after?: string }
+  ): Promise<{
+    edges: Array<{
+      from_node_id: number;
+      to_node_id: number;
+      from_lat: number;
+      from_lng: number;
+      to_lat: number;
+      to_lng: number;
+      avg_snr_in: number | null;
+      avg_snr_out: number | null;
+      count: number;
+    }>;
+    nodes: Array<{
+      node_id: number;
+      node_id_str?: string;
+      lat: number;
+      lng: number;
+      short_name?: string;
+      long_name?: string;
+    }>;
+    snr_history: Array<{
+      peer_node_id: number;
+      peer_short_name: string;
+      inbound: Array<{ triggered_at: string; snr: number }>;
+      outbound: Array<{ triggered_at: string; snr: number }>;
+    }>;
+  }> {
+    const searchParams = new URLSearchParams();
+    if (params?.triggered_at_after) {
+      searchParams.append('triggered_at_after', params.triggered_at_after);
+    }
+    return this.get(`/nodes/observed-nodes/${nodeId}/traceroute-links/`, searchParams);
+  }
 }
