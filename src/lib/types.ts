@@ -40,6 +40,7 @@ export interface ApiConfig {
 
 export interface AppConfig {
   version: string;
+  mapboxToken?: string; // For Mapbox GL; injected at runtime in Docker
   apis: {
     meshBot: ApiConfig;
   };

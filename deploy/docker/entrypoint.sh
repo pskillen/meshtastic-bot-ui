@@ -3,6 +3,7 @@
 # Create config.json from environment variables
 cat > /usr/share/nginx/html/config.json << EOF
 {
+  "mapboxToken": "${MAPBOX_TOKEN:-}",
   "apis": {
     "meshBot": {
       "baseUrl": "${MESHBOT_API_URL:-http://localhost:8000}",

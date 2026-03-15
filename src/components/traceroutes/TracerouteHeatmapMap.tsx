@@ -5,6 +5,7 @@ import { ArcLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
 import type { PickingInfo } from '@deck.gl/core';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Link } from 'react-router-dom';
+import { useConfig } from '@/providers/ConfigProvider';
 import { X } from 'lucide-react';
 import type { HeatmapEdge, HeatmapNode } from '@/hooks/api/useHeatmapEdges';
 
@@ -106,7 +107,8 @@ function NodePopupOverlay({ node, onClose }: { node: HeatmapNode; onClose: () =>
 }
 
 export function TracerouteHeatmapMap({ edges, nodes, intensity = 0.7, showLabels = true }: TracerouteHeatmapMapProps) {
-  const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
+  const config = useConfig();
+  const mapboxToken = config.mapboxToken ?? (import.meta.env.VITE_MAPBOX_TOKEN as string | undefined);
   const [selectedNode, setSelectedNode] = useState<HeatmapNode | null>(null);
 
   const handleClick = useCallback((info: PickingInfo) => {
@@ -183,7 +185,7 @@ export function TracerouteHeatmapMap({ edges, nodes, intensity = 0.7, showLabels
   if (!mapboxToken) {
     return (
       <div className="flex min-h-[400px] items-center justify-center rounded-md border bg-muted/30 text-muted-foreground">
-        Mapbox token required. Set VITE_MAPBOX_TOKEN in your environment.
+        Mapbox token required. Set VITE_MAPBOX_TOKEN (dev) or MAPBOX_TOKEN (Docker) in your environment.
       </div>
     );
   }
