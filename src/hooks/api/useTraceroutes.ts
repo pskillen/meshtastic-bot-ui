@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useMeshtasticApi } from './useApi';
 
 export interface UseTraceroutesParams {
@@ -38,6 +38,23 @@ export function useCanTriggerTraceroute() {
   });
 }
 
+export function useTracerouteTriggerableNodes() {
+  const api = useMeshtasticApi();
+  return useQuery({
+    queryKey: ['traceroutes', 'triggerable-nodes'],
+    queryFn: () => api.getTracerouteTriggerableNodes(),
+  });
+}
+
+export function useTracerouteTriggerableNodesSuspense() {
+  const api = useMeshtasticApi();
+  const { data } = useSuspenseQuery({
+    queryKey: ['traceroutes', 'triggerable-nodes'],
+    queryFn: () => api.getTracerouteTriggerableNodes(),
+  });
+  return { triggerableNodes: data ?? [] };
+}
+
 export function useTriggerTraceroute() {
   const api = useMeshtasticApi();
   const queryClient = useQueryClient();
@@ -46,6 +63,7 @@ export function useTriggerTraceroute() {
       api.triggerTraceroute(managedNodeId, targetNodeId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['traceroutes'] });
+      queryClient.invalidateQueries({ queryKey: ['traceroutes', 'triggerable-nodes'] });
     },
   });
 }

@@ -499,6 +499,13 @@ export class MeshtasticApi extends BaseApi {
   }
 
   /**
+   * Get ManagedNodes the current user can trigger traceroutes from
+   */
+  async getTracerouteTriggerableNodes(): Promise<ManagedNode[]> {
+    return this.get<ManagedNode[]>('/traceroutes/triggerable-nodes/');
+  }
+
+  /**
    * Get aggregated heatmap edges and nodes for traceroute visualization
    */
   async getHeatmapEdges(params?: {
