@@ -88,7 +88,7 @@ export function TracerouteHeatmapPage() {
       </div>
 
       {/* Map area */}
-      <div className="relative flex-1 min-h-[300px] md:min-h-[calc(100dvh-16rem)]">
+      <div className="relative flex-1 min-h-[300px] md:min-h-[calc(100dvh-16rem)]" data-testid="heatmap-map">
         <Card className="h-full min-h-[300px]">
           <CardContent className="h-full p-0">
             {error && (

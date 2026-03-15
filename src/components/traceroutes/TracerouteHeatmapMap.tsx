@@ -71,7 +71,11 @@ function NodePopupOverlay({ node, onClose }: { node: HeatmapNode; onClose: () =>
   if (!position) return null;
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-[10000]" style={{ position: 'absolute' }}>
+    <div
+      className="pointer-events-none absolute inset-0 z-[10000]"
+      style={{ position: 'absolute' }}
+      data-testid="node-popup"
+    >
       <div
         className="pointer-events-auto min-w-[120px] rounded border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100 shadow-lg"
         style={{
@@ -193,7 +197,7 @@ export function TracerouteHeatmapMap({ edges, nodes, intensity = 0.7, showLabels
   }
 
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full w-full" data-testid="heatmap-map-container">
       <Map
         mapboxAccessToken={mapboxToken}
         initialViewState={DEFAULT_CENTER}
