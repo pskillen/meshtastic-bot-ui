@@ -6,6 +6,8 @@ import { useMyManagedNodesSuspense, useMyClaimedNodesSuspense } from '@/hooks/ap
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, AlertCircle, Info, Copy, Radio, Plus } from 'lucide-react';
+import { useConfig } from '@/providers/ConfigProvider';
+import { BotSetupInstructions } from '@/components/nodes/BotSetupInstructions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -17,6 +19,7 @@ import { useMeshtasticApi } from '@/hooks/api/useApi';
 
 function NodeSettingsContent() {
   const api = useMeshtasticApi();
+  const config = useConfig();
   const { data: claims, isLoading: isLoadingClaims, error: claimsError } = useUserClaims();
   const { myManagedNodes } = useMyManagedNodesSuspense();
   const { myClaimedNodes } = useMyClaimedNodesSuspense();
@@ -291,40 +294,27 @@ function NodeSettingsContent() {
                           View Node Details
                         </Link>
                         <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-md">
-                          <p className="text-sm font-medium">Managed Node Setup Instructions:</p>
-                          <Alert className="mt-2">
-                            <Info className="h-4 w-4" />
-                            <AlertTitle>Setup Instructions</AlertTitle>
-                            <AlertDescription className="text-xs">
-                              <ol className="list-decimal list-inside space-y-1 mt-1">
-                                <li>Go to the API Keys tab and create or select an API key</li>
-                                <li>Install the Meshtastic Bot software on your device (e.g., Raspberry Pi)</li>
-                                <li>Connect your Meshtastic device to your computer</li>
-                                <li>Configure the bot with your API key</li>
-                                <li>Start the bot</li>
-                              </ol>
-                            </AlertDescription>
-                          </Alert>
-
-                          <div className="mt-3">
-                            <p className="text-sm font-medium mb-1">Hardware Requirements:</p>
-                            <ul className="list-disc list-inside text-xs text-slate-600 dark:text-slate-400 space-y-1">
-                              <li>Meshtastic-compatible device (e.g., T-Beam, T-Echo, etc.)</li>
-                              <li>Computer or single-board computer (e.g., Raspberry Pi)</li>
-                              <li>USB cable to connect the device</li>
-                            </ul>
-                          </div>
-
-                          <div className="mt-3">
-                            <p className="text-sm font-medium mb-1">Software Configuration:</p>
-                            <pre className="bg-slate-100 dark:bg-slate-800 p-2 rounded text-xs overflow-x-auto mt-1">
-                              {`# Example configuration
-MESHFLOW_API_URL=https://api.example.com
-MESHFLOW_API_KEY=<your_api_key>  # From API Keys tab
-SERIAL_PORT=/dev/ttyUSB0  # Adjust for your system`}
-                            </pre>
-                          </div>
-
+                          <p className="text-sm font-medium mb-2">Managed Node Setup Instructions:</p>
+                          {(() => {
+                            const nodeApiKeys = apiKeys?.filter((key) => key.nodes.includes(node.node_id)) || [];
+                            const firstApiKey = nodeApiKeys[0]?.key;
+                            return firstApiKey && config ? (
+                              <BotSetupInstructions
+                                apiKey={firstApiKey}
+                                apiBaseUrl={config.apis.meshBot.baseUrl}
+                                nodeShortName={node.short_name || node.node_id_str}
+                              />
+                            ) : (
+                              <Alert>
+                                <Info className="h-4 w-4" />
+                                <AlertTitle>Assign an API Key</AlertTitle>
+                                <AlertDescription>
+                                  Go to the API Keys tab to create or assign an API key to this node, then return here
+                                  for setup instructions.
+                                </AlertDescription>
+                              </Alert>
+                            );
+                          })()}
                           <div className="flex gap-2 mt-3">
                             <Button
                               variant="outline"
@@ -472,12 +462,18 @@ SERIAL_PORT=/dev/ttyUSB0  # Adjust for your system`}
                             <Info className="h-4 w-4" />
                             <AlertTitle>Setup Instructions</AlertTitle>
                             <AlertDescription className="text-xs">
-                              To use this API key with your managed node, configure your Meshtastic Bot with this key.
-                              <pre className="mt-2 bg-slate-100 dark:bg-slate-800 p-2 rounded text-xs overflow-x-auto">
-                                {`# Example configuration\nMESHFLOW_API_URL=https://api.example.com\nMESHFLOW_API_KEY=${apiKey.key}\nSERIAL_PORT=/dev/ttyUSB0  # Adjust for your system`}
-                              </pre>
+                              To use this API key with your managed node, configure your Meshtastic Bot:
                             </AlertDescription>
                           </Alert>
+                          {config && (
+                            <div className="mt-2">
+                              <BotSetupInstructions
+                                apiKey={apiKey.key}
+                                apiBaseUrl={config.apis.meshBot.baseUrl}
+                                nodeShortName={apiKey.name}
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}

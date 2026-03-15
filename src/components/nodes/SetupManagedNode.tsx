@@ -18,7 +18,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, AlertCircle, CheckCircle2, Download } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useConfig } from '@/providers/ConfigProvider';
+import { BotSetupInstructions } from '@/components/nodes/BotSetupInstructions';
 import { useQuery } from '@tanstack/react-query';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -36,6 +38,7 @@ type SetupStep = 'constellation' | 'location' | 'channels' | 'api-key' | 'instru
 export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProps) {
   const navigate = useNavigate();
   const api = useMeshtasticApi();
+  const config = useConfig();
 
   // Glasgow coordinates as default fallback
   const GLASGOW_COORDS = { lat: 55.8642, lng: -4.2518 };
@@ -544,6 +547,12 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
     </>
   );
 
+  const effectiveApiKey =
+    createdApiKey?.key ??
+    (apiKeyOption === 'existing' && selectedApiKey
+      ? apiKeysQuery.data?.find((k) => String(k.id) === String(selectedApiKey))?.key
+      : undefined);
+
   const renderInstructionsStep = () => (
     <>
       <DialogHeader>
@@ -554,63 +563,34 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
       </DialogHeader>
 
       <div className="space-y-4 py-4">
-        <Alert className="bg-green-50 border-green-200">
+        <Alert className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
           <CheckCircle2 className="h-4 w-4 text-green-500" />
           <AlertTitle>Node Setup Complete</AlertTitle>
           <AlertDescription>Your node has been successfully set up as a managed node.</AlertDescription>
         </Alert>
 
-        <div className="space-y-2">
-          <h3 className="text-lg font-medium">Bot Setup Instructions</h3>
-          <ol className="list-decimal list-inside space-y-2">
-            <li>Download the Meshtastic Bot software</li>
-            <li>Install the software on your device (e.g., Raspberry Pi)</li>
-            <li>Configure the bot with your API key</li>
-            <li>Connect your Meshtastic device to your computer</li>
-            <li>Start the bot</li>
-          </ol>
+        {effectiveApiKey && config ? (
+          <BotSetupInstructions
+            apiKey={effectiveApiKey}
+            apiBaseUrl={config.apis.meshBot.baseUrl}
+            nodeShortName={nodeName}
+          />
+        ) : (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Setup Instructions Unavailable</AlertTitle>
+            <AlertDescription>
+              Unable to load API key or configuration. You can find setup instructions in Node Settings under the API
+              Keys tab.
+            </AlertDescription>
+          </Alert>
+        )}
 
-          <div className="mt-4">
-            <h4 className="text-md font-medium flex items-center gap-2">
-              Your API Key:
-              {createdApiKey && (
-                <button
-                  className="ml-2 px-2 py-1 text-xs bg-slate-200 dark:bg-slate-700 rounded hover:bg-slate-300 dark:hover:bg-slate-600"
-                  onClick={() => {
-                    navigator.clipboard.writeText(createdApiKey.key);
-                  }}
-                  title="Copy API Key"
-                  type="button"
-                >
-                  Copy
-                </button>
-              )}
-            </h4>
-            <div
-              className="bg-slate-100 dark:bg-slate-800 p-2 rounded mt-1 font-mono text-sm break-all select-all whitespace-pre-wrap"
-              style={{ wordBreak: 'break-all' }}
-            >
-              {createdApiKey ? createdApiKey.key : 'Use your selected API key'}
-            </div>
-            {createdApiKey && (
-              <div className="mt-2 text-xs text-red-600">
-                <b>Warning:</b> This API key cannot be recovered. Please copy and store it securely now.
-              </div>
-            )}
+        {createdApiKey && (
+          <div className="text-xs text-amber-600 dark:text-amber-500">
+            <b>Warning:</b> This API key cannot be recovered. Please copy and store it securely now.
           </div>
-
-          <div className="mt-4">
-            <a
-              href="https://github.com/pskillen/meshtastic-bot"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 transition-colors"
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Download Bot Software
-            </a>
-          </div>
-        </div>
+        )}
       </div>
 
       <DialogFooter>
@@ -624,7 +604,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
         {error && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
