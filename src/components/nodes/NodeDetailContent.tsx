@@ -1,13 +1,17 @@
 import { Link } from 'react-router-dom';
 import { useNodeSuspense, useNodePositions, useManagedNodesSuspense } from '@/hooks/api/useNodes';
+import { useNodeTracerouteLinks } from '@/hooks/api/useNodeTracerouteLinks';
 import { useRecentNodes } from '@/hooks/useRecentNodes';
 import { formatDistanceToNow } from 'date-fns';
+import { subDays, subHours } from 'date-fns';
 import { formatUptimeSeconds } from '@/lib/utils';
 import { BatteryChartShadcn } from '@/components/BatteryChartShadcn';
 import { NeighbourPieChart } from '@/components/NeighbourPieChart';
 import { PacketTypeChart } from '@/components/PacketTypeChart';
 import { ReceivedPacketTypeChart } from '@/components/ReceivedPacketTypeChart';
 import { NodesMap } from '@/components/nodes/NodesMap';
+import { NodeTracerouteLinksMap } from '@/components/nodes/NodeTracerouteLinksMap';
+import { LinkSNRCharts } from '@/components/nodes/LinkSNRCharts';
 import { BatteryGauge } from '@/components/nodes/BatteryGauge';
 import { PercentGauge } from '@/components/nodes/PercentGauge';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
@@ -15,6 +19,7 @@ import { useState, useEffect, Suspense, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Pause, Play, CheckCircle, Clock, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { authService } from '@/lib/auth/authService';
 import { getRoleLabel } from '@/lib/meshtastic';
 
@@ -22,6 +27,82 @@ interface NodeDetailContentProps {
   nodeId: number;
   /** When true, hide the "Back to Nodes" link (e.g. when shown in slide-over) */
   compact?: boolean;
+}
+
+type TracerouteTimeRange = '24h' | '7d' | '30d';
+
+function TracerouteLinksSection({ nodeId }: { nodeId: number }) {
+  const [timeRange, setTimeRange] = useState<TracerouteTimeRange>('7d');
+  const triggeredAtAfter = useMemo(() => {
+    if (timeRange === '24h') return subHours(new Date(), 24);
+    if (timeRange === '7d') return subDays(new Date(), 7);
+    if (timeRange === '30d') return subDays(new Date(), 30);
+    return undefined;
+  }, [timeRange]);
+
+  const { data, isLoading, error } = useNodeTracerouteLinks(nodeId, { triggeredAtAfter });
+
+  const hasData = data && (data.edges.length > 0 || data.nodes.length > 0);
+
+  return (
+    <div className="mb-6">
+      <Card>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4">
+          <div>
+            <CardTitle>Traceroute Links</CardTitle>
+            <CardDescription>
+              Mesh links from traceroutes. Arcs colored by average SNR (green = good, red = poor).
+            </CardDescription>
+          </div>
+          <div className="w-full sm:w-auto sm:min-w-[140px]">
+            <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TracerouteTimeRange)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="24h">Last 24 hours</SelectItem>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {error && (
+            <div className="flex min-h-[200px] items-center justify-center text-destructive text-sm">
+              Failed to load traceroute links: {error instanceof Error ? error.message : 'Unknown error'}
+            </div>
+          )}
+          {isLoading && (
+            <div className="flex min-h-[300px] items-center justify-center text-muted-foreground">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500" />
+            </div>
+          )}
+          {!error && !isLoading && !hasData && (
+            <div className="flex min-h-[200px] flex-col items-center justify-center gap-2 text-muted-foreground">
+              <p>No traceroute data for this node</p>
+              <Link to="/traceroutes/heatmap" className="text-sm text-teal-600 dark:text-teal-400 hover:underline">
+                View Traceroute Heatmap
+              </Link>
+            </div>
+          )}
+          {!error && !isLoading && hasData && data && (
+            <>
+              <div className="mb-4 h-[300px] w-full">
+                <NodeTracerouteLinksMap edges={data.edges} nodes={data.nodes} focusNodeId={nodeId} showLabels={true} />
+              </div>
+              {data.snr_history.length > 0 && (
+                <div>
+                  <h4 className="mb-3 text-sm font-medium">SNR over time by link</h4>
+                  <LinkSNRCharts snrHistory={data.snr_history} initialVisible={3} />
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 function NeighbourStatsSection({ nodeId }: { nodeId: number }) {
@@ -313,6 +394,7 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
 
       {!compact && (
         <>
+          <TracerouteLinksSection nodeId={nodeId} />
           <div className="mb-6">
             <Suspense
               fallback={
