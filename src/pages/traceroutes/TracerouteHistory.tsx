@@ -9,8 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { useTraceroutesWithWebSocket } from '@/hooks/useTraceroutesWithWebSocket';
-import { useCanTriggerTraceroute, useTriggerTraceroute } from '@/hooks/api/useTraceroutes';
-import { useManagedNodesSuspense, useNodesSuspense } from '@/hooks/api/useNodes';
+import { useTracerouteTriggerableNodesSuspense, useTriggerTraceroute } from '@/hooks/api/useTraceroutes';
+import { useNodesSuspense } from '@/hooks/api/useNodes';
 import { TriggerTracerouteModal } from './TriggerTracerouteModal';
 import { TracerouteDetailModal } from './TracerouteDetailModal';
 import { AutoTraceRoute } from '@/lib/models';
@@ -77,10 +77,8 @@ export function TracerouteHistory() {
     target_node: targetNodeId ?? undefined,
     page_size: 50,
   });
-  const { data: canTriggerData } = useCanTriggerTraceroute();
-  const canTrigger = canTriggerData?.can_trigger ?? false;
-  const { managedNodes } = useManagedNodesSuspense(500);
-  const tracerouteEligibleNodes = managedNodes.filter((n) => n.allow_auto_traceroute === true);
+  const { triggerableNodes } = useTracerouteTriggerableNodesSuspense();
+  const canTrigger = triggerableNodes.length > 0;
   const { nodes: observedNodes } = useNodesSuspense({
     lastHeardAfter: subDays(new Date(), 7),
     pageSize: 500,
@@ -134,7 +132,7 @@ export function TracerouteHistory() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All sources</SelectItem>
-                {tracerouteEligibleNodes.map((n) => (
+                {triggerableNodes.map((n) => (
                   <SelectItem key={n.node_id} value={String(n.node_id)}>
                     {n.short_name ?? n.node_id_str ?? String(n.node_id)}
                   </SelectItem>
@@ -204,31 +202,33 @@ export function TracerouteHistory() {
                     <TableCell>{tr.completed_at ? format(new Date(tr.completed_at), 'PPp') : '—'}</TableCell>
                     {canTrigger && (
                       <TableCell onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() =>
-                            triggerMutation.mutate(
-                              {
-                                managedNodeId: tr.source_node.node_id,
-                                targetNodeId: tr.target_node.node_id,
-                              },
-                              {
-                                onError: (err) => {
-                                  toast.error('Traceroute failed', {
-                                    description: getTracerouteErrorMessage(err),
-                                  });
+                        {triggerableNodes.some((n) => n.node_id === tr.source_node.node_id) ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() =>
+                              triggerMutation.mutate(
+                                {
+                                  managedNodeId: tr.source_node.node_id,
+                                  targetNodeId: tr.target_node.node_id,
                                 },
-                              }
-                            )
-                          }
-                          disabled={triggerMutation.isPending || tr.source_node.allow_auto_traceroute === false}
-                          title="Repeat this traceroute"
-                          aria-label="Repeat traceroute"
-                        >
-                          <RotateCw className="h-4 w-4" />
-                        </Button>
+                                {
+                                  onError: (err) => {
+                                    toast.error('Traceroute failed', {
+                                      description: getTracerouteErrorMessage(err),
+                                    });
+                                  },
+                                }
+                              )
+                            }
+                            disabled={triggerMutation.isPending || tr.source_node.allow_auto_traceroute === false}
+                            title="Repeat this traceroute"
+                            aria-label="Repeat traceroute"
+                          >
+                            <RotateCw className="h-4 w-4" />
+                          </Button>
+                        ) : null}
                       </TableCell>
                     )}
                   </TableRow>
@@ -249,7 +249,7 @@ export function TracerouteHistory() {
         open={triggerModalOpen}
         onOpenChange={setTriggerModalOpen}
         mode={triggerMode}
-        managedNodes={tracerouteEligibleNodes}
+        managedNodes={triggerableNodes}
         observedNodes={observedNodes}
         onTrigger={async (managedNodeId, targetNodeId) => {
           try {

@@ -8,12 +8,22 @@ export const STORAGE_KEYS = {
 
 export const DEFAULT_MAP_TILE_SOURCE = 'osm';
 
-export type MapTileSourceId = 'auto' | 'osm' | 'positron' | 'dark-matter' | 'voyager';
+export type MapTileSourceId = 'auto' | 'osm' | 'positron' | 'dark-matter' | 'voyager' | 'satellite' | 'terrain';
+
+const VALID_MAP_TILE_SOURCES: MapTileSourceId[] = [
+  'auto',
+  'osm',
+  'positron',
+  'dark-matter',
+  'voyager',
+  'satellite',
+  'terrain',
+];
 
 export function getMapTileSource(): MapTileSourceId {
   if (typeof window === 'undefined') return DEFAULT_MAP_TILE_SOURCE as MapTileSourceId;
   const stored = localStorage.getItem(STORAGE_KEYS.MAP_TILE_SOURCE);
-  if (stored && ['auto', 'osm', 'positron', 'dark-matter', 'voyager'].includes(stored)) {
+  if (stored && VALID_MAP_TILE_SOURCES.includes(stored as MapTileSourceId)) {
     return stored as MapTileSourceId;
   }
   return DEFAULT_MAP_TILE_SOURCE as MapTileSourceId;
