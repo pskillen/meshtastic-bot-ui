@@ -12,6 +12,7 @@ vi.mock('axios', () => ({
 describe('Config', () => {
   const defaultConfig: AppConfig = {
     version: 'development',
+    mapboxToken: undefined,
     apis: {
       meshBot: {
         baseUrl: 'http://localhost:8000',
@@ -37,6 +38,7 @@ describe('Config', () => {
   };
 
   const remoteConfig = {
+    mapboxToken: 'pk.remote-token',
     apis: {
       meshBot: {
         baseUrl: 'https://api.example.com',
@@ -76,6 +78,7 @@ describe('Config', () => {
       // Deep merge the configs, with remote config taking precedence
       return {
         version: 'development',
+        mapboxToken: remoteConfig.mapboxToken ?? defaultConfig.mapboxToken,
         apis: {
           meshBot: {
             ...defaultConfig.apis.meshBot,
@@ -133,6 +136,7 @@ describe('Config', () => {
     expect(config.map.defaultZoom).toBe(5);
     expect(config.refresh.nodesList).toBe(60000);
     expect(config.refresh.nodeDetails).toBe(10000); // From default
+    expect(config.mapboxToken).toBe('pk.remote-token');
   });
 
   it('should handle partial remote config', async () => {
@@ -159,6 +163,7 @@ describe('Config', () => {
     expect(config.map.defaultZoom).toBe(2); // From default
     expect(config.refresh.nodesList).toBe(30000); // From default
     expect(config.refresh.nodeDetails).toBe(10000); // From default
+    expect(config.mapboxToken).toBeUndefined();
   });
 
   it('should cache the config promise', async () => {

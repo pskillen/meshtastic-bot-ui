@@ -7,6 +7,7 @@ const VERSION = 'development';
 // Default configuration
 const defaultConfig: AppConfig = {
   version: VERSION,
+  mapboxToken: import.meta.env.VITE_MAPBOX_TOKEN as string | undefined,
   apis: {
     meshBot: {
       baseUrl: 'http://localhost:8000',
@@ -40,6 +41,7 @@ async function fetchConfig(): Promise<AppConfig> {
     // Deep merge the configs, with remote config taking precedence
     return {
       version: VERSION,
+      mapboxToken: remoteConfig.mapboxToken ?? defaultConfig.mapboxToken,
       apis: {
         meshBot: {
           ...defaultConfig.apis.meshBot,
