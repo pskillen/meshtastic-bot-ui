@@ -6,6 +6,7 @@ import type { PickingInfo } from '@deck.gl/core';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Link } from 'react-router-dom';
 import { useConfig } from '@/providers/ConfigProvider';
+import { useMapboxStyle } from '@/hooks/useMapboxStyle';
 import { X } from 'lucide-react';
 import type { HeatmapEdge, HeatmapNode } from '@/hooks/api/useHeatmapEdges';
 
@@ -109,6 +110,7 @@ function NodePopupOverlay({ node, onClose }: { node: HeatmapNode; onClose: () =>
 export function TracerouteHeatmapMap({ edges, nodes, intensity = 0.7, showLabels = true }: TracerouteHeatmapMapProps) {
   const config = useConfig();
   const mapboxToken = config.mapboxToken ?? (import.meta.env.VITE_MAPBOX_TOKEN as string | undefined);
+  const mapStyle = useMapboxStyle();
   const [selectedNode, setSelectedNode] = useState<HeatmapNode | null>(null);
 
   const handleClick = useCallback((info: PickingInfo) => {
@@ -195,7 +197,7 @@ export function TracerouteHeatmapMap({ edges, nodes, intensity = 0.7, showLabels
       <Map
         mapboxAccessToken={mapboxToken}
         initialViewState={DEFAULT_CENTER}
-        mapStyle="mapbox://styles/mapbox/dark-v11"
+        mapStyle={mapStyle}
         style={{ width: '100%', height: '100%' }}
       >
         <DeckGLOverlay interleaved={false} layers={layers} onClick={handleClick} />
