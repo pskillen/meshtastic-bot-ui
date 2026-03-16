@@ -94,7 +94,12 @@ function TracerouteLinksSection({ nodeId }: { nodeId: number }) {
               {data.snr_history.length > 0 && (
                 <div>
                   <h4 className="mb-3 text-sm font-medium">SNR over time by link</h4>
-                  <LinkSNRCharts snrHistory={data.snr_history} initialVisible={3} />
+                  <LinkSNRCharts
+                    snrHistory={data.snr_history}
+                    initialVisible={3}
+                    timeRangeStart={triggeredAtAfter}
+                    timeRangeEnd={new Date()}
+                  />
                 </div>
               )}
             </>
