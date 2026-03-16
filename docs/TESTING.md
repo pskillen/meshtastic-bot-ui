@@ -1,0 +1,85 @@
+# Running Tests
+
+This document explains how to run unit and browser tests for the Meshtastic Bot UI.
+
+## Unit tests (Vitest)
+
+Unit tests use Vitest and run in Node with jsdom. No external services are required.
+
+```bash
+npm install
+npm test
+```
+
+Other commands:
+
+```bash
+npm run test:watch    # Watch mode
+npm run test:ui       # Vitest UI
+npm run test:coverage # With coverage
+```
+
+## Browser tests (Playwright)
+
+Browser tests use Playwright to run end-to-end tests in a real Chromium instance. They exercise the UI as a user would, including routing, interactions, and visual elements.
+
+### Prerequisites
+
+1. **Install Playwright browsers** (required once per machine or after Playwright upgrade):
+
+   ```bash
+   npx playwright install chromium
+   ```
+
+2. **Optional: Meshflow API** – Some tests mock API responses and need no backend. Tests that hit the real API require the API to be running (see [meshflow-api tests/TESTING.md](../../meshflow-api/tests/TESTING.md) for setup).
+
+### Auth bypass
+
+Protected routes normally require authentication. For browser tests, auth is bypassed when the app is built with `VITE_BROWSER_TEST=true`.
+
+- **Implementation**: `ProtectedRoute` checks `import.meta.env.VITE_BROWSER_TEST === 'true'` and, when set, renders children without requiring login.
+- **Usage**: The `browser:dev` script runs Vite with this env var on port 5174:
+
+  ```bash
+  npm run browser:dev   # VITE_BROWSER_TEST=true vite --port 5174
+  ```
+
+Playwright’s `webServer` config uses `browser:dev`, so the dev server started for tests automatically has auth bypass enabled. You can also run `browser:dev` manually to develop against protected routes without logging in.
+
+### Running browser tests
+
+```bash
+npm run browser
+```
+
+This will:
+
+1. Start the dev server with `browser:dev` (auth bypass on port 5174) if not already running
+2. Run all tests in `browser/`
+
+Other commands:
+
+```bash
+npm run browser:ui       # Playwright UI mode
+npm run browser:headed   # Run with visible browser window
+```
+
+### Test structure
+
+- **Location**: `browser/*.spec.ts`
+- **Fixtures**: `browser/fixtures/` – JSON and other test data
+- **Config**: `playwright.config.ts` – base URL, web server, timeouts
+
+### Mocking API responses
+
+Tests can mock API calls with `page.route()` so they don’t need a live API:
+
+```typescript
+test.beforeEach(async ({ page }) => {
+  await page.route('**/traceroutes/heatmap-edges/**', (route) =>
+    route.fulfill({ status: 200, body: JSON.stringify(heatmapFixture) })
+  );
+});
+```
+
+The traceroute heatmap tests use this pattern and run without the Meshflow API.
