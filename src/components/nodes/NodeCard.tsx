@@ -63,6 +63,7 @@ export function NodeCard({ node }: NodeCardProps) {
       </div>
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm text-slate-600 dark:text-slate-400">
         {roleLabel && <span>{roleLabel}</span>}
+        {node.owner && <span>Owner: {node.owner.username}</span>}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm text-slate-600 dark:text-slate-400">
         {node.hw_model && <span>{node.hw_model}</span>}

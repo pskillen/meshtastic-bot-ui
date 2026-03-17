@@ -189,19 +189,26 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
         <div>
           <h1 className={`font-bold ${compact ? 'text-xl' : 'text-3xl'}`}>{node.short_name}</h1>
           <p className="text-slate-600 dark:text-slate-400">{node.long_name}</p>
-          {(hasPendingClaim || hasApprovedClaim) && (
+          {(hasPendingClaim ||
+            hasApprovedClaim ||
+            (node.owner && (!currentUser || node.owner.id !== currentUser.id))) && (
             <div className="mt-2 flex items-center">
               {hasPendingClaim ? (
                 <Badge variant="outline" className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
                   <span>Claim Pending</span>
                 </Badge>
-              ) : (
+              ) : hasApprovedClaim ? (
                 <Badge variant="default" className="flex items-center gap-1">
                   <CheckCircle className="h-3 w-3" />
                   <span>Claimed by You</span>
                 </Badge>
-              )}
+              ) : node.owner ? (
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3" />
+                  <span>Claimed by {node.owner.username}</span>
+                </Badge>
+              ) : null}
             </div>
           )}
         </div>

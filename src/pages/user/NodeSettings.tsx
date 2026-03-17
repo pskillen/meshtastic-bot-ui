@@ -1,16 +1,18 @@
 import { useState, Suspense } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useUserClaims } from '@/hooks/api/useNodeClaims';
 import { useMyManagedNodesSuspense, useMyClaimedNodesSuspense } from '@/hooks/api/useNodes';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Info, Copy, Radio, Plus } from 'lucide-react';
+import { Loader2, AlertCircle, Info, Copy, Radio, HelpCircle } from 'lucide-react';
 import { useConfig } from '@/providers/ConfigProvider';
 import { BotSetupInstructions } from '@/components/nodes/BotSetupInstructions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ObservedNode } from '@/lib/models';
 import { SetupManagedNode } from '@/components/nodes/SetupManagedNode';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -25,19 +27,27 @@ function NodeSettingsContent() {
   const { myClaimedNodes } = useMyClaimedNodesSuspense();
   const [selectedNode, setSelectedNode] = useState<ObservedNode | null>(null);
   const [isSetupDialogOpen, setIsSetupDialogOpen] = useState(false);
-  const [newApiKeyName, setNewApiKeyName] = useState('');
-  const [selectedConstellation, setSelectedConstellation] = useState<number | null>(null);
-  const [isCreatingApiKey, setIsCreatingApiKey] = useState(false);
-  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [assignKeyId, setAssignKeyId] = useState<string | null>(null);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [selectedAssignNodes, setSelectedAssignNodes] = useState<number[]>([]);
   const [isAssigning, setIsAssigning] = useState(false);
-  const [deleteKeyId, setDeleteKeyId] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [toggleKeyId, setToggleKeyId] = useState<string | null>(null);
-  const [isToggling, setIsToggling] = useState(false);
+  const [setupInstructionsKey, setSetupInstructionsKey] = useState<{ apiKey: string; nodeShortName: string } | null>(
+    null
+  );
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const activeTab = ['nodes', 'pending-claims', 'managed'].includes(tabParam ?? '') ? tabParam! : 'nodes';
+
+  const handleTabChange = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (value === 'nodes') {
+      next.delete('tab');
+    } else {
+      next.set('tab', value);
+    }
+    setSearchParams(next, { replace: true });
+  };
 
   const handleRunAsManagedNode = (node: ObservedNode) => {
     setSelectedNode(node);
@@ -51,29 +61,6 @@ function NodeSettingsContent() {
 
   const handleCopyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-  };
-
-  const handleCreateApiKey = async () => {
-    if (!newApiKeyName || !selectedConstellation) {
-      setApiKeyError('Please provide a name and select a constellation');
-      return;
-    }
-
-    setIsCreatingApiKey(true);
-    setApiKeyError(null);
-
-    try {
-      await api.createApiKey(newApiKeyName, selectedConstellation);
-      setNewApiKeyName('');
-      setSelectedConstellation(null);
-      // Refetch API keys
-      await queryClient.invalidateQueries({ queryKey: ['api-keys'] });
-    } catch (error) {
-      setApiKeyError('Failed to create API key. Please try again.');
-      console.error('Error creating API key:', error);
-    } finally {
-      setIsCreatingApiKey(false);
-    }
   };
 
   // Create a Set of managed node IDs for quick lookup
@@ -100,16 +87,13 @@ function NodeSettingsContent() {
     if (!assignKeyId) return;
     setIsAssigning(true);
     try {
-      // Find the API key
       const apiKey = apiKeys?.find((k) => k.id === assignKeyId);
       if (!apiKey) return;
-      // Add new nodes
       for (const nodeId of selectedAssignNodes) {
         if (!apiKey.nodes.includes(nodeId)) {
           await api.addNodeToApiKey(assignKeyId, nodeId);
         }
       }
-      // Remove unselected nodes
       for (const nodeId of apiKey.nodes) {
         if (!selectedAssignNodes.includes(nodeId)) {
           await api.removeNodeFromApiKey(assignKeyId, nodeId);
@@ -122,31 +106,17 @@ function NodeSettingsContent() {
     }
   };
 
-  // Delete API key
-  const handleDeleteKey = async (keyId: string) => {
-    setDeleteKeyId(keyId);
-    setIsDeleting(true);
-    try {
-      await api.deleteApiKey(keyId);
-      await queryClient.invalidateQueries({ queryKey: ['api-keys'] });
-    } finally {
-      setIsDeleting(false);
-      setDeleteKeyId(null);
-    }
-  };
-
-  // Toggle active/inactive
-  const handleToggleKey = async (keyId: string, isActive: boolean) => {
-    setToggleKeyId(keyId);
-    setIsToggling(true);
-    try {
-      await api.updateApiKey(keyId, { is_active: !isActive });
-      await queryClient.invalidateQueries({ queryKey: ['api-keys'] });
-    } finally {
-      setIsToggling(false);
-      setToggleKeyId(null);
-    }
-  };
+  const assignKey = assignKeyId ? apiKeys?.find((k) => k.id === assignKeyId) : null;
+  const assignKeyConstellationId =
+    assignKey && typeof assignKey.constellation === 'number'
+      ? assignKey.constellation
+      : assignKey && typeof assignKey.constellation === 'object' && assignKey.constellation
+        ? (assignKey.constellation as { id: number }).id
+        : null;
+  const nodesForAssignModal =
+    assignKeyConstellationId != null
+      ? myManagedNodes.filter((n) => n.constellation?.id === assignKeyConstellationId)
+      : myManagedNodes;
 
   return (
     <div className="container mx-auto py-6 space-y-6 px-6">
@@ -156,18 +126,76 @@ function NodeSettingsContent() {
         <SetupManagedNode node={selectedNode} isOpen={isSetupDialogOpen} onClose={handleCloseSetupDialog} />
       )}
 
-      <Tabs defaultValue="claims">
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="mb-4">
-          <TabsTrigger value="claims">Node Claims</TabsTrigger>
+          <TabsTrigger value="nodes">My Nodes</TabsTrigger>
+          <TabsTrigger value="pending-claims">Pending Claims</TabsTrigger>
           <TabsTrigger value="managed">Managed Nodes</TabsTrigger>
-          <TabsTrigger value="apikeys">API Keys</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="claims">
+        <TabsContent value="nodes">
           <Card>
             <CardHeader>
-              <CardTitle>My Node Claims</CardTitle>
-              <CardDescription>View your pending and approved node claims</CardDescription>
+              <CardTitle>My Nodes</CardTitle>
+              <CardDescription>
+                Nodes you own (claimed or admin-assigned). Convert to managed to report packets.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {myClaimedNodes.length > 0 ? (
+                <div className="space-y-4">
+                  {myClaimedNodes.map((node) => (
+                    <div key={node.node_id} className="border rounded-md p-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-medium">{node.short_name || node.node_id_str}</h3>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">{node.long_name}</p>
+                          <p className="text-xs text-slate-400">Node ID: {node.node_id_str}</p>
+                          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                            Last heard:{' '}
+                            {node.last_heard
+                              ? formatDistanceToNow(new Date(node.last_heard), { addSuffix: true })
+                              : 'Never'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex gap-2">
+                        <Link to={`/nodes/${node.node_id}`} className="text-blue-500 hover:text-blue-700 text-sm">
+                          View Node
+                        </Link>
+                        {!managedNodeIds.has(node.node_id) && (
+                          <Button
+                            onClick={() => handleRunAsManagedNode(node)}
+                            size="sm"
+                            variant="outline"
+                            className="text-xs"
+                          >
+                            <Radio className="mr-1 h-3 w-3" />
+                            Convert to Managed Node
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-slate-500 dark:text-slate-400 py-4">
+                  You don't own any nodes yet. Browse the{' '}
+                  <Link to="/nodes" className="text-blue-500 hover:text-blue-700 underline">
+                    nodes list
+                  </Link>{' '}
+                  to find and claim one.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="pending-claims">
+          <Card>
+            <CardHeader>
+              <CardTitle>Pending Claims</CardTitle>
+              <CardDescription>Claims awaiting the claim key message from your node</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoadingClaims ? (
@@ -176,33 +204,30 @@ function NodeSettingsContent() {
                 </div>
               ) : claimsError ? (
                 <div className="text-red-500 py-4">Error loading claims: {claimsError.message}</div>
-              ) : claims && claims.length > 0 ? (
-                <div className="space-y-4">
-                  {claims.map((claim) => {
-                    const isPending = !claim.accepted_at;
-                    return (
-                      <div key={claim.node.node_id} className="border rounded-md p-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="font-medium">{claim.node.short_name || claim.node.node_id_str}</h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">{claim.node.long_name}</p>
-                            <p className="text-xs text-slate-400">Node ID: {claim.node.node_id_str}</p>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                              Claimed {formatDistanceToNow(new Date(claim.created_at), { addSuffix: true })}
-                            </p>
+              ) : (
+                (() => {
+                  const pendingClaims = (claims ?? []).filter((c) => !c.accepted_at);
+                  return pendingClaims.length > 0 ? (
+                    <div className="space-y-4">
+                      {pendingClaims.map((claim) => (
+                        <div key={claim.node.node_id} className="border rounded-md p-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="font-medium">{claim.node.short_name || claim.node.node_id_str}</h3>
+                              <p className="text-sm text-slate-500 dark:text-slate-400">{claim.node.long_name}</p>
+                              <p className="text-xs text-slate-400">Node ID: {claim.node.node_id_str}</p>
+                              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                Claimed {formatDistanceToNow(new Date(claim.created_at), { addSuffix: true })}
+                              </p>
+                            </div>
                           </div>
-                          <Badge variant={isPending ? 'outline' : 'default'}>
-                            {isPending ? 'Pending' : 'Approved'}
-                          </Badge>
-                        </div>
-                        <div className="mt-2">
-                          <Link
-                            to={`/nodes/${claim.node.node_id}`}
-                            className="text-blue-500 hover:text-blue-700 text-sm"
-                          >
-                            View Node
-                          </Link>
-                          {isPending && (
+                          <div className="mt-2">
+                            <Link
+                              to={`/nodes/${claim.node.node_id}`}
+                              className="text-blue-500 hover:text-blue-700 text-sm"
+                            >
+                              View Node
+                            </Link>
                             <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-md">
                               <div className="flex justify-between items-center">
                                 <p className="text-sm font-medium">Claim Key:</p>
@@ -226,33 +251,16 @@ function NodeSettingsContent() {
                                 </AlertDescription>
                               </Alert>
                             </div>
-                          )}
-                          {!isPending && !managedNodeIds.has(claim.node.node_id) && (
-                            <div className="mt-2">
-                              <Button
-                                onClick={() => {
-                                  // Find the node in myClaimedNodes
-                                  const node = myClaimedNodes.find((n) => n.node_id === claim.node.node_id);
-                                  if (node) {
-                                    handleRunAsManagedNode(node);
-                                  }
-                                }}
-                                size="sm"
-                                variant="outline"
-                                className="flex items-center text-xs"
-                              >
-                                <Radio className="mr-1 h-3 w-3" />
-                                Convert to Managed Node
-                              </Button>
-                            </div>
-                          )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-slate-500 dark:text-slate-400 py-4">You don't have any node claims yet.</div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-slate-500 dark:text-slate-400 py-4">
+                      No pending claims. Start a claim from a node's detail page.
+                    </div>
+                  );
+                })()
               )}
             </CardContent>
           </Card>
@@ -262,392 +270,243 @@ function NodeSettingsContent() {
           <Card>
             <CardHeader>
               <CardTitle>My Managed Nodes</CardTitle>
-              <CardDescription>View and manage your monitoring nodes</CardDescription>
+              <CardDescription>
+                View and manage your monitoring nodes. Expand a node to see API keys and setup instructions.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {myManagedNodes.length > 0 ? (
-                <div className="space-y-4">
-                  {myManagedNodes.map((node) => (
-                    <div key={node.node_id} className="border rounded-md p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-medium">{node.short_name || node.node_id_str}</h3>
-                          <p className="text-sm text-slate-500 dark:text-slate-400">{node.long_name}</p>
-                          <div className="flex items-center mt-1">
-                            <Badge
-                              style={{ backgroundColor: node.constellation.map_color }}
-                              className="text-white text-xs mr-2"
-                            >
-                              {node.constellation.name}
-                            </Badge>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                              Last heard:{' '}
-                              {node.last_heard
-                                ? formatDistanceToNow(new Date(node.last_heard), { addSuffix: true })
-                                : 'Never'}
-                            </p>
+                <Accordion type="multiple" className="space-y-2">
+                  {myManagedNodes.map((node) => {
+                    const nodeApiKeys = apiKeys?.filter((key) => key.nodes.includes(node.node_id)) || [];
+                    return (
+                      <AccordionItem key={node.node_id} value={`node-${node.node_id}`} className="border rounded-lg">
+                        <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                          <div className="flex flex-1 items-center justify-between text-left">
+                            <div>
+                              <h3 className="font-medium">{node.short_name || node.node_id_str}</h3>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge
+                                  style={{ backgroundColor: node.constellation.map_color }}
+                                  className="text-white text-xs"
+                                >
+                                  {node.constellation.name}
+                                </Badge>
+                                <span className="text-xs text-slate-500 dark:text-slate-400">
+                                  Last heard:{' '}
+                                  {node.last_heard
+                                    ? formatDistanceToNow(new Date(node.last_heard), { addSuffix: true })
+                                    : 'Never'}
+                                </span>
+                                {nodeApiKeys.length > 0 && (
+                                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                                    • {nodeApiKeys.length} API key{nodeApiKeys.length !== 1 ? 's' : ''}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                      <div className="mt-3">
-                        <Link to={`/nodes/${node.node_id}`} className="text-blue-500 hover:text-blue-700 text-sm">
-                          View Node Details
-                        </Link>
-                        <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-md">
-                          <p className="text-sm font-medium mb-2">Managed Node Setup Instructions:</p>
-                          {(() => {
-                            const nodeApiKeys = apiKeys?.filter((key) => key.nodes.includes(node.node_id)) || [];
-                            const firstApiKey = nodeApiKeys[0]?.key;
-                            return firstApiKey && config ? (
-                              <BotSetupInstructions
-                                apiKey={firstApiKey}
-                                apiBaseUrl={config.apis.meshBot.baseUrl}
-                                nodeShortName={node.short_name || node.node_id_str}
-                              />
-                            ) : (
-                              <Alert>
-                                <Info className="h-4 w-4" />
-                                <AlertTitle>Assign an API Key</AlertTitle>
-                                <AlertDescription>
-                                  Go to the API Keys tab to create or assign an API key to this node, then return here
-                                  for setup instructions.
-                                </AlertDescription>
-                              </Alert>
-                            );
-                          })()}
-                          <div className="flex gap-2 mt-3">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => window.open(`/nodes/${node.node_id}`, '_blank')}
-                            >
-                              View Node Details
-                            </Button>
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() =>
-                                document.querySelector('[data-value="apikeys"]')?.dispatchEvent(new MouseEvent('click'))
-                              }
-                            >
-                              Go to API Keys
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="px-4 pb-4">
+                          <ManagedNodeSettings
+                            node={node}
+                            nodeApiKeys={nodeApiKeys}
+                            config={config}
+                            isLoadingApiKeys={isLoadingApiKeys}
+                            handleCopyToClipboard={handleCopyToClipboard}
+                            openAssignModal={openAssignModal}
+                            onShowSetupInstructions={setSetupInstructionsKey}
+                          />
+                        </AccordionContent>
+                      </AccordionItem>
+                    );
+                  })}
+                </Accordion>
               ) : (
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>No Managed Nodes</AlertTitle>
                   <AlertDescription>
-                    You haven't set up any managed nodes yet. Go to the "Node Claims" tab to set up a node as a managed
-                    node.
+                    You haven't set up any managed nodes yet. Go to the "My Nodes" tab to convert an owned node to a
+                    managed node.
                   </AlertDescription>
                 </Alert>
               )}
             </CardContent>
           </Card>
-        </TabsContent>
+          {assignModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+              <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 w-full max-w-md border border-slate-200 dark:border-slate-700">
+                <h3 className="text-lg font-medium mb-2">Assign/Remove Nodes</h3>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-1">Select nodes to assign to this API key:</label>
+                  <div className="max-h-48 overflow-y-auto border rounded p-2">
+                    {nodesForAssignModal.length > 0 ? (
+                      nodesForAssignModal.map((node) => (
+                        <div key={node.node_id} className="flex items-center gap-2 mb-1">
+                          <input
+                            type="checkbox"
+                            id={`assign-node-${node.node_id}`}
+                            checked={selectedAssignNodes.includes(node.node_id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedAssignNodes((prev) => [...prev, node.node_id]);
+                              } else {
+                                setSelectedAssignNodes((prev) => prev.filter((id) => id !== node.node_id));
+                              }
+                            }}
+                          />
+                          <label htmlFor={`assign-node-${node.node_id}`}>{node.short_name || node.node_id_str}</label>
+                        </div>
+                      ))
+                    ) : (
+                      <span className="text-xs text-slate-400">
+                        No managed nodes in this constellation. Add nodes from My Nodes first.
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" size="sm" onClick={closeAssignModal} disabled={isAssigning}>
+                    Cancel
+                  </Button>
+                  <Button variant="default" size="sm" onClick={handleAssignNodes} disabled={isAssigning}>
+                    {isAssigning ? 'Saving...' : 'Save'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
-        <TabsContent value="apikeys">
-          <Card>
-            <CardHeader>
-              <CardTitle>API Keys</CardTitle>
-              <CardDescription>Manage API keys for your managed nodes</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoadingApiKeys ? (
-                <div className="flex justify-center items-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-slate-500 dark:text-slate-400" />
-                </div>
-              ) : apiKeys && apiKeys.length > 0 ? (
-                <div className="space-y-6">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    {apiKeys.map((apiKey) => (
-                      <div
-                        key={apiKey.id}
-                        className="border border-slate-200 dark:border-slate-700 rounded-md p-4 bg-white dark:bg-slate-800 shadow-sm flex flex-col gap-2"
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="font-medium">{apiKey.name}</h3>
-                            <p className="text-xs text-slate-400">
-                              Created: {new Date(apiKey.created_at).toLocaleString()}
-                            </p>
-                            {apiKey.last_used && (
-                              <p className="text-xs text-slate-400">
-                                Last used: {new Date(apiKey.last_used).toLocaleString()}
-                              </p>
-                            )}
-                            <p className="text-xs text-slate-400 mt-1">
-                              Constellation:{' '}
-                              {myManagedNodes.find((n) => n.constellation.id === apiKey.constellation)?.constellation
-                                .name || apiKey.constellation}
-                            </p>
-                          </div>
-                          <div className="flex flex-col items-end gap-2">
-                            <Badge variant={apiKey.is_active ? 'default' : 'outline'}>
-                              {apiKey.is_active ? 'Active' : 'Inactive'}
-                            </Badge>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleToggleKey(apiKey.id, apiKey.is_active)}
-                              disabled={isToggling && toggleKeyId === apiKey.id}
-                              title={apiKey.is_active ? 'Deactivate' : 'Activate'}
-                            >
-                              {apiKey.is_active ? 'Deactivate' : 'Activate'}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleDeleteKey(apiKey.id)}
-                              disabled={isDeleting && deleteKeyId === apiKey.id}
-                              title="Delete API Key"
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="mt-2 flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">API Key:</span>
-                            <span className="bg-slate-100 dark:bg-slate-800 p-2 rounded font-mono text-sm truncate select-all">
-                              {apiKey.key}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleCopyToClipboard(apiKey.key)}
-                              className="ml-2"
-                            >
-                              {' '}
-                              <Copy className="h-4 w-4 mr-1" />
-                              Copy{' '}
-                            </Button>
-                            {/* QR code placeholder */}
-                            <span className="ml-2"> {/* <QRCode value={apiKey.key} size={32} /> */} </span>
-                          </div>
-                        </div>
-                        <div className="mt-2">
-                          <span className="text-sm font-medium">Assigned Nodes:</span>
-                          <div className="flex flex-wrap gap-2 mt-1">
-                            {apiKey.nodes.length > 0 ? (
-                              apiKey.nodes.map((nodeId) => {
-                                const node = myManagedNodes.find((n) => n.node_id === nodeId);
-                                return (
-                                  <Badge key={nodeId} variant="outline" className="text-xs">
-                                    {node ? node.short_name || node.node_id_str : `Node ${nodeId}`}
-                                  </Badge>
-                                );
-                              })
-                            ) : (
-                              <span className="text-xs text-slate-400">No nodes assigned</span>
-                            )}
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="mt-2"
-                            onClick={() => openAssignModal(apiKey.id, apiKey.nodes)}
-                          >
-                            Assign/Remove Nodes
-                          </Button>
-                        </div>
-                        <div className="mt-2">
-                          <Alert>
-                            <Info className="h-4 w-4" />
-                            <AlertTitle>Setup Instructions</AlertTitle>
-                            <AlertDescription className="text-xs">
-                              To use this API key with your managed node, configure your Meshtastic Bot:
-                            </AlertDescription>
-                          </Alert>
-                          {config && (
-                            <div className="mt-2">
-                              <BotSetupInstructions
-                                apiKey={apiKey.key}
-                                apiBaseUrl={config.apis.meshBot.baseUrl}
-                                nodeShortName={apiKey.name}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="border-t pt-4 mt-4">
-                    <h3 className="text-lg font-medium mb-2">Create New API Key</h3>
-                    {apiKeyError && (
-                      <Alert variant="destructive" className="mb-4">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertTitle>Error</AlertTitle>
-                        <AlertDescription>{apiKeyError}</AlertDescription>
-                      </Alert>
-                    )}
-                    <div className="grid gap-4">
-                      <div>
-                        <label htmlFor="api-key-name" className="block text-sm font-medium mb-1">
-                          API Key Name
-                        </label>
-                        <input
-                          id="api-key-name"
-                          type="text"
-                          className="w-full p-2 border rounded-md"
-                          value={newApiKeyName}
-                          onChange={(e) => setNewApiKeyName(e.target.value)}
-                          placeholder="Enter a name for your API key"
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="constellation" className="block text-sm font-medium mb-1">
-                          Constellation
-                        </label>
-                        <select
-                          id="constellation"
-                          className="w-full p-2 border rounded-md"
-                          value={selectedConstellation || ''}
-                          onChange={(e) => setSelectedConstellation(e.target.value ? Number(e.target.value) : null)}
-                        >
-                          <option value="">Select a constellation</option>
-                          {myManagedNodes.map((node) => (
-                            <option key={node.constellation.id} value={node.constellation.id}>
-                              {node.constellation.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <Button
-                        onClick={handleCreateApiKey}
-                        disabled={isCreatingApiKey || !newApiKeyName || !selectedConstellation}
-                        className="flex items-center"
-                      >
-                        {isCreatingApiKey ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <Plus className="mr-2 h-4 w-4" />
-                        )}
-                        Create API Key
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>No API Keys</AlertTitle>
-                    <AlertDescription>
-                      You don't have any API keys yet. Create one to use with your managed nodes.
-                    </AlertDescription>
-                  </Alert>
-                  <div className="border-t pt-4">
-                    <h3 className="text-lg font-medium mb-2">Create New API Key</h3>
-                    {apiKeyError && (
-                      <Alert variant="destructive" className="mb-4">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertTitle>Error</AlertTitle>
-                        <AlertDescription>{apiKeyError}</AlertDescription>
-                      </Alert>
-                    )}
-                    <div className="grid gap-4">
-                      <div>
-                        <label htmlFor="api-key-name" className="block text-sm font-medium mb-1">
-                          API Key Name
-                        </label>
-                        <input
-                          id="api-key-name"
-                          type="text"
-                          className="w-full p-2 border rounded-md"
-                          value={newApiKeyName}
-                          onChange={(e) => setNewApiKeyName(e.target.value)}
-                          placeholder="Enter a name for your API key"
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="constellation" className="block text-sm font-medium mb-1">
-                          Constellation
-                        </label>
-                        <select
-                          id="constellation"
-                          className="w-full p-2 border rounded-md"
-                          value={selectedConstellation || ''}
-                          onChange={(e) => setSelectedConstellation(e.target.value ? Number(e.target.value) : null)}
-                        >
-                          <option value="">Select a constellation</option>
-                          {myManagedNodes.map((node) => (
-                            <option key={node.constellation.id} value={node.constellation.id}>
-                              {node.constellation.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <Button
-                        onClick={handleCreateApiKey}
-                        disabled={isCreatingApiKey || !newApiKeyName || !selectedConstellation}
-                        className="flex items-center"
-                      >
-                        {isCreatingApiKey ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <Plus className="mr-2 h-4 w-4" />
-                        )}
-                        Create API Key
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {/* Assign/Remove Nodes Modal */}
-              {assignModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-                  <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 w-full max-w-md border border-slate-200 dark:border-slate-700">
-                    <h3 className="text-lg font-medium mb-2">Assign/Remove Nodes</h3>
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium mb-1">Select nodes to assign to this API key:</label>
-                      <div className="max-h-48 overflow-y-auto border rounded p-2">
-                        {myManagedNodes.length > 0 ? (
-                          myManagedNodes.map((node) => (
-                            <div key={node.node_id} className="flex items-center gap-2 mb-1">
-                              <input
-                                type="checkbox"
-                                id={`assign-node-${node.node_id}`}
-                                checked={selectedAssignNodes.includes(node.node_id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedAssignNodes((prev) => [...prev, node.node_id]);
-                                  } else {
-                                    setSelectedAssignNodes((prev) => prev.filter((id) => id !== node.node_id));
-                                  }
-                                }}
-                              />
-                              <label htmlFor={`assign-node-${node.node_id}`}>
-                                {node.short_name || node.node_id_str}
-                              </label>
-                            </div>
-                          ))
-                        ) : (
-                          <span className="text-xs text-slate-400">No managed nodes available</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex gap-2 justify-end">
-                      <Button variant="outline" size="sm" onClick={closeAssignModal} disabled={isAssigning}>
-                        Cancel
-                      </Button>
-                      <Button variant="default" size="sm" onClick={handleAssignNodes} disabled={isAssigning}>
-                        {isAssigning ? 'Saving...' : 'Save'}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {setupInstructionsKey && config && (
+            <Dialog open={!!setupInstructionsKey} onOpenChange={(open) => !open && setSetupInstructionsKey(null)}>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Bot Setup Instructions</DialogTitle>
+                </DialogHeader>
+                <BotSetupInstructions
+                  apiKey={setupInstructionsKey.apiKey}
+                  apiBaseUrl={config.apis.meshBot.baseUrl}
+                  nodeShortName={setupInstructionsKey.nodeShortName}
+                />
+              </DialogContent>
+            </Dialog>
+          )}
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+import type { OwnedManagedNode } from '@/lib/models';
+import type { NodeApiKey } from '@/lib/models';
+
+function ManagedNodeSettings({
+  node,
+  nodeApiKeys,
+  config,
+  isLoadingApiKeys,
+  handleCopyToClipboard,
+  openAssignModal,
+  onShowSetupInstructions,
+}: {
+  node: OwnedManagedNode;
+  nodeApiKeys: NodeApiKey[];
+  config: ReturnType<typeof useConfig>;
+  isLoadingApiKeys: boolean;
+  handleCopyToClipboard: (text: string) => void;
+  openAssignModal: (keyId: string, currentNodes: number[]) => void;
+  onShowSetupInstructions: (params: { apiKey: string; nodeShortName: string } | null) => void;
+}) {
+  return (
+    <div className="space-y-4 pt-2">
+      <div className="flex gap-2">
+        <Link to={`/nodes/${node.node_id}`}>
+          <Button variant="outline" size="sm">
+            View Node Details
+          </Button>
+        </Link>
+      </div>
+
+      <div>
+        <p className="text-sm font-medium mb-2">API Keys</p>
+        {isLoadingApiKeys ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="h-6 w-6 animate-spin text-slate-500 dark:text-slate-400" />
+          </div>
+        ) : nodeApiKeys.length > 0 ? (
+          <div className="space-y-4">
+            {nodeApiKeys.map((apiKey) => (
+              <div
+                key={apiKey.id}
+                className="border border-slate-200 dark:border-slate-700 rounded-md p-4 bg-slate-50 dark:bg-slate-800/50"
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-medium text-sm">{apiKey.name}</h4>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {apiKey.last_used
+                        ? `Last used: ${new Date(apiKey.last_used).toLocaleString()}`
+                        : `Created: ${new Date(apiKey.created_at).toLocaleString()}`}
+                    </p>
+                  </div>
+                  <div className="flex gap-1">
+                    <Badge variant={apiKey.is_active ? 'default' : 'destructive'} className="text-xs">
+                      {apiKey.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                    <Button size="sm" variant="outline" onClick={() => openAssignModal(apiKey.id, apiKey.nodes)}>
+                      Assign/Remove Nodes
+                    </Button>
+                    {config && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          onShowSetupInstructions({
+                            apiKey: apiKey.key,
+                            nodeShortName: node.short_name || node.node_id_str,
+                          })
+                        }
+                        title="Setup instructions"
+                      >
+                        <HelpCircle className="h-4 w-4 mr-1" />
+                        Setup
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-sm font-medium">Key:</span>
+                  <span className="bg-slate-100 dark:bg-slate-800 p-2 rounded font-mono text-sm truncate select-all max-w-[200px]">
+                    {apiKey.key}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCopyToClipboard(apiKey.key)}
+                    className="h-7 px-2"
+                  >
+                    <Copy className="h-3 w-3 mr-1" />
+                    Copy
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>No API Key Assigned</AlertTitle>
+            <AlertDescription>
+              Go to{' '}
+              <Link to="/user/api-keys" className="text-primary hover:underline font-medium">
+                API Keys
+              </Link>{' '}
+              to create a key and assign it to this node.
+            </AlertDescription>
+          </Alert>
+        )}
+      </div>
     </div>
   );
 }
