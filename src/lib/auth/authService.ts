@@ -39,8 +39,17 @@ export const authService = {
   // Store tokens in local storage
   setTokens(tokens: AuthTokens, provider: AuthProvider = 'password'): void {
     localStorage.setItem(ACCESS_TOKEN_KEY, tokens.access);
-    localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh);
+    if (tokens.refresh) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh);
+    } else {
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
+    }
     localStorage.setItem(AUTH_PROVIDER_KEY, provider || '');
+  },
+
+  // Store only access token (e.g. OAuth callback with token-only); does not clear refresh
+  setAccessTokenOnly(accessToken: string): void {
+    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
   },
 
   // Get access token from local storage
@@ -51,6 +60,19 @@ export const authService = {
   // Get refresh token from local storage
   getRefreshToken(): string | null {
     return localStorage.getItem(REFRESH_TOKEN_KEY);
+  },
+
+  // Decode JWT payload and return exp (expiry) timestamp in seconds, or null
+  getTokenExpiry(accessToken: string): number | null {
+    try {
+      const payload = accessToken.split('.')[1];
+      if (!payload) return null;
+      const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+      const exp = decoded.exp;
+      return typeof exp === 'number' ? exp : null;
+    } catch {
+      return null;
+    }
   },
 
   // Get auth provider from local storage
@@ -226,8 +248,11 @@ export const authService = {
 
     const data = await response.json();
 
-    // Update only the access token
+    // Update access token; persist rotated refresh token if backend returns one
     localStorage.setItem(ACCESS_TOKEN_KEY, data.access);
+    if (data.refresh) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, data.refresh);
+    }
 
     return data.access;
   },

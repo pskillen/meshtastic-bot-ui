@@ -36,6 +36,42 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Proactive token refresh: check every 90s, refresh if expired within 5 min
+  useEffect(() => {
+    if (!config?.apis?.meshBot?.baseUrl) return;
+
+    const REFRESH_INTERVAL_MS = 90 * 1000; // 90 seconds
+    const REFRESH_BEFORE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+
+    const maybeRefresh = async () => {
+      const accessToken = authService.getAccessToken();
+      const refreshToken = authService.getRefreshToken();
+      if (!accessToken || !refreshToken) return;
+
+      const exp = authService.getTokenExpiry(accessToken);
+      if (!exp) return;
+
+      const nowSec = Math.floor(Date.now() / 1000);
+      const expiresInSec = exp - nowSec;
+      const expiresInMs = expiresInSec * 1000;
+
+      if (expiresInMs <= REFRESH_BEFORE_EXPIRY_MS && expiresInMs > 0) {
+        try {
+          await authService.refreshToken(config.apis.meshBot.baseUrl);
+          eventService.emit(AuthEventType.AUTH_TOKEN_REFRESHED);
+        } catch {
+          // Refresh failed; auth interceptor will handle 401 on next request
+        }
+      }
+    };
+
+    // Run once on mount
+    maybeRefresh();
+
+    const interval = setInterval(maybeRefresh, REFRESH_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [config?.apis?.meshBot?.baseUrl]);
+
   // Check authentication status on mount and initialize user if authenticated
   useEffect(() => {
     const checkAuth = async () => {
@@ -54,7 +90,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             authService.logout();
             setIsAuthenticated(false);
             setAuthProvider(null);
-            navigate('/login');
+            navigate('/login', { state: { reason: 'session_expired' } });
             return;
           }
         } catch (error) {
@@ -62,7 +98,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           authService.logout();
           setIsAuthenticated(false);
           setAuthProvider(null);
-          navigate('/login');
+          navigate('/login', { state: { reason: 'session_expired' } });
           return;
         }
       }
@@ -76,15 +112,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Subscribe to auth error events
   useEffect(() => {
     // Handle auth errors (like 401 unauthorized)
-    const unsubscribe = eventService.subscribe(AuthEventType.AUTH_ERROR, (errorData) => {
-      console.log('Auth error received:', errorData);
-      // Perform logout
-      authService.logout();
-      setIsAuthenticated(false);
-      setAuthProvider(null);
-      setError(errorData?.message || 'Authentication failed. Please log in again.');
-      navigate('/login');
-    });
+    const unsubscribe = eventService.subscribe(
+      AuthEventType.AUTH_ERROR,
+      (errorData: { message?: string; reason?: string }) => {
+        console.log('Auth error received:', errorData);
+        // Perform logout
+        authService.logout();
+        setIsAuthenticated(false);
+        setAuthProvider(null);
+        setError(errorData?.message || 'Authentication failed. Please log in again.');
+        navigate('/login', {
+          state: { reason: errorData?.reason || 'auth_failed' },
+        });
+      }
+    );
 
     // Cleanup subscription on unmount
     return () => {
@@ -101,9 +142,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const token = params.get('token');
         if (token) {
           // Direct JWT token from backend (e.g. /oauth/callback?token=...)
+          // Store only access token; avoid overwriting refresh with empty string
           try {
             setIsLoading(true);
-            authService.setTokens({ access: token, refresh: '' }, null); // No refresh token, provider unknown
+            authService.setAccessTokenOnly(token);
             setIsAuthenticated(true);
             setAuthProvider(null);
             navigate('/');
