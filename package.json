@@ -14,10 +14,10 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest watch",
-    "browser": "playwright test",
-    "browser:ui": "playwright test --ui",
-    "browser:headed": "playwright test --headed",
-    "browser:dev": "VITE_BROWSER_TEST=true vite --port 5174",
+    "test:browser": "playwright test",
+    "test:browser:ui": "playwright test --ui",
+    "test:browser:headed": "playwright test --headed",
+    "test:browser:dev": "VITE_BROWSER_TEST=true vite --port 5174",
     "prepare": "husky"
   },
   "dependencies": {
@@ -75,6 +75,7 @@
     "@commitlint/cli": "^19.8.0",
     "@commitlint/config-conventional": "^19.8.0",
     "@eslint/js": "^9.23.0",
+    "@playwright/test": "^1.49.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@testing-library/user-event": "^14.6.1",
@@ -100,7 +101,6 @@
     "typescript-eslint": "^8.28.0",
     "vite": "6.3.4",
     "vitest": "^3.1.1",
-    "@playwright/test": "^1.49.0",
     "wait-on": "^8.0.1"
   },
   "resolutions": {

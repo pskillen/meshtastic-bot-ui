@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
-  testDir: './browser',
+  testDir: './tests/browser',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -16,7 +16,7 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 60_000 },
   webServer: {
-    command: 'npm run browser:dev',
+    command: 'npm run test:browser:dev',
     url: 'http://localhost:5174',
     reuseExistingServer: !process.env.GITHUB_ACTIONS,
     timeout: 60_000,
