@@ -156,18 +156,77 @@ function NodeSettingsContent() {
         <SetupManagedNode node={selectedNode} isOpen={isSetupDialogOpen} onClose={handleCloseSetupDialog} />
       )}
 
-      <Tabs defaultValue="claims">
+      <Tabs defaultValue="nodes">
         <TabsList className="mb-4">
-          <TabsTrigger value="claims">Node Claims</TabsTrigger>
+          <TabsTrigger value="nodes">My Nodes</TabsTrigger>
+          <TabsTrigger value="pending-claims">Pending Claims</TabsTrigger>
           <TabsTrigger value="managed">Managed Nodes</TabsTrigger>
           <TabsTrigger value="apikeys">API Keys</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="claims">
+        <TabsContent value="nodes">
           <Card>
             <CardHeader>
-              <CardTitle>My Node Claims</CardTitle>
-              <CardDescription>View your pending and approved node claims</CardDescription>
+              <CardTitle>My Nodes</CardTitle>
+              <CardDescription>
+                Nodes you own (claimed or admin-assigned). Convert to managed to report packets.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {myClaimedNodes.length > 0 ? (
+                <div className="space-y-4">
+                  {myClaimedNodes.map((node) => (
+                    <div key={node.node_id} className="border rounded-md p-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-medium">{node.short_name || node.node_id_str}</h3>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">{node.long_name}</p>
+                          <p className="text-xs text-slate-400">Node ID: {node.node_id_str}</p>
+                          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                            Last heard:{' '}
+                            {node.last_heard
+                              ? formatDistanceToNow(new Date(node.last_heard), { addSuffix: true })
+                              : 'Never'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex gap-2">
+                        <Link to={`/nodes/${node.node_id}`} className="text-blue-500 hover:text-blue-700 text-sm">
+                          View Node
+                        </Link>
+                        {!managedNodeIds.has(node.node_id) && (
+                          <Button
+                            onClick={() => handleRunAsManagedNode(node)}
+                            size="sm"
+                            variant="outline"
+                            className="text-xs"
+                          >
+                            <Radio className="mr-1 h-3 w-3" />
+                            Convert to Managed Node
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-slate-500 dark:text-slate-400 py-4">
+                  You don't own any nodes yet. Browse the{' '}
+                  <Link to="/nodes" className="text-blue-500 hover:text-blue-700 underline">
+                    nodes list
+                  </Link>{' '}
+                  to find and claim one.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="pending-claims">
+          <Card>
+            <CardHeader>
+              <CardTitle>Pending Claims</CardTitle>
+              <CardDescription>Claims awaiting the claim key message from your node</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoadingClaims ? (
@@ -176,33 +235,30 @@ function NodeSettingsContent() {
                 </div>
               ) : claimsError ? (
                 <div className="text-red-500 py-4">Error loading claims: {claimsError.message}</div>
-              ) : claims && claims.length > 0 ? (
-                <div className="space-y-4">
-                  {claims.map((claim) => {
-                    const isPending = !claim.accepted_at;
-                    return (
-                      <div key={claim.node.node_id} className="border rounded-md p-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="font-medium">{claim.node.short_name || claim.node.node_id_str}</h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">{claim.node.long_name}</p>
-                            <p className="text-xs text-slate-400">Node ID: {claim.node.node_id_str}</p>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                              Claimed {formatDistanceToNow(new Date(claim.created_at), { addSuffix: true })}
-                            </p>
+              ) : (
+                (() => {
+                  const pendingClaims = (claims ?? []).filter((c) => !c.accepted_at);
+                  return pendingClaims.length > 0 ? (
+                    <div className="space-y-4">
+                      {pendingClaims.map((claim) => (
+                        <div key={claim.node.node_id} className="border rounded-md p-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="font-medium">{claim.node.short_name || claim.node.node_id_str}</h3>
+                              <p className="text-sm text-slate-500 dark:text-slate-400">{claim.node.long_name}</p>
+                              <p className="text-xs text-slate-400">Node ID: {claim.node.node_id_str}</p>
+                              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                Claimed {formatDistanceToNow(new Date(claim.created_at), { addSuffix: true })}
+                              </p>
+                            </div>
                           </div>
-                          <Badge variant={isPending ? 'outline' : 'default'}>
-                            {isPending ? 'Pending' : 'Approved'}
-                          </Badge>
-                        </div>
-                        <div className="mt-2">
-                          <Link
-                            to={`/nodes/${claim.node.node_id}`}
-                            className="text-blue-500 hover:text-blue-700 text-sm"
-                          >
-                            View Node
-                          </Link>
-                          {isPending && (
+                          <div className="mt-2">
+                            <Link
+                              to={`/nodes/${claim.node.node_id}`}
+                              className="text-blue-500 hover:text-blue-700 text-sm"
+                            >
+                              View Node
+                            </Link>
                             <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-md">
                               <div className="flex justify-between items-center">
                                 <p className="text-sm font-medium">Claim Key:</p>
@@ -226,33 +282,16 @@ function NodeSettingsContent() {
                                 </AlertDescription>
                               </Alert>
                             </div>
-                          )}
-                          {!isPending && !managedNodeIds.has(claim.node.node_id) && (
-                            <div className="mt-2">
-                              <Button
-                                onClick={() => {
-                                  // Find the node in myClaimedNodes
-                                  const node = myClaimedNodes.find((n) => n.node_id === claim.node.node_id);
-                                  if (node) {
-                                    handleRunAsManagedNode(node);
-                                  }
-                                }}
-                                size="sm"
-                                variant="outline"
-                                className="flex items-center text-xs"
-                              >
-                                <Radio className="mr-1 h-3 w-3" />
-                                Convert to Managed Node
-                              </Button>
-                            </div>
-                          )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-slate-500 dark:text-slate-400 py-4">You don't have any node claims yet.</div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-slate-500 dark:text-slate-400 py-4">
+                      No pending claims. Start a claim from a node's detail page.
+                    </div>
+                  );
+                })()
               )}
             </CardContent>
           </Card>
@@ -343,8 +382,8 @@ function NodeSettingsContent() {
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>No Managed Nodes</AlertTitle>
                   <AlertDescription>
-                    You haven't set up any managed nodes yet. Go to the "Node Claims" tab to set up a node as a managed
-                    node.
+                    You haven't set up any managed nodes yet. Go to the "My Nodes" tab to convert an owned node to a
+                    managed node.
                   </AlertDescription>
                 </Alert>
               )}
