@@ -26,10 +26,17 @@ const SERIES_CONFIG: Array<{
   { dataKey: 'rainfall_24h', label: 'Rainfall 24h', unit: 'mm', color: '#1f6feb' },
 ];
 
+export interface DateRangeProp {
+  startDate: Date;
+  endDate: Date;
+}
+
 interface EnvironmentMetricsChartProps {
   nodeId: number;
   timeRangeOptions?: TimeRangeOption[];
   defaultTimeRange?: string;
+  /** When provided, use this date range instead of internal state (controlled mode). Hides the time range selector. */
+  controlledDateRange?: DateRangeProp;
 }
 
 export function EnvironmentMetricsChart({
@@ -41,9 +48,10 @@ export function EnvironmentMetricsChart({
     { key: '14d', label: '14 days' },
   ],
   defaultTimeRange = '48h',
+  controlledDateRange,
 }: EnvironmentMetricsChartProps) {
   const [timeRangeLabel, setTimeRangeLabel] = React.useState(defaultTimeRange);
-  const [dateRange, setDateRange] = React.useState<{ startDate: Date; endDate: Date }>(() => {
+  const [internalDateRange, setInternalDateRange] = React.useState<{ startDate: Date; endDate: Date }>(() => {
     const now = new Date();
     const hours = defaultTimeRange.endsWith('h') ? parseInt(defaultTimeRange) || 48 : 48;
     const days = defaultTimeRange.endsWith('d') ? parseInt(defaultTimeRange) || 7 : 0;
@@ -54,12 +62,15 @@ export function EnvironmentMetricsChart({
     return { startDate, endDate: now };
   });
 
+  const dateRange = controlledDateRange ?? internalDateRange;
+  const isControlled = controlledDateRange != null;
+
   const { metrics } = useNodeEnvironmentMetricsSuspense(nodeId, dateRange);
 
   const handleTimeRangeChange = (value: string, timeRange: { startDate: Date; endDate: Date }) => {
     if (value === timeRangeLabel) return;
     setTimeRangeLabel(value);
-    setDateRange(timeRange);
+    if (!isControlled) setInternalDateRange(timeRange);
   };
 
   const chartData = React.useMemo(() => {
@@ -106,9 +117,11 @@ export function EnvironmentMetricsChart({
       <CardHeader className="relative">
         <CardTitle>Environment Metrics</CardTitle>
         <CardDescription>Temperature, humidity, pressure, and other environment metrics over time</CardDescription>
-        <div className="absolute right-4 top-4">
-          <TimeRangeSelect options={timeRangeOptions} value={timeRangeLabel} onChange={handleTimeRangeChange} />
-        </div>
+        {!isControlled && (
+          <div className="absolute right-4 top-4">
+            <TimeRangeSelect options={timeRangeOptions} value={timeRangeLabel} onChange={handleTimeRangeChange} />
+          </div>
+        )}
       </CardHeader>
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
         <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">

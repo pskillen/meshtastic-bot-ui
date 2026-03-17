@@ -10,10 +10,17 @@ import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '
 import { PacketStatsInterval } from '@/lib/models';
 import { Payload, ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent';
 
+export interface DateRangeProp {
+  startDate: Date;
+  endDate: Date;
+}
+
 interface PacketTypeChartProps {
   nodeId: number;
   defaultTimeRange?: string;
   config?: ChartConfig;
+  /** When provided, use this date range instead of internal state (controlled mode). Hides the time range selector. */
+  controlledDateRange?: DateRangeProp;
 }
 
 const PACKET_TYPE_COLORS: Record<string, string> = {
@@ -49,9 +56,13 @@ export function PacketTypeChart({
       },
     },
   },
+  controlledDateRange,
 }: PacketTypeChartProps) {
   const [timeRange, setTimeRange] = React.useState(defaultTimeRange);
-  const [dateRange, setDateRange] = React.useState(getInitialDateRange);
+  const [internalDateRange, setInternalDateRange] = React.useState(getInitialDateRange);
+
+  const dateRange = controlledDateRange ?? internalDateRange;
+  const isControlled = controlledDateRange != null;
 
   const { stats: packetStats } = usePacketStatsSuspense({
     nodeId,
@@ -99,10 +110,13 @@ export function PacketTypeChart({
     });
   }, [packetStats]);
 
-  const handleTimeRangeChange = React.useCallback((value: string, newDateRange: { startDate: Date; endDate: Date }) => {
-    setTimeRange(value);
-    setDateRange(newDateRange);
-  }, []);
+  const handleTimeRangeChange = React.useCallback(
+    (value: string, newDateRange: { startDate: Date; endDate: Date }) => {
+      setTimeRange(value);
+      if (!controlledDateRange) setInternalDateRange(newDateRange);
+    },
+    [controlledDateRange]
+  );
 
   return (
     <Card className="@container/card">
@@ -111,9 +125,11 @@ export function PacketTypeChart({
         <CardDescription>
           <span>Packets sent by this node which were received by another node and reported to the Meshflow system</span>
         </CardDescription>
-        <div className="absolute right-4 top-4 flex items-center gap-2">
-          <TimeRangeSelect options={TIME_RANGE_OPTIONS} value={timeRange} onChange={handleTimeRangeChange} />
-        </div>
+        {!isControlled && (
+          <div className="absolute right-4 top-4 flex items-center gap-2">
+            <TimeRangeSelect options={TIME_RANGE_OPTIONS} value={timeRange} onChange={handleTimeRangeChange} />
+          </div>
+        )}
       </CardHeader>
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
         <ChartContainer className="aspect-auto h-[250px] w-full" config={config}>

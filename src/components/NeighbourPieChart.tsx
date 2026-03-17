@@ -10,10 +10,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { NeighbourStatsBySource } from '@/lib/models';
 
+export interface DateRangeProp {
+  startDate: Date;
+  endDate: Date;
+}
+
 interface NeighbourPieChartProps {
   nodeId: number;
   defaultTimeRange?: string;
   config?: ChartConfig;
+  /** When provided, use this date range instead of internal state (controlled mode). Hides the time range selector. */
+  controlledDateRange?: DateRangeProp;
 }
 
 const CHART_COLORS = [
@@ -69,9 +76,13 @@ export function NeighbourPieChart({
       },
     },
   },
+  controlledDateRange,
 }: NeighbourPieChartProps) {
   const [timeRange, setTimeRange] = React.useState(defaultTimeRange);
-  const [dateRange, setDateRange] = React.useState(getInitialDateRange);
+  const [internalDateRange, setInternalDateRange] = React.useState(getInitialDateRange);
+
+  const dateRange = controlledDateRange ?? internalDateRange;
+  const isControlled = controlledDateRange != null;
 
   const {
     data: stats,
@@ -94,10 +105,13 @@ export function NeighbourPieChart({
     }));
   }, [stats]);
 
-  const handleTimeRangeChange = React.useCallback((value: string, newDateRange: { startDate: Date; endDate: Date }) => {
-    setTimeRange(value);
-    setDateRange(newDateRange);
-  }, []);
+  const handleTimeRangeChange = React.useCallback(
+    (value: string, newDateRange: { startDate: Date; endDate: Date }) => {
+      setTimeRange(value);
+      if (!controlledDateRange) setInternalDateRange(newDateRange);
+    },
+    [controlledDateRange]
+  );
 
   const maxCount = chartData.length > 0 ? Math.max(...chartData.map((d) => d.count)) : 0;
 
@@ -136,9 +150,11 @@ export function NeighbourPieChart({
       <CardHeader className="relative">
         <CardTitle>Packets by source</CardTitle>
         <CardDescription>Packets received from each neighbour (direct or last hop)</CardDescription>
-        <div className="absolute right-4 top-4 flex items-center gap-2">
-          <TimeRangeSelect options={TIME_RANGE_OPTIONS} value={timeRange} onChange={handleTimeRangeChange} />
-        </div>
+        {!isControlled && (
+          <div className="absolute right-4 top-4 flex items-center gap-2">
+            <TimeRangeSelect options={TIME_RANGE_OPTIONS} value={timeRange} onChange={handleTimeRangeChange} />
+          </div>
+        )}
       </CardHeader>
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6 space-y-4">
         {chartData.length > 0 ? (

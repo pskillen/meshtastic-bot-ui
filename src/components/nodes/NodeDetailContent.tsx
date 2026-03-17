@@ -5,12 +5,7 @@ import { useRecentNodes } from '@/hooks/useRecentNodes';
 import { formatDistanceToNow } from 'date-fns';
 import { subDays, subHours } from 'date-fns';
 import { formatUptimeSeconds } from '@/lib/utils';
-import { BatteryChartShadcn } from '@/components/BatteryChartShadcn';
-import { EnvironmentMetricsChart } from '@/components/nodes/EnvironmentMetricsChart';
-import { PowerMetricsChart } from '@/components/nodes/PowerMetricsChart';
-import { NeighbourPieChart } from '@/components/NeighbourPieChart';
-import { PacketTypeChart } from '@/components/PacketTypeChart';
-import { ReceivedPacketTypeChart } from '@/components/ReceivedPacketTypeChart';
+import { NodeStatsSection } from '@/components/nodes/NodeStatsSection';
 import { NodesMap } from '@/components/nodes/NodesMap';
 import { NodeTracerouteLinksMap } from '@/components/nodes/NodeTracerouteLinksMap';
 import { LinkSNRCharts } from '@/components/nodes/LinkSNRCharts';
@@ -18,7 +13,7 @@ import { BatteryGauge } from '@/components/nodes/BatteryGauge';
 import { MetricsCard } from '@/components/nodes/MetricsCard';
 import { PercentGauge } from '@/components/nodes/PercentGauge';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { useState, useEffect, Suspense, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Pause, Play, CheckCircle, Clock, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -109,34 +104,6 @@ function TracerouteLinksSection({ nodeId }: { nodeId: number }) {
           )}
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-function NeighbourStatsSection({ nodeId }: { nodeId: number }) {
-  const [showChart, setShowChart] = useState(false);
-
-  if (!showChart) {
-    return (
-      <div className="mb-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Packets by source</CardTitle>
-            <CardDescription>Packets received from each neighbour (direct or last hop). Click to load.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => setShowChart(true)} variant="outline">
-              Load packets by source
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  return (
-    <div className="mb-6">
-      <NeighbourPieChart nodeId={nodeId} defaultTimeRange={'24h'} />
     </div>
   );
 }
@@ -455,114 +422,7 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
       {!compact && (
         <>
           <TracerouteLinksSection nodeId={nodeId} />
-          <div className="mb-6">
-            <Suspense
-              fallback={
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Battery</CardTitle>
-                    <CardDescription>Loading chart…</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[200px] flex items-center justify-center bg-muted rounded-md">
-                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-              }
-            >
-              <BatteryChartShadcn nodeId={nodeId} defaultTimeRange={'48h'} />
-            </Suspense>
-          </div>
-
-          {node.latest_environment_metrics && (
-            <div className="mb-6">
-              <Suspense
-                fallback={
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Environment Metrics</CardTitle>
-                      <CardDescription>Loading chart…</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="h-[200px] flex items-center justify-center bg-muted rounded-md">
-                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                }
-              >
-                <EnvironmentMetricsChart nodeId={nodeId} defaultTimeRange={'48h'} />
-              </Suspense>
-            </div>
-          )}
-
-          {node.latest_power_metrics && (
-            <div className="mb-6">
-              <Suspense
-                fallback={
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Power Metrics</CardTitle>
-                      <CardDescription>Loading chart…</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="h-[200px] flex items-center justify-center bg-muted rounded-md">
-                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                }
-              >
-                <PowerMetricsChart nodeId={nodeId} defaultTimeRange={'48h'} />
-              </Suspense>
-            </div>
-          )}
-
-          <div className="mb-6">
-            <Suspense
-              fallback={
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Packet Types</CardTitle>
-                    <CardDescription>Loading chart…</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[200px] flex items-center justify-center bg-muted rounded-md">
-                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-              }
-            >
-              <PacketTypeChart nodeId={nodeId} defaultTimeRange={'48h'} />
-            </Suspense>
-          </div>
-
-          {isManagedNode && (
-            <>
-              <div className="mb-6">
-                <Suspense
-                  fallback={
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Received Packets</CardTitle>
-                        <CardDescription>Loading chart…</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="h-[200px] flex items-center justify-center bg-muted rounded-md">
-                          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  }
-                >
-                  <ReceivedPacketTypeChart nodeId={nodeId} defaultTimeRange={'48h'} />
-                </Suspense>
-              </div>
-              <NeighbourStatsSection nodeId={nodeId} />
-            </>
-          )}
+          <NodeStatsSection nodeId={nodeId} node={node} isManagedNode={isManagedNode} />
         </>
       )}
 

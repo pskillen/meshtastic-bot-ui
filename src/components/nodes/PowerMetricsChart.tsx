@@ -9,10 +9,17 @@ import { TimeRangeSelect, TimeRangeOption } from '@/components/TimeRangeSelect';
 
 const CHANNEL_COLORS = ['#ff7b72', '#79c0ff', '#7ee787', '#ffa657', '#d0a8ff', '#ffcc66', '#a371f7', '#58a6ff'];
 
+export interface DateRangeProp {
+  startDate: Date;
+  endDate: Date;
+}
+
 interface PowerMetricsChartProps {
   nodeId: number;
   timeRangeOptions?: TimeRangeOption[];
   defaultTimeRange?: string;
+  /** When provided, use this date range instead of internal state (controlled mode). Hides the time range selector. */
+  controlledDateRange?: DateRangeProp;
 }
 
 export function PowerMetricsChart({
@@ -24,9 +31,10 @@ export function PowerMetricsChart({
     { key: '14d', label: '14 days' },
   ],
   defaultTimeRange = '48h',
+  controlledDateRange,
 }: PowerMetricsChartProps) {
   const [timeRangeLabel, setTimeRangeLabel] = React.useState(defaultTimeRange);
-  const [dateRange, setDateRange] = React.useState<{ startDate: Date; endDate: Date }>(() => {
+  const [internalDateRange, setInternalDateRange] = React.useState<{ startDate: Date; endDate: Date }>(() => {
     const now = new Date();
     const hours = defaultTimeRange.endsWith('h') ? parseInt(defaultTimeRange) || 48 : 48;
     const days = defaultTimeRange.endsWith('d') ? parseInt(defaultTimeRange) || 7 : 0;
@@ -37,12 +45,15 @@ export function PowerMetricsChart({
     return { startDate, endDate: now };
   });
 
+  const dateRange = controlledDateRange ?? internalDateRange;
+  const isControlled = controlledDateRange != null;
+
   const { metrics } = useNodePowerMetricsSuspense(nodeId, dateRange);
 
   const handleTimeRangeChange = (value: string, timeRange: { startDate: Date; endDate: Date }) => {
     if (value === timeRangeLabel) return;
     setTimeRangeLabel(value);
-    setDateRange(timeRange);
+    if (!isControlled) setInternalDateRange(timeRange);
   };
 
   const chartData = React.useMemo(() => {
@@ -98,9 +109,11 @@ export function PowerMetricsChart({
       <CardHeader className="relative">
         <CardTitle>Power Metrics</CardTitle>
         <CardDescription>Voltage and current per channel over time</CardDescription>
-        <div className="absolute right-4 top-4">
-          <TimeRangeSelect options={timeRangeOptions} value={timeRangeLabel} onChange={handleTimeRangeChange} />
-        </div>
+        {!isControlled && (
+          <div className="absolute right-4 top-4">
+            <TimeRangeSelect options={timeRangeOptions} value={timeRangeLabel} onChange={handleTimeRangeChange} />
+          </div>
+        )}
       </CardHeader>
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
         <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">

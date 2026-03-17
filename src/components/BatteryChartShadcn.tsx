@@ -16,10 +16,17 @@ interface ExtendedPayload extends Payload<ValueType, NameType> {
   activeLabel?: number;
 }
 
+export interface DateRangeProp {
+  startDate: Date;
+  endDate: Date;
+}
+
 interface BatteryChartShadcnProps {
   nodeId: number;
   timeRangeOptions?: TimeRangeOption[];
   defaultTimeRange?: string;
+  /** When provided, use this date range instead of internal state (controlled mode). Hides the time range selector. */
+  controlledDateRange?: DateRangeProp;
 }
 
 export function BatteryChartShadcn({
@@ -33,20 +40,24 @@ export function BatteryChartShadcn({
     { key: '14d', label: '14 days' },
   ],
   defaultTimeRange = '48h',
+  controlledDateRange,
 }: BatteryChartShadcnProps) {
   const [timeRangeLabel, setTimeRangeLabel] = React.useState(defaultTimeRange);
-  const [dateRange, setDateRange] = React.useState<{ startDate: Date; endDate: Date }>({
-    startDate: new Date(Date.now() - 48 * 60 * 60 * 1000), // Default to 48 hours ago
+  const [internalDateRange, setInternalDateRange] = React.useState<{ startDate: Date; endDate: Date }>({
+    startDate: new Date(Date.now() - 48 * 60 * 60 * 1000),
     endDate: new Date(),
   });
   const [displayMode, setDisplayMode] = React.useState<'voltage' | 'percentage'>('voltage');
+
+  const dateRange = controlledDateRange ?? internalDateRange;
+  const isControlled = controlledDateRange != null;
 
   const { metrics } = useNodeMetricsSuspense(nodeId, dateRange);
 
   const handleTimeRangeChange = (value: string, timeRange: { startDate: Date; endDate: Date }) => {
     if (value === timeRangeLabel) return;
     setTimeRangeLabel(value);
-    setDateRange(timeRange);
+    if (!isControlled) setInternalDateRange(timeRange);
   };
 
   const chartConfig: ChartConfig = {
@@ -111,9 +122,11 @@ export function BatteryChartShadcn({
         <CardDescription>
           <span className="@[540px]/card:block hidden">Battery voltage, level, and channel utilization over time</span>
         </CardDescription>
-        <div className="absolute right-4 top-4">
-          <TimeRangeSelect options={timeRangeOptions} value={timeRangeLabel} onChange={handleTimeRangeChange} />
-        </div>
+        {!isControlled && (
+          <div className="absolute right-4 top-4">
+            <TimeRangeSelect options={timeRangeOptions} value={timeRangeLabel} onChange={handleTimeRangeChange} />
+          </div>
+        )}
         <div className="absolute right-4 top-16 flex items-center gap-2">
           <Switch
             id="display-mode"
