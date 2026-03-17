@@ -1,0 +1,77 @@
+{
+  "results": [
+    {
+      "id": 101,
+      "recorded_at": "2025-03-15T00:00:00.000Z",
+      "stat_type": "packet_volume",
+      "constellation_id": null,
+      "value": { "count": 150 }
+    },
+    {
+      "id": 102,
+      "recorded_at": "2025-03-15T01:00:00.000Z",
+      "stat_type": "packet_volume",
+      "constellation_id": null,
+      "value": { "count": 180 }
+    },
+    {
+      "id": 103,
+      "recorded_at": "2025-03-15T02:00:00.000Z",
+      "stat_type": "packet_volume",
+      "constellation_id": null,
+      "value": { "count": 120 }
+    },
+    {
+      "id": 104,
+      "recorded_at": "2025-03-15T03:00:00.000Z",
+      "stat_type": "packet_volume",
+      "constellation_id": null,
+      "value": { "count": 200 }
+    },
+    {
+      "id": 105,
+      "recorded_at": "2025-03-15T04:00:00.000Z",
+      "stat_type": "packet_volume",
+      "constellation_id": null,
+      "value": { "count": 250 }
+    },
+    {
+      "id": 106,
+      "recorded_at": "2025-03-15T05:00:00.000Z",
+      "stat_type": "packet_volume",
+      "constellation_id": null,
+      "value": { "count": 320 }
+    },
+    {
+      "id": 107,
+      "recorded_at": "2025-03-15T06:00:00.000Z",
+      "stat_type": "packet_volume",
+      "constellation_id": null,
+      "value": { "count": 410 }
+    },
+    {
+      "id": 108,
+      "recorded_at": "2025-03-15T07:00:00.000Z",
+      "stat_type": "packet_volume",
+      "constellation_id": null,
+      "value": { "count": 380 }
+    },
+    {
+      "id": 109,
+      "recorded_at": "2025-03-15T08:00:00.000Z",
+      "stat_type": "packet_volume",
+      "constellation_id": null,
+      "value": { "count": 450 }
+    },
+    {
+      "id": 110,
+      "recorded_at": "2025-03-15T09:00:00.000Z",
+      "stat_type": "packet_volume",
+      "constellation_id": null,
+      "value": { "count": 520 }
+    }
+  ],
+  "count": 10,
+  "next": null,
+  "previous": null
+}
