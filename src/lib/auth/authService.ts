@@ -30,7 +30,7 @@ export interface User {
 }
 
 // Auth provider type
-export type AuthProvider = 'password' | 'google' | 'github' | null;
+export type AuthProvider = 'password' | 'google' | 'github' | 'discord' | null;
 
 // Define auth event types
 export enum AuthEventType {
@@ -362,6 +362,34 @@ export const authService = {
     return tokens;
   },
 
+  // Login with Discord
+  async loginWithDiscord(baseUrl: string, discordToken: string): Promise<AuthTokens> {
+    const response = await fetch(`${baseUrl}/api/auth/social/discord/token/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ code: discordToken }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Discord login failed');
+    }
+
+    const tokens = await response.json();
+    this.setTokens(tokens, 'discord');
+
+    // Fetch user details after successful login
+    try {
+      await this.fetchUserDetails(baseUrl);
+    } catch (error) {
+      console.error('Failed to fetch user details:', error);
+    }
+
+    return tokens;
+  },
+
   // Get Google auth URL and redirect
   async getGoogleAuthUrl(baseUrl: string): Promise<string> {
     const response = await fetch(`${baseUrl}/api/auth/social/google/`, {
@@ -390,6 +418,23 @@ export const authService = {
 
     if (!response.ok) {
       throw new Error('Failed to get GitHub authorization URL');
+    }
+
+    const data = await response.json();
+    return data.authorization_url;
+  },
+
+  // Get Discord auth URL and redirect
+  async getDiscordAuthUrl(baseUrl: string): Promise<string> {
+    const response = await fetch(`${baseUrl}/api/auth/social/discord/`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get Discord authorization URL');
     }
 
     const data = await response.json();

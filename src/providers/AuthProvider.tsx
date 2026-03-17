@@ -12,6 +12,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   loginWithGitHub: () => Promise<void>;
+  loginWithDiscord: () => Promise<void>;
   // handleGoogleCallback: (code: string) => Promise<void>;
   // handleGitHubCallback: (code: string) => Promise<void>;
   logout: () => void;
@@ -153,6 +154,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
               case 'google':
                 await handleGoogleCallback(code);
                 break;
+              case 'discord':
+                await handleDiscordCallback(code);
+                break;
               default:
                 throw new Error(`Unsupported provider: ${provider}`);
             }
@@ -205,11 +209,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setIsLoading(true);
 
     try {
-      // Get the GitHub auth URL and redirect to it
       const githubAuthUrl = await authService.getGitHubAuthUrl(config.apis.meshBot.baseUrl);
       window.location.href = githubAuthUrl;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to get GitHub authorization URL');
+      setIsLoading(false);
+    }
+  };
+
+  // Login with Discord
+  const loginWithDiscord = async () => {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const discordAuthUrl = await authService.getDiscordAuthUrl(config.apis.meshBot.baseUrl);
+      window.location.href = discordAuthUrl;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to get Discord authorization URL');
       setIsLoading(false);
     }
   };
@@ -248,6 +265,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  // Handle Discord callback
+  const handleDiscordCallback = async (code: string) => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      await authService.loginWithDiscord(config.apis.meshBot.baseUrl, code);
+      setIsAuthenticated(authService.isAuthenticated());
+      setAuthProvider(authService.getAuthProvider());
+      navigate('/');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Discord login failed');
+      setIsAuthenticated(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Logout function
   const logout = () => {
     authService.logout();
@@ -262,6 +296,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     login,
     loginWithGoogle,
     loginWithGitHub,
+    loginWithDiscord,
     // handleGoogleCallback,
     // handleGitHubCallback,
     logout,
