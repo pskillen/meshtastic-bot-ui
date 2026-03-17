@@ -33,6 +33,8 @@ Browser tests use Playwright to run end-to-end tests in a real Chromium instance
 
 2. **Optional: Meshflow API** – Some tests mock API responses and need no backend. Tests that hit the real API require the API to be running (see [meshflow-api tests/TESTING.md](../../meshflow-api/tests/TESTING.md) for setup).
 
+3. **Optional: Mapbox token** – The traceroute heatmap map interaction tests (node click, popup) require `VITE_MAPBOX_TOKEN` in `.env` and a fully loaded map. These tests are skipped automatically when the map canvas is not available.
+
 ### Auth bypass
 
 Protected routes normally require authentication. For browser tests, auth is bypassed when the app is built with `VITE_BROWSER_TEST=true`.

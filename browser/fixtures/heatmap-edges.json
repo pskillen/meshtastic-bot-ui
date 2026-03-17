@@ -5,17 +5,17 @@
       "to_node_id": 2,
       "from_lat": 55.86,
       "from_lng": -4.25,
-      "to_lat": 55.87,
-      "to_lng": -4.24,
+      "to_lat": 55.5,
+      "to_lng": -5.0,
       "weight": 5
     },
     {
       "from_node_id": 2,
       "to_node_id": 3,
-      "from_lat": 55.87,
-      "from_lng": -4.24,
-      "to_lat": 55.85,
-      "to_lng": -4.26,
+      "from_lat": 55.5,
+      "from_lng": -5.0,
+      "to_lat": 56.2,
+      "to_lng": -3.5,
       "weight": 3
     },
     {
@@ -23,8 +23,8 @@
       "to_node_id": 3,
       "from_lat": 55.86,
       "from_lng": -4.25,
-      "to_lat": 55.85,
-      "to_lng": -4.26,
+      "to_lat": 56.2,
+      "to_lng": -3.5,
       "weight": 2
     }
   ],
@@ -40,16 +40,16 @@
     {
       "node_id": 2,
       "node_id_str": "!b2c3d4e5",
-      "lat": 55.87,
-      "lng": -4.24,
+      "lat": 55.5,
+      "lng": -5.0,
       "short_name": "NodeB",
       "long_name": "Test Node B"
     },
     {
       "node_id": 3,
       "node_id_str": "!c3d4e5f6",
-      "lat": 55.85,
-      "lng": -4.26,
+      "lat": 56.2,
+      "lng": -3.5,
       "short_name": "NodeC",
       "long_name": "Test Node C"
     }

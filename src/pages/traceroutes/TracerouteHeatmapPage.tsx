@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react';
 import { subHours, subDays } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { useHeatmapEdges } from '@/hooks/api/useHeatmapEdges';
 import { TracerouteHeatmapMap } from '@/components/traceroutes/TracerouteHeatmapMap';
 import { RouteIcon } from 'lucide-react';
@@ -43,6 +45,7 @@ function NetworkStatsCard({
 
 export function TracerouteHeatmapPage() {
   const [timeRange, setTimeRange] = useState<TimeRange>('7d');
+  const [showLabels, setShowLabels] = useState(true);
 
   const triggeredAtAfter = useMemo(() => {
     if (timeRange === '24h') return subHours(new Date(), 24);
@@ -61,24 +64,37 @@ export function TracerouteHeatmapPage() {
 
   return (
     <div className="flex min-h-[50vh] flex-col gap-4 px-4 py-4 md:px-6 md:py-6">
-      {/* Top bar: title + time range picker */}
+      {/* Top bar: title + time range picker + node labels */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <RouteIcon className="h-6 w-6" />
           <h1 className="text-xl font-semibold sm:text-2xl">Traceroute Heatmap</h1>
         </div>
-        <div className="w-full sm:w-auto sm:min-w-[180px]">
-          <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="24h">Last 24 Hours</SelectItem>
-              <SelectItem value="7d">Last 7 Days</SelectItem>
-              <SelectItem value="30d">Last 30 Days</SelectItem>
-              <SelectItem value="custom">Custom</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex flex-wrap items-center gap-4" data-testid="heatmap-filters">
+          <div className="flex items-center gap-2">
+            <Switch
+              id="heatmap-node-labels"
+              checked={showLabels}
+              onCheckedChange={setShowLabels}
+              aria-label="Node labels"
+            />
+            <Label htmlFor="heatmap-node-labels" className="text-sm cursor-pointer">
+              Node labels
+            </Label>
+          </div>
+          <div className="w-full sm:w-auto sm:min-w-[180px]">
+            <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="24h">Last 24 Hours</SelectItem>
+                <SelectItem value="7d">Last 7 Days</SelectItem>
+                <SelectItem value="30d">Last 30 Days</SelectItem>
+                <SelectItem value="custom">Custom</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -101,7 +117,7 @@ export function TracerouteHeatmapPage() {
                 Loading heatmap data...
               </div>
             )}
-            {!error && !isLoading && <TracerouteHeatmapMap edges={edges} nodes={nodes} />}
+            {!error && !isLoading && <TracerouteHeatmapMap edges={edges} nodes={nodes} showLabels={showLabels} />}
           </CardContent>
         </Card>
 
