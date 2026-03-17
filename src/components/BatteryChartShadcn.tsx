@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ReferenceArea } from 'recharts';
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ReferenceArea, Text } from 'recharts';
 import { useNodeMetricsSuspense } from '@/hooks/api/useNodes';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -20,6 +20,8 @@ export interface DateRangeProp {
   startDate: Date;
   endDate: Date;
 }
+
+const X_AXIS_TICK_COUNT = 8;
 
 interface BatteryChartShadcnProps {
   nodeId: number;
@@ -100,6 +102,38 @@ export function BatteryChartShadcn({
     }
     return [String(value), name];
   };
+
+  const xTicks = React.useMemo(() => {
+    const start = dateRange.startDate.getTime();
+    const end = dateRange.endDate.getTime();
+    const ticks: number[] = [];
+    for (let i = 0; i <= X_AXIS_TICK_COUNT; i++) {
+      ticks.push(start + (end - start) * (i / X_AXIS_TICK_COUNT));
+    }
+    return ticks;
+  }, [dateRange.startDate, dateRange.endDate]);
+
+  const renderXAxisTick = React.useCallback(
+    (props: { x: number; y: number; payload: { value: number }; tickFormatter?: (v: number, i: number) => string }) => {
+      const { x, y, payload, tickFormatter } = props;
+      const isOurTick = xTicks.some((t) => Math.abs(t - payload.value) < 60_000);
+      if (!isOurTick) return <g />;
+      const value = tickFormatter ? tickFormatter(payload.value, 0) : String(payload.value);
+      return (
+        <Text
+          x={x}
+          y={y}
+          textAnchor="end"
+          verticalAnchor="start"
+          angle={-35}
+          className="recharts-cartesian-axis-tick-value"
+        >
+          {value}
+        </Text>
+      );
+    },
+    [xTicks]
+  );
 
   // Transform metrics data to chart format (skip metrics without reported_time)
   const chartData = React.useMemo(() => {
@@ -186,16 +220,18 @@ export function BatteryChartShadcn({
               dataKey="timestamp"
               tickLine={false}
               axisLine={false}
-              tickMargin={8}
-              minTickGap={32}
+              tickMargin={12}
+              ticks={xTicks}
+              tick={renderXAxisTick}
+              interval={0}
               domain={[dateRange.startDate.getTime(), dateRange.endDate.getTime()]}
               tickFormatter={(value: number) => {
                 const date = new Date(value);
                 return date.toLocaleDateString('en-GB', {
                   month: 'short',
                   day: 'numeric',
-                  hour: 'numeric',
-                  minute: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
                 });
               }}
               scale="time"
