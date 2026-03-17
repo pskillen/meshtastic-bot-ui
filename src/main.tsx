@@ -13,6 +13,20 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 5 * 60 * 1000, // 5 minutes
       refetchOnWindowFocus: false,
+      retry: (failureCount, error) => {
+        const status = (error as { response?: { status?: number } })?.response?.status;
+
+        // Do not retry on 401 - auth failures should not trigger retries
+        if (status === 401) return false;
+
+        // do not retry on client errors
+        if (status && status >= 400 && status < 500) return false;
+
+        return failureCount < 3;
+      },
+    },
+    mutations: {
+      retry: false,
     },
   },
 });
