@@ -8,6 +8,7 @@ import type { Feature, Point, Polygon, Position as GeoPosition } from 'geojson';
 import { useMapTileUrl } from '@/hooks/useMapTileUrl';
 import {
   createNodeIcon,
+  createWeatherNodeIcon,
   getRoleColor,
   boundaryPolygonFromPoints,
   precisionBitsToMeters,
@@ -54,6 +55,12 @@ export interface NodesAndConstellationsMapProps {
   onNodeSelect?: (node: MapNode | null) => boolean;
   /** When provided, highlights this node (e.g. selection from external source like search) */
   selectedNodeId?: number | null;
+  /** Optional custom label for observed node markers (e.g. weather metrics) */
+  getMarkerLabel?: (node: ObservedNode) => string;
+  /** Optional opacity 0-1 for observed node markers (e.g. age-based fading) */
+  getMarkerOpacity?: (node: ObservedNode) => number;
+  /** Optional grayscale 0-1 for observed node markers (e.g. 24h = 100% gray) */
+  getMarkerGrayscale?: (node: ObservedNode) => number;
 }
 
 export function NodesAndConstellationsMap({
@@ -70,6 +77,9 @@ export function NodesAndConstellationsMap({
   onMapMove,
   onNodeSelect,
   selectedNodeId: selectedNodeIdProp,
+  getMarkerLabel,
+  getMarkerOpacity,
+  getMarkerGrayscale,
 }: NodesAndConstellationsMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -151,6 +161,29 @@ export function NodesAndConstellationsMap({
           font-weight: bold;
           font-size: 12px;
           text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        .weather-marker-container {
+          display: flex;
+          justify-content: center;
+          align-items: flex-end;
+        }
+        .weather-marker-pill {
+          padding: 8px 14px;
+          border-radius: 12px;
+          min-width: 60px;
+          max-width: 160px;
+          text-align: center;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .weather-marker-text {
+          color: white;
+          font-size: 12px;
+          font-weight: 600;
+          text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+          line-height: 1.2;
         }
         .leaflet-container { z-index: 1; }
         .leaflet-pane, .leaflet-tile, .leaflet-marker-icon, .leaflet-marker-shadow,
@@ -366,13 +399,15 @@ export function NodesAndConstellationsMap({
       if (!pos) return;
       const position: L.LatLngExpression = [pos.lat, pos.lng];
       const isSelected = selectedNodeId === node.node_id;
+      const label = getMarkerLabel
+        ? getMarkerLabel(node as ObservedNode)
+        : node.short_name || node.node_id_str?.toString().slice(-4) || '?';
+      const opacity = getMarkerOpacity?.(node as ObservedNode);
+      const grayscale = getMarkerGrayscale?.(node as ObservedNode);
+      const color = getRoleColor('role' in node ? node.role : undefined);
+      const iconFn = getMarkerLabel ? createWeatherNodeIcon : createNodeIcon;
       const marker = L.marker(position, {
-        icon: createNodeIcon(
-          node.short_name || node.node_id_str?.toString().slice(-4) || '?',
-          getRoleColor('role' in node ? node.role : undefined),
-          isSelected,
-          hasSelection && !isSelected
-        ),
+        icon: iconFn(label, color, isSelected, hasSelection && !isSelected, opacity, grayscale),
       });
       marker.on('click', () => handleMarkerClick(node));
       if (enableBubbles) {
@@ -430,6 +465,9 @@ export function NodesAndConstellationsMap({
     enableBubbles,
     selectedNodeId,
     handleMarkerClick,
+    getMarkerLabel,
+    getMarkerOpacity,
+    getMarkerGrayscale,
   ]);
 
   return (
