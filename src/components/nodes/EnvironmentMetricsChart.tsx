@@ -1,11 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from 'recharts';
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { useNodeEnvironmentMetricsSuspense } from '@/hooks/api/useNodes';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { TimeRangeSelect, TimeRangeOption } from '@/components/TimeRangeSelect';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EnvironmentMetrics } from '@/lib/models';
 
 const SERIES_CONFIG: Array<{
@@ -31,12 +32,100 @@ export interface DateRangeProp {
   endDate: Date;
 }
 
+const X_AXIS_TICK_COUNT = 8;
+
 interface EnvironmentMetricsChartProps {
   nodeId: number;
   timeRangeOptions?: TimeRangeOption[];
   defaultTimeRange?: string;
   /** When provided, use this date range instead of internal state (controlled mode). Hides the time range selector. */
   controlledDateRange?: DateRangeProp;
+}
+
+function SingleMetricChart({
+  dataKey,
+  label,
+  unit,
+  color,
+  chartData,
+  dateRange,
+}: {
+  dataKey: string;
+  label: string;
+  unit: string;
+  color: string;
+  chartData: Array<Record<string, number | null>>;
+  dateRange: { startDate: Date; endDate: Date };
+}) {
+  const chartConfig: ChartConfig = { [dataKey]: { color, label } };
+
+  const xTicks = React.useMemo(() => {
+    const start = dateRange.startDate.getTime();
+    const end = dateRange.endDate.getTime();
+    const ticks: number[] = [];
+    for (let i = 0; i <= X_AXIS_TICK_COUNT; i++) {
+      ticks.push(start + (end - start) * (i / X_AXIS_TICK_COUNT));
+    }
+    return ticks;
+  }, [dateRange.startDate, dateRange.endDate]);
+
+  return (
+    <ChartContainer config={chartConfig} className="aspect-auto h-[200px] w-full">
+      <AreaChart data={chartData}>
+        <CartesianGrid vertical={false} />
+        <XAxis
+          dataKey="timestamp"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          ticks={xTicks}
+          domain={[dateRange.startDate.getTime(), dateRange.endDate.getTime()]}
+          tickFormatter={(value: number) =>
+            new Date(value).toLocaleDateString('en-GB', {
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: 'numeric',
+            })
+          }
+          scale="time"
+          type="number"
+        />
+        <YAxis tickLine={false} axisLine={false} tickMargin={8} domain={['auto', 'auto']} />
+        <Tooltip
+          content={
+            <ChartTooltipContent
+              labelFormatter={(_, payload) => {
+                if (payload?.[0]?.payload?.timestamp) {
+                  return new Date(payload[0].payload.timestamp).toLocaleDateString('en-GB', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: 'numeric',
+                  });
+                }
+                return 'Unknown time';
+              }}
+              formatter={(value) => {
+                const num = typeof value === 'number' ? value : parseFloat(String(value));
+                const formatted = !isNaN(num) ? num.toFixed(2) : String(value);
+                return [unit ? `${formatted} ${unit}` : formatted, label];
+              }}
+            />
+          }
+        />
+        <Area
+          type="monotone"
+          dataKey={dataKey}
+          stroke={color}
+          fill="none"
+          strokeWidth={2}
+          dot={{ r: 3 }}
+          connectNulls
+        />
+      </AreaChart>
+    </ChartContainer>
+  );
 }
 
 export function EnvironmentMetricsChart({
@@ -93,11 +182,6 @@ export function EnvironmentMetricsChart({
     return SERIES_CONFIG.filter((s) => chartData.some((d) => d[s.dataKey] != null));
   }, [chartData]);
 
-  const chartConfig: ChartConfig = React.useMemo(
-    () => Object.fromEntries(seriesWithData.map((s) => [s.dataKey, { color: s.color, label: s.label }])),
-    [seriesWithData]
-  );
-
   if (chartData.length === 0 || seriesWithData.length === 0) {
     return (
       <Card>
@@ -124,74 +208,50 @@ export function EnvironmentMetricsChart({
         )}
       </CardHeader>
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
-        <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
-          <AreaChart data={chartData}>
-            <CartesianGrid vertical={false} />
-            <Legend
-              verticalAlign="bottom"
-              height={36}
-              iconType="circle"
-              iconSize={8}
-              formatter={(value) => {
-                const s = SERIES_CONFIG.find((c) => c.dataKey === value);
-                return s ? `${s.label}${s.unit ? ` (${s.unit})` : ''}` : value;
-              }}
-            />
-            <XAxis
-              dataKey="timestamp"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              minTickGap={32}
-              domain={[dateRange.startDate.getTime(), dateRange.endDate.getTime()]}
-              tickFormatter={(value: number) =>
-                new Date(value).toLocaleDateString('en-GB', {
-                  month: 'short',
-                  day: 'numeric',
-                  hour: 'numeric',
-                  minute: 'numeric',
-                })
-              }
-              scale="time"
-              type="number"
-            />
-            <YAxis tickLine={false} axisLine={false} tickMargin={8} domain={['auto', 'auto']} />
-            <Tooltip
-              content={
-                <ChartTooltipContent
-                  labelFormatter={(_, payload) => {
-                    if (payload?.[0]?.payload?.timestamp) {
-                      return new Date(payload[0].payload.timestamp).toLocaleDateString('en-GB', {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: 'numeric',
-                        minute: 'numeric',
-                      });
-                    }
-                    return 'Unknown time';
-                  }}
-                  formatter={(value, name) => {
-                    const s = SERIES_CONFIG.find((c) => c.dataKey === name);
-                    const num = typeof value === 'number' ? value : parseFloat(String(value));
-                    const formatted = !isNaN(num) ? num.toFixed(2) : String(value);
-                    return [s?.unit ? `${formatted} ${s.unit}` : formatted, s?.label ?? name];
-                  }}
-                />
-              }
-            />
+        {/* Mobile: tabs/pills to switch between metrics */}
+        <div className="md:hidden">
+          <Tabs defaultValue={seriesWithData[0].dataKey} className="w-full">
+            <TabsList className="mb-4 flex w-full flex-wrap gap-1 bg-muted p-1">
+              {seriesWithData.map((s) => (
+                <TabsTrigger key={s.dataKey} value={s.dataKey} className="flex-1 min-w-0 text-xs">
+                  {s.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
             {seriesWithData.map((s) => (
-              <Area
-                key={s.dataKey}
-                type="monotone"
-                dataKey={s.dataKey}
-                stroke={s.color}
-                fill="none"
-                strokeWidth={2}
-                dot={{ r: 3 }}
-              />
+              <TabsContent key={s.dataKey} value={s.dataKey} className="mt-0">
+                <SingleMetricChart
+                  dataKey={s.dataKey}
+                  label={s.label}
+                  unit={s.unit}
+                  color={s.color}
+                  chartData={chartData}
+                  dateRange={dateRange}
+                />
+              </TabsContent>
             ))}
-          </AreaChart>
-        </ChartContainer>
+          </Tabs>
+        </div>
+
+        {/* md and lg: grid of charts - 3 per row on md, 4 per row on lg */}
+        <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {seriesWithData.map((s) => (
+            <div key={s.dataKey} className="rounded-lg border border-border bg-muted/30 p-3">
+              <h4 className="mb-2 text-sm font-medium text-muted-foreground">
+                {s.label}
+                {s.unit && ` (${s.unit})`}
+              </h4>
+              <SingleMetricChart
+                dataKey={s.dataKey}
+                label={s.label}
+                unit={s.unit}
+                color={s.color}
+                chartData={chartData}
+                dateRange={dateRange}
+              />
+            </div>
+          ))}
+        </div>
       </CardContent>
     </Card>
   );
