@@ -5,12 +5,13 @@ import { useUserClaims } from '@/hooks/api/useNodeClaims';
 import { useMyManagedNodesSuspense, useMyClaimedNodesSuspense } from '@/hooks/api/useNodes';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Info, Copy, Radio, Plus } from 'lucide-react';
+import { Loader2, AlertCircle, Info, Copy, Radio, HelpCircle } from 'lucide-react';
 import { useConfig } from '@/providers/ConfigProvider';
 import { BotSetupInstructions } from '@/components/nodes/BotSetupInstructions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ObservedNode } from '@/lib/models';
 import { SetupManagedNode } from '@/components/nodes/SetupManagedNode';
@@ -26,18 +27,13 @@ function NodeSettingsContent() {
   const { myClaimedNodes } = useMyClaimedNodesSuspense();
   const [selectedNode, setSelectedNode] = useState<ObservedNode | null>(null);
   const [isSetupDialogOpen, setIsSetupDialogOpen] = useState(false);
-  const [newApiKeyName, setNewApiKeyName] = useState('');
-  const [selectedConstellation, setSelectedConstellation] = useState<number | null>(null);
-  const [isCreatingApiKey, setIsCreatingApiKey] = useState(false);
-  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [assignKeyId, setAssignKeyId] = useState<string | null>(null);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [selectedAssignNodes, setSelectedAssignNodes] = useState<number[]>([]);
   const [isAssigning, setIsAssigning] = useState(false);
-  const [deleteKeyId, setDeleteKeyId] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [toggleKeyId, setToggleKeyId] = useState<string | null>(null);
-  const [isToggling, setIsToggling] = useState(false);
+  const [setupInstructionsKey, setSetupInstructionsKey] = useState<{ apiKey: string; nodeShortName: string } | null>(
+    null
+  );
   const queryClient = useQueryClient();
 
   const handleRunAsManagedNode = (node: ObservedNode) => {
@@ -52,32 +48,6 @@ function NodeSettingsContent() {
 
   const handleCopyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-  };
-
-  const handleCreateApiKey = async (options?: { constellationId?: number; assignToNodeId?: number }) => {
-    const constellationId = options?.constellationId ?? selectedConstellation;
-    if (!newApiKeyName || !constellationId) {
-      setApiKeyError('Please provide a name and select a constellation');
-      return;
-    }
-
-    setIsCreatingApiKey(true);
-    setApiKeyError(null);
-
-    try {
-      const apiKey = await api.createApiKey(newApiKeyName, constellationId);
-      if (options?.assignToNodeId) {
-        await api.addNodeToApiKey(apiKey.id, options.assignToNodeId);
-      }
-      setNewApiKeyName('');
-      setSelectedConstellation(null);
-      await queryClient.invalidateQueries({ queryKey: ['api-keys'] });
-    } catch (error) {
-      setApiKeyError('Failed to create API key. Please try again.');
-      console.error('Error creating API key:', error);
-    } finally {
-      setIsCreatingApiKey(false);
-    }
   };
 
   // Create a Set of managed node IDs for quick lookup
@@ -104,16 +74,13 @@ function NodeSettingsContent() {
     if (!assignKeyId) return;
     setIsAssigning(true);
     try {
-      // Find the API key
       const apiKey = apiKeys?.find((k) => k.id === assignKeyId);
       if (!apiKey) return;
-      // Add new nodes
       for (const nodeId of selectedAssignNodes) {
         if (!apiKey.nodes.includes(nodeId)) {
           await api.addNodeToApiKey(assignKeyId, nodeId);
         }
       }
-      // Remove unselected nodes
       for (const nodeId of apiKey.nodes) {
         if (!selectedAssignNodes.includes(nodeId)) {
           await api.removeNodeFromApiKey(assignKeyId, nodeId);
@@ -126,31 +93,17 @@ function NodeSettingsContent() {
     }
   };
 
-  // Delete API key
-  const handleDeleteKey = async (keyId: string) => {
-    setDeleteKeyId(keyId);
-    setIsDeleting(true);
-    try {
-      await api.deleteApiKey(keyId);
-      await queryClient.invalidateQueries({ queryKey: ['api-keys'] });
-    } finally {
-      setIsDeleting(false);
-      setDeleteKeyId(null);
-    }
-  };
-
-  // Toggle active/inactive
-  const handleToggleKey = async (keyId: string, isActive: boolean) => {
-    setToggleKeyId(keyId);
-    setIsToggling(true);
-    try {
-      await api.updateApiKey(keyId, { is_active: !isActive });
-      await queryClient.invalidateQueries({ queryKey: ['api-keys'] });
-    } finally {
-      setIsToggling(false);
-      setToggleKeyId(null);
-    }
-  };
+  const assignKey = assignKeyId ? apiKeys?.find((k) => k.id === assignKeyId) : null;
+  const assignKeyConstellationId =
+    assignKey && typeof assignKey.constellation === 'number'
+      ? assignKey.constellation
+      : assignKey && typeof assignKey.constellation === 'object' && assignKey.constellation
+        ? (assignKey.constellation as { id: number }).id
+        : null;
+  const nodesForAssignModal =
+    assignKeyConstellationId != null
+      ? myManagedNodes.filter((n) => n.constellation?.id === assignKeyConstellationId)
+      : myManagedNodes;
 
   return (
     <div className="container mx-auto py-6 space-y-6 px-6">
@@ -339,13 +292,6 @@ function NodeSettingsContent() {
                                 )}
                               </div>
                             </div>
-                            <Link
-                              to={`/nodes/${node.node_id}`}
-                              className="text-blue-500 hover:text-blue-700 text-sm shrink-0 ml-2"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              View Details
-                            </Link>
                           </div>
                         </AccordionTrigger>
                         <AccordionContent className="px-4 pb-4">
@@ -354,20 +300,9 @@ function NodeSettingsContent() {
                             nodeApiKeys={nodeApiKeys}
                             config={config}
                             isLoadingApiKeys={isLoadingApiKeys}
-                            apiKeyError={apiKeyError}
-                            newApiKeyName={newApiKeyName}
-                            setNewApiKeyName={setNewApiKeyName}
-                            isCreatingApiKey={isCreatingApiKey}
-                            setApiKeyError={setApiKeyError}
-                            handleCreateApiKey={handleCreateApiKey}
                             handleCopyToClipboard={handleCopyToClipboard}
-                            handleToggleKey={handleToggleKey}
-                            handleDeleteKey={handleDeleteKey}
                             openAssignModal={openAssignModal}
-                            isToggling={isToggling}
-                            toggleKeyId={toggleKeyId}
-                            isDeleting={isDeleting}
-                            deleteKeyId={deleteKeyId}
+                            onShowSetupInstructions={setSetupInstructionsKey}
                           />
                         </AccordionContent>
                       </AccordionItem>
@@ -393,8 +328,8 @@ function NodeSettingsContent() {
                 <div className="mb-4">
                   <label className="block text-sm font-medium mb-1">Select nodes to assign to this API key:</label>
                   <div className="max-h-48 overflow-y-auto border rounded p-2">
-                    {myManagedNodes.length > 0 ? (
-                      myManagedNodes.map((node) => (
+                    {nodesForAssignModal.length > 0 ? (
+                      nodesForAssignModal.map((node) => (
                         <div key={node.node_id} className="flex items-center gap-2 mb-1">
                           <input
                             type="checkbox"
@@ -412,7 +347,9 @@ function NodeSettingsContent() {
                         </div>
                       ))
                     ) : (
-                      <span className="text-xs text-slate-400">No managed nodes available</span>
+                      <span className="text-xs text-slate-400">
+                        No managed nodes in this constellation. Add nodes from My Nodes first.
+                      </span>
                     )}
                   </div>
                 </div>
@@ -426,6 +363,21 @@ function NodeSettingsContent() {
                 </div>
               </div>
             </div>
+          )}
+
+          {setupInstructionsKey && config && (
+            <Dialog open={!!setupInstructionsKey} onOpenChange={(open) => !open && setSetupInstructionsKey(null)}>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Bot Setup Instructions</DialogTitle>
+                </DialogHeader>
+                <BotSetupInstructions
+                  apiKey={setupInstructionsKey.apiKey}
+                  apiBaseUrl={config.apis.meshBot.baseUrl}
+                  nodeShortName={setupInstructionsKey.nodeShortName}
+                />
+              </DialogContent>
+            </Dialog>
           )}
         </TabsContent>
       </Tabs>
@@ -441,50 +393,30 @@ function ManagedNodeSettings({
   nodeApiKeys,
   config,
   isLoadingApiKeys,
-  apiKeyError,
-  newApiKeyName,
-  setNewApiKeyName,
-  isCreatingApiKey,
-  setApiKeyError,
-  handleCreateApiKey,
   handleCopyToClipboard,
-  handleToggleKey,
-  handleDeleteKey,
   openAssignModal,
-  isToggling,
-  toggleKeyId,
-  isDeleting,
-  deleteKeyId,
+  onShowSetupInstructions,
 }: {
   node: OwnedManagedNode;
   nodeApiKeys: NodeApiKey[];
   config: ReturnType<typeof useConfig>;
   isLoadingApiKeys: boolean;
-  apiKeyError: string | null;
-  newApiKeyName: string;
-  setNewApiKeyName: (v: string) => void;
-  isCreatingApiKey: boolean;
-  setApiKeyError: (v: string | null) => void;
-  handleCreateApiKey: (options?: { constellationId?: number; assignToNodeId?: number }) => Promise<void>;
   handleCopyToClipboard: (text: string) => void;
-  handleToggleKey: (keyId: string, isActive: boolean) => Promise<void>;
-  handleDeleteKey: (keyId: string) => Promise<void>;
   openAssignModal: (keyId: string, currentNodes: number[]) => void;
-  isToggling: boolean;
-  toggleKeyId: string | null;
-  isDeleting: boolean;
-  deleteKeyId: string | null;
+  onShowSetupInstructions: (params: { apiKey: string; nodeShortName: string } | null) => void;
 }) {
   return (
     <div className="space-y-4 pt-2">
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={() => window.open(`/nodes/${node.node_id}`, '_blank')}>
-          View Node Details
-        </Button>
+        <Link to={`/nodes/${node.node_id}`}>
+          <Button variant="outline" size="sm">
+            View Node Details
+          </Button>
+        </Link>
       </div>
 
       <div>
-        <p className="text-sm font-medium mb-2">API Keys & Setup</p>
+        <p className="text-sm font-medium mb-2">API Keys</p>
         {isLoadingApiKeys ? (
           <div className="flex justify-center py-4">
             <Loader2 className="h-6 w-6 animate-spin text-slate-500 dark:text-slate-400" />
@@ -509,167 +441,57 @@ function ManagedNodeSettings({
                     <Badge variant={apiKey.is_active ? 'default' : 'outline'} className="text-xs">
                       {apiKey.is_active ? 'Active' : 'Inactive'}
                     </Badge>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleToggleKey(apiKey.id, apiKey.is_active)}
-                      disabled={isToggling && toggleKeyId === apiKey.id}
-                      title={apiKey.is_active ? 'Deactivate' : 'Activate'}
-                    >
-                      {apiKey.is_active ? 'Deactivate' : 'Activate'}
+                    <Button size="sm" variant="outline" onClick={() => openAssignModal(apiKey.id, apiKey.nodes)}>
+                      Assign/Remove Nodes
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleDeleteKey(apiKey.id)}
-                      disabled={isDeleting && deleteKeyId === apiKey.id}
-                      title="Delete API Key"
-                    >
-                      Delete
-                    </Button>
+                    {config && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          onShowSetupInstructions({
+                            apiKey: apiKey.key,
+                            nodeShortName: node.short_name || node.node_id_str,
+                          })
+                        }
+                        title="Setup instructions"
+                      >
+                        <HelpCircle className="h-4 w-4 mr-1" />
+                        Setup
+                      </Button>
+                    )}
                   </div>
                 </div>
-                <div className="mt-2 flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">Key:</span>
-                    <span className="bg-slate-100 dark:bg-slate-800 p-2 rounded font-mono text-sm truncate select-all max-w-[200px]">
-                      {apiKey.key}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleCopyToClipboard(apiKey.key)}
-                      className="h-7 px-2"
-                    >
-                      <Copy className="h-3 w-3 mr-1" />
-                      Copy
-                    </Button>
-                  </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-sm font-medium">Key:</span>
+                  <span className="bg-slate-100 dark:bg-slate-800 p-2 rounded font-mono text-sm truncate select-all max-w-[200px]">
+                    {apiKey.key}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCopyToClipboard(apiKey.key)}
+                    className="h-7 px-2"
+                  >
+                    <Copy className="h-3 w-3 mr-1" />
+                    Copy
+                  </Button>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="mt-2"
-                  onClick={() => openAssignModal(apiKey.id, apiKey.nodes)}
-                >
-                  Assign/Remove Nodes
-                </Button>
-                {config && (
-                  <div className="mt-3">
-                    <BotSetupInstructions
-                      apiKey={apiKey.key}
-                      apiBaseUrl={config.apis.meshBot.baseUrl}
-                      nodeShortName={node.short_name || node.node_id_str}
-                    />
-                  </div>
-                )}
               </div>
             ))}
-
-            <div className="border-t pt-4">
-              <h4 className="text-sm font-medium mb-2">Create New API Key</h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-                Create a key for {node.constellation.name} (this node's constellation)
-              </p>
-              {apiKeyError && (
-                <Alert variant="destructive" className="mb-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{apiKeyError}</AlertDescription>
-                </Alert>
-              )}
-              <div className="flex gap-2 flex-wrap items-end">
-                <div>
-                  <label htmlFor={`api-key-name-${node.node_id}`} className="block text-xs font-medium mb-1">
-                    Name
-                  </label>
-                  <input
-                    id={`api-key-name-${node.node_id}`}
-                    type="text"
-                    className="w-40 p-2 border rounded-md text-sm"
-                    value={newApiKeyName}
-                    onChange={(e) => {
-                      setNewApiKeyName(e.target.value);
-                      setApiKeyError(null);
-                    }}
-                    placeholder="e.g. Home Node"
-                  />
-                </div>
-                <Button
-                  size="sm"
-                  onClick={async () => {
-                    await handleCreateApiKey({
-                      constellationId: node.constellation.id,
-                      assignToNodeId: node.node_id,
-                    });
-                    setNewApiKeyName('');
-                  }}
-                  disabled={isCreatingApiKey || !newApiKeyName}
-                >
-                  {isCreatingApiKey ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="mr-2 h-4 w-4" />
-                  )}
-                  Create Key
-                </Button>
-              </div>
-            </div>
           </div>
         ) : (
-          <div className="space-y-4">
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertTitle>No API Key Assigned</AlertTitle>
-              <AlertDescription>
-                Create an API key for this node's constellation; it will be assigned to this node automatically.
-              </AlertDescription>
-            </Alert>
-            <div>
-              <h4 className="text-sm font-medium mb-2">Create API Key</h4>
-              {apiKeyError && (
-                <Alert variant="destructive" className="mb-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{apiKeyError}</AlertDescription>
-                </Alert>
-              )}
-              <div className="flex gap-2 flex-wrap items-end">
-                <div>
-                  <label htmlFor={`api-key-name-new-${node.node_id}`} className="block text-xs font-medium mb-1">
-                    Name
-                  </label>
-                  <input
-                    id={`api-key-name-new-${node.node_id}`}
-                    type="text"
-                    className="w-40 p-2 border rounded-md text-sm"
-                    value={newApiKeyName}
-                    onChange={(e) => {
-                      setNewApiKeyName(e.target.value);
-                      setApiKeyError(null);
-                    }}
-                    placeholder="e.g. Home Node"
-                  />
-                </div>
-                <Button
-                  size="sm"
-                  onClick={async () => {
-                    await handleCreateApiKey({
-                      constellationId: node.constellation.id,
-                      assignToNodeId: node.node_id,
-                    });
-                    setNewApiKeyName('');
-                  }}
-                  disabled={isCreatingApiKey || !newApiKeyName}
-                >
-                  {isCreatingApiKey ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="mr-2 h-4 w-4" />
-                  )}
-                  Create Key
-                </Button>
-              </div>
-            </div>
-          </div>
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>No API Key Assigned</AlertTitle>
+            <AlertDescription>
+              Go to{' '}
+              <Link to="/user/api-keys" className="text-primary hover:underline font-medium">
+                API Keys
+              </Link>{' '}
+              to create a key and assign it to this node.
+            </AlertDescription>
+          </Alert>
         )}
       </div>
     </div>
