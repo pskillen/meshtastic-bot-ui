@@ -4,7 +4,8 @@ import * as React from 'react';
 import { subHours, subDays, startOfDay } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TimeRangeSelect, TimeRangeOption } from '@/components/TimeRangeSelect';
-import { BatteryChartShadcn } from '@/components/BatteryChartShadcn';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { BatteryChartShadcn, type BatteryDisplayMode } from '@/components/BatteryChartShadcn';
 import { EnvironmentMetricsChart } from '@/components/nodes/EnvironmentMetricsChart';
 import { PowerMetricsChart } from '@/components/nodes/PowerMetricsChart';
 import { PacketTypeChart } from '@/components/PacketTypeChart';
@@ -44,6 +45,7 @@ interface NodeStatsSectionProps {
 export function NodeStatsSection({ nodeId, node, isManagedNode }: NodeStatsSectionProps) {
   const [timeRange, setTimeRange] = React.useState('48h');
   const [dateRange, setDateRange] = React.useState(() => computeDateRange('48h'));
+  const [batteryDisplayMode, setBatteryDisplayMode] = React.useState<BatteryDisplayMode>('voltage');
 
   const controlledDateRange = { startDate: dateRange.startDate, endDate: dateRange.endDate };
 
@@ -84,9 +86,33 @@ export function NodeStatsSection({ nodeId, node, isManagedNode }: NodeStatsSecti
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          <Suspense fallback={chartFallback}>
-            <BatteryChartShadcn nodeId={nodeId} defaultTimeRange="48h" controlledDateRange={controlledDateRange} />
-          </Suspense>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground">Battery chart</span>
+              <ToggleGroup
+                type="single"
+                value={batteryDisplayMode}
+                onValueChange={(v) => v && setBatteryDisplayMode(v as BatteryDisplayMode)}
+                variant="outline"
+                size="sm"
+              >
+                <ToggleGroupItem value="voltage" aria-label="Show voltage (V)">
+                  Voltage
+                </ToggleGroupItem>
+                <ToggleGroupItem value="percentage" aria-label="Show percentage (%)">
+                  Percentage
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+            <Suspense fallback={chartFallback}>
+              <BatteryChartShadcn
+                nodeId={nodeId}
+                defaultTimeRange="48h"
+                controlledDateRange={controlledDateRange}
+                displayMode={batteryDisplayMode}
+              />
+            </Suspense>
+          </div>
 
           {node.latest_environment_metrics && (
             <Suspense fallback={chartFallback}>

@@ -3,8 +3,6 @@
 import * as React from 'react';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ReferenceArea, Text } from 'recharts';
 import { useNodeMetricsSuspense } from '@/hooks/api/useNodes';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
@@ -23,12 +21,16 @@ export interface DateRangeProp {
 
 const X_AXIS_TICK_COUNT = 8;
 
+export type BatteryDisplayMode = 'voltage' | 'percentage';
+
 interface BatteryChartShadcnProps {
   nodeId: number;
   timeRangeOptions?: TimeRangeOption[];
   defaultTimeRange?: string;
   /** When provided, use this date range instead of internal state (controlled mode). Hides the time range selector. */
   controlledDateRange?: DateRangeProp;
+  /** Battery Y-axis display: voltage (V) or percentage (%). */
+  displayMode?: BatteryDisplayMode;
 }
 
 export function BatteryChartShadcn({
@@ -43,13 +45,14 @@ export function BatteryChartShadcn({
   ],
   defaultTimeRange = '48h',
   controlledDateRange,
+  displayMode: controlledDisplayMode,
 }: BatteryChartShadcnProps) {
   const [timeRangeLabel, setTimeRangeLabel] = React.useState(defaultTimeRange);
   const [internalDateRange, setInternalDateRange] = React.useState<{ startDate: Date; endDate: Date }>({
     startDate: new Date(Date.now() - 48 * 60 * 60 * 1000),
     endDate: new Date(),
   });
-  const [displayMode, setDisplayMode] = React.useState<'voltage' | 'percentage'>('voltage');
+  const displayMode = controlledDisplayMode ?? 'voltage';
 
   const dateRange = controlledDateRange ?? internalDateRange;
   const isControlled = controlledDateRange != null;
@@ -161,14 +164,6 @@ export function BatteryChartShadcn({
             <TimeRangeSelect options={timeRangeOptions} value={timeRangeLabel} onChange={handleTimeRangeChange} />
           </div>
         )}
-        <div className="absolute right-4 top-16 flex items-center gap-2">
-          <Switch
-            id="display-mode"
-            checked={displayMode === 'percentage'}
-            onCheckedChange={(checked) => setDisplayMode(checked ? 'percentage' : 'voltage')}
-          />
-          <Label htmlFor="display-mode">Show as {displayMode === 'voltage' ? 'Voltage' : 'Percentage'}</Label>
-        </div>
       </CardHeader>
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
         <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
