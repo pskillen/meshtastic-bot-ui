@@ -21,5 +21,21 @@ export function parseObservedNodeFromAPI(node: ObservedNode): ObservedNode {
             : null,
         }
       : null,
+    latest_environment_metrics: node.latest_environment_metrics
+      ? {
+          ...node.latest_environment_metrics,
+          reported_time: node.latest_environment_metrics.reported_time
+            ? new Date(node.latest_environment_metrics.reported_time)
+            : null,
+        }
+      : null,
+    latest_power_metrics: node.latest_power_metrics
+      ? {
+          ...node.latest_power_metrics,
+          reported_time: node.latest_power_metrics.reported_time
+            ? new Date(node.latest_power_metrics.reported_time)
+            : null,
+        }
+      : null,
   };
 }

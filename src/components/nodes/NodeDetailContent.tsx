@@ -6,6 +6,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { subDays, subHours } from 'date-fns';
 import { formatUptimeSeconds } from '@/lib/utils';
 import { BatteryChartShadcn } from '@/components/BatteryChartShadcn';
+import { EnvironmentMetricsChart } from '@/components/nodes/EnvironmentMetricsChart';
+import { PowerMetricsChart } from '@/components/nodes/PowerMetricsChart';
 import { NeighbourPieChart } from '@/components/NeighbourPieChart';
 import { PacketTypeChart } from '@/components/PacketTypeChart';
 import { ReceivedPacketTypeChart } from '@/components/ReceivedPacketTypeChart';
@@ -13,6 +15,7 @@ import { NodesMap } from '@/components/nodes/NodesMap';
 import { NodeTracerouteLinksMap } from '@/components/nodes/NodeTracerouteLinksMap';
 import { LinkSNRCharts } from '@/components/nodes/LinkSNRCharts';
 import { BatteryGauge } from '@/components/nodes/BatteryGauge';
+import { MetricsCard } from '@/components/nodes/MetricsCard';
 import { PercentGauge } from '@/components/nodes/PercentGauge';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useState, useEffect, Suspense, useMemo } from 'react';
@@ -348,6 +351,51 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
             </CardContent>
           </Card>
         )}
+
+        {node.latest_environment_metrics && (
+          <MetricsCard
+            title="Environment Metrics"
+            reportedTime={node.latest_environment_metrics.reported_time}
+            metrics={[
+              { label: 'Temperature', value: node.latest_environment_metrics.temperature, unit: '°C' },
+              { label: 'Relative Humidity', value: node.latest_environment_metrics.relative_humidity, unit: '%' },
+              { label: 'Barometric Pressure', value: node.latest_environment_metrics.barometric_pressure, unit: 'hPa' },
+              { label: 'Gas Resistance', value: node.latest_environment_metrics.gas_resistance, unit: 'Ω' },
+              { label: 'IAQ', value: node.latest_environment_metrics.iaq },
+              { label: 'Lux', value: node.latest_environment_metrics.lux, unit: 'lx' },
+              { label: 'Wind Direction', value: node.latest_environment_metrics.wind_direction, unit: '°' },
+              { label: 'Wind Speed', value: node.latest_environment_metrics.wind_speed, unit: 'm/s' },
+              { label: 'Radiation', value: node.latest_environment_metrics.radiation },
+              { label: 'Rainfall 1h', value: node.latest_environment_metrics.rainfall_1h, unit: 'mm' },
+              { label: 'Rainfall 24h', value: node.latest_environment_metrics.rainfall_24h, unit: 'mm' },
+            ]}
+          />
+        )}
+
+        {node.latest_power_metrics &&
+          (() => {
+            const pm = node.latest_power_metrics;
+            const channelMetrics = [1, 2, 3, 4, 5, 6, 7, 8]
+              .map((n) => {
+                const v = (pm as Record<string, number | null | undefined>)[`ch${n}_voltage`];
+                const c = (pm as Record<string, number | null | undefined>)[`ch${n}_current`];
+                if (v != null || c != null) {
+                  const parts = [];
+                  if (v != null) parts.push(`${v.toFixed(2)}V`);
+                  if (c != null) parts.push(`${c.toFixed(2)}A`);
+                  return { label: `Ch${n}`, value: parts.join(' / ') };
+                }
+                return null;
+              })
+              .filter(Boolean) as { label: string; value: string }[];
+            return channelMetrics.length > 0 ? (
+              <MetricsCard
+                title="Power Metrics"
+                reportedTime={node.latest_power_metrics.reported_time}
+                metrics={channelMetrics}
+              />
+            ) : null;
+          })()}
       </div>
 
       <div className="mb-6">
@@ -426,6 +474,50 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
               <BatteryChartShadcn nodeId={nodeId} defaultTimeRange={'48h'} />
             </Suspense>
           </div>
+
+          {node.latest_environment_metrics && (
+            <div className="mb-6">
+              <Suspense
+                fallback={
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Environment Metrics</CardTitle>
+                      <CardDescription>Loading chart…</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-[200px] flex items-center justify-center bg-muted rounded-md">
+                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                }
+              >
+                <EnvironmentMetricsChart nodeId={nodeId} defaultTimeRange={'48h'} />
+              </Suspense>
+            </div>
+          )}
+
+          {node.latest_power_metrics && (
+            <div className="mb-6">
+              <Suspense
+                fallback={
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Power Metrics</CardTitle>
+                      <CardDescription>Loading chart…</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-[200px] flex items-center justify-center bg-muted rounded-md">
+                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                }
+              >
+                <PowerMetricsChart nodeId={nodeId} defaultTimeRange={'48h'} />
+              </Suspense>
+            </div>
+          )}
 
           <div className="mb-6">
             <Suspense

@@ -32,6 +32,8 @@ export interface ObservedNode {
   // Additional fields for UI compatibility
   last_heard?: Date | null;
   latest_device_metrics?: DeviceMetrics | null;
+  latest_environment_metrics?: LatestEnvironmentMetrics | null;
+  latest_power_metrics?: LatestPowerMetrics | null;
   latest_position?: Position | null;
   owner?: NodeOwnerInfo | null;
   /** Current user's claim for this node, if any. Present when authenticated. */
@@ -173,6 +175,86 @@ export interface DeviceMetrics {
   channel_utilization: number; // Changed from chUtil
   air_util_tx: number; // Changed from airUtil
   uptime_seconds: number; // Changed from uptime
+}
+
+/** Latest environment metrics from node (NodeLatestStatus) */
+export interface LatestEnvironmentMetrics {
+  temperature?: number | null;
+  relative_humidity?: number | null;
+  barometric_pressure?: number | null;
+  gas_resistance?: number | null;
+  iaq?: number | null;
+  lux?: number | null;
+  wind_direction?: number | null;
+  wind_speed?: number | null;
+  radiation?: number | null;
+  rainfall_1h?: number | null;
+  rainfall_24h?: number | null;
+  reported_time?: Date | string | null;
+}
+
+/** Latest power metrics from node (NodeLatestStatus) */
+export interface LatestPowerMetrics {
+  ch1_voltage?: number | null;
+  ch1_current?: number | null;
+  ch2_voltage?: number | null;
+  ch2_current?: number | null;
+  ch3_voltage?: number | null;
+  ch3_current?: number | null;
+  ch4_voltage?: number | null;
+  ch4_current?: number | null;
+  ch5_voltage?: number | null;
+  ch5_current?: number | null;
+  ch6_voltage?: number | null;
+  ch6_current?: number | null;
+  ch7_voltage?: number | null;
+  ch7_current?: number | null;
+  ch8_voltage?: number | null;
+  ch8_current?: number | null;
+  reported_time?: Date | string | null;
+}
+
+/** Environment metrics record (history endpoint) */
+export interface EnvironmentMetrics {
+  id: number;
+  node: number;
+  logged_time: Date | string | null;
+  reported_time: Date | string | null;
+  temperature?: number | null;
+  relative_humidity?: number | null;
+  barometric_pressure?: number | null;
+  gas_resistance?: number | null;
+  iaq?: number | null;
+  lux?: number | null;
+  wind_direction?: number | null;
+  wind_speed?: number | null;
+  radiation?: number | null;
+  rainfall_1h?: number | null;
+  rainfall_24h?: number | null;
+}
+
+/** Power metrics record (history endpoint) */
+export interface PowerMetrics {
+  id: number;
+  node: number;
+  logged_time: Date | string | null;
+  reported_time: Date | string | null;
+  ch1_voltage?: number | null;
+  ch1_current?: number | null;
+  ch2_voltage?: number | null;
+  ch2_current?: number | null;
+  ch3_voltage?: number | null;
+  ch3_current?: number | null;
+  ch4_voltage?: number | null;
+  ch4_current?: number | null;
+  ch5_voltage?: number | null;
+  ch5_current?: number | null;
+  ch6_voltage?: number | null;
+  ch6_current?: number | null;
+  ch7_voltage?: number | null;
+  ch7_current?: number | null;
+  ch8_voltage?: number | null;
+  ch8_current?: number | null;
 }
 
 export interface Position {
