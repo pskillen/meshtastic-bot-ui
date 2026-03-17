@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/providers/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +13,15 @@ export function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const { login, loginWithGoogle, loginWithGitHub, isLoading, error } = useAuth();
+  const location = useLocation();
+  const reason = (location.state as { reason?: string })?.reason;
+
+  const statusMessage =
+    reason === 'session_expired'
+      ? 'Your session has expired. Please log in again.'
+      : reason === 'auth_failed'
+        ? 'Authentication failed. Please check your credentials.'
+        : 'Please log in to continue.';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +34,7 @@ export function LoginPage() {
         <Card>
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold">Login</CardTitle>
-            <CardDescription>Enter your username and password to access the Meshtastic Bot UI</CardDescription>
+            <CardDescription>{statusMessage}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
