@@ -71,7 +71,11 @@ function NodePopupOverlay({ node, onClose }: { node: HeatmapNode; onClose: () =>
   if (!position) return null;
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-[10000]" style={{ position: 'absolute' }}>
+    <div
+      className="pointer-events-none absolute inset-0 z-[10000]"
+      style={{ position: 'absolute' }}
+      data-testid="node-popup"
+    >
       <div
         className="pointer-events-auto min-w-[120px] rounded border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100 shadow-lg"
         style={{
@@ -88,7 +92,7 @@ function NodePopupOverlay({ node, onClose }: { node: HeatmapNode; onClose: () =>
           className="absolute right-1 top-1 rounded p-0.5 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
           aria-label="Close"
         >
-          <X className="h-3.5 w-3.5" />
+          <X className="h-3.5 w-3.5" aria-hidden />
         </button>
         <div className="pr-5">
           <div className="font-semibold">
@@ -193,14 +197,14 @@ export function TracerouteHeatmapMap({ edges, nodes, intensity = 0.7, showLabels
   }
 
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full w-full" data-testid="heatmap-map-container">
       <Map
         mapboxAccessToken={mapboxToken}
         initialViewState={DEFAULT_CENTER}
         mapStyle={mapStyle}
         style={{ width: '100%', height: '100%' }}
       >
-        <DeckGLOverlay interleaved={false} layers={layers} onClick={handleClick} />
+        <DeckGLOverlay interleaved={true} layers={layers} onClick={handleClick} />
         {selectedNode && <NodePopupOverlay node={selectedNode} onClose={() => setSelectedNode(null)} />}
       </Map>
     </div>

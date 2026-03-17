@@ -22,6 +22,7 @@ test-results/
 blob-report/
 reports/
 
+
 # React, typescript, tailwind, shadcn, etc.
 node_modules
 dist
