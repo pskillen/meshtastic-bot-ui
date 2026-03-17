@@ -43,7 +43,7 @@ export function PacketStatsChart({
     () => ({
       startDate: dateRange.startDate,
       endDate: dateRange.endDate,
-      nodeId,
+      ...(nodeId != null && { nodeId }),
     }),
     [dateRange.startDate, dateRange.endDate, nodeId]
   );
@@ -56,34 +56,20 @@ export function PacketStatsChart({
     setDateRange(timeRange);
   };
 
-  // Transform the data for the chart
+  // Transform the data for the chart from live stats API
   const chartData = React.useMemo(() => {
     if (!packetStats?.intervals) return [];
-
-    // Calculate 24-hour moving average
     const stats = packetStats.intervals.map((stat) => ({
       timestamp: new Date(stat.start_date).getTime(),
       value: stat.packets >= 0 ? stat.packets : 0,
     }));
-
-    // Add moving average
-    const windowSize = 24; // 24-hour window
-    const withMovingAverage = stats.map((stat, index) => {
-      // Get the window of data points
+    const windowSize = 24;
+    return stats.map((stat, index) => {
       const startIdx = Math.max(0, index - windowSize + 1);
       const window = stats.slice(startIdx, index + 1);
-
-      // Calculate average
-      const sum = window.reduce((acc, item) => acc + item.value, 0);
-      const avg = window.length > 0 ? sum / window.length : 0;
-
-      return {
-        ...stat,
-        movingAverage: avg,
-      };
+      const avg = window.length > 0 ? window.reduce((acc, i) => acc + i.value, 0) / window.length : 0;
+      return { ...stat, movingAverage: avg };
     });
-
-    return withMovingAverage;
   }, [packetStats]);
 
   // Calculate y-axis domain with 5 std dev clamp

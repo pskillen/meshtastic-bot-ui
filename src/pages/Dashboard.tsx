@@ -2,18 +2,10 @@ import { NodeActivityTable } from '@/components/NodeActivityTable';
 import { NodesAndConstellationsMap } from '@/components/nodes/NodesAndConstellationsMap';
 import { useNodesSuspense, useManagedNodesSuspense, useRecentNodeCountsSuspense } from '@/hooks/api/useNodes';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { ChartConfig } from '@/components/ui/chart';
 import { Suspense } from 'react';
-import { PacketStatsChart } from '@/components/PacketStatsChart';
+import { MeshStatsSection } from '@/components/MeshStatsSection';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Link } from 'react-router-dom';
-
-const packetChartConfig = {
-  value: {
-    label: 'Packets',
-    color: 'hsl(var(--chart-1))',
-  },
-} satisfies ChartConfig;
 
 const COUNT_COLUMNS = [
   { key: '2', label: '2 hours' },
@@ -85,8 +77,8 @@ function DashboardContent() {
           </CardContent>
         </Card>
       </div>
-      <div className="px-4 lg:px-6" data-testid="dashboard-mesh-activity">
-        <PacketStatsChart title="Mesh Activity" description="Total packets per hour" config={packetChartConfig} />
+      <div className="px-4 lg:px-6">
+        <MeshStatsSection />
       </div>
       <div className="px-4 lg:px-6" data-testid="dashboard-node-activity">
         <NodeActivityTable nodes={nodes || []} />

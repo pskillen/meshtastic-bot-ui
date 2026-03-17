@@ -36,6 +36,18 @@ const DEFAULT_HANDLERS: Array<{ pattern: string | RegExp; handler: RouteHandler 
   ['**/api/nodes/managed-nodes/**', createJsonHandler(loadFixture('managed-nodes.json'))],
   ['**/api/constellations/**', createJsonHandler(loadFixture('constellations.json'))],
   ['**/api/stats/global/**', createJsonHandler(loadFixture('stats-global.json'))],
+  [
+    '**/api/stats/snapshots/**',
+    (route: Route) => {
+      const url = route.request().url();
+      const fixture = url.includes('packet_volume') ? 'stats-snapshots-packet-volume.json' : 'stats-snapshots.json';
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(loadFixture(fixture)),
+      });
+    },
+  ],
   ['**/ws/**', (route) => route.abort()],
 ].map(([pattern, handler]) => ({ pattern: pattern as string | RegExp, handler: handler as RouteHandler }));
 

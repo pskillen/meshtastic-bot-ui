@@ -13,6 +13,15 @@ export interface StatsQueryParams extends DateRangeIntervalParams {
   nodeId?: number;
 }
 
+export interface StatsSnapshotsParams {
+  statType?: 'online_nodes' | 'new_nodes' | 'packet_volume';
+  constellationId?: number;
+  recordedAtAfter?: Date;
+  recordedAtBefore?: Date;
+  page?: number;
+  page_size?: number;
+}
+
 export interface PaginationParams {
   page?: number;
   page_size?: number;

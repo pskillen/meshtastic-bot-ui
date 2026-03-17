@@ -9,6 +9,7 @@ import {
   PaginatedResponse,
   GlobalStats,
   NeighbourStats,
+  StatsSnapshot,
   Constellation,
   MessageChannel,
   TextMessage,
@@ -19,7 +20,13 @@ import {
   CreateNodeApiKey,
   AutoTraceRoute,
 } from '../models';
-import { ApiConfig, DateRangeParams, DateRangeIntervalParams, PaginationParams } from '@/lib/types';
+import {
+  ApiConfig,
+  DateRangeParams,
+  DateRangeIntervalParams,
+  PaginationParams,
+  StatsSnapshotsParams,
+} from '@/lib/types';
 import { parseObservedNodeFromAPI } from './api-utils';
 
 export class MeshtasticApi extends BaseApi {
@@ -433,6 +440,21 @@ export class MeshtasticApi extends BaseApi {
         end_date: new Date(interval.end_date).toISOString(),
       })),
     };
+  }
+
+  /**
+   * Get stored stats snapshots with optional filters
+   */
+  async getStatsSnapshots(params?: StatsSnapshotsParams): Promise<PaginatedResponse<StatsSnapshot>> {
+    const searchParams = new URLSearchParams();
+    if (params?.statType) searchParams.append('stat_type', params.statType);
+    if (params?.constellationId != null) searchParams.append('constellation_id', params.constellationId.toString());
+    if (params?.recordedAtAfter) searchParams.append('recorded_at_after', params.recordedAtAfter.toISOString());
+    if (params?.recordedAtBefore) searchParams.append('recorded_at_before', params.recordedAtBefore.toISOString());
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+
+    return this.get<PaginatedResponse<StatsSnapshot>>('/stats/snapshots/', searchParams);
   }
 
   /**

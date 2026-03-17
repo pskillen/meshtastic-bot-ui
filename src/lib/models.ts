@@ -251,6 +251,14 @@ export interface NeighbourStats {
   total_packets: number;
 }
 
+export interface StatsSnapshot {
+  id: number;
+  recorded_at: string;
+  stat_type: 'online_nodes' | 'new_nodes' | 'packet_volume';
+  constellation_id: number | null;
+  value: { count: number; window_hours?: number };
+}
+
 export interface MessageChannel {
   id: number;
   name: string;
