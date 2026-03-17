@@ -107,6 +107,23 @@ export function SettingsPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>API Keys</CardTitle>
+          <CardDescription>
+            Create and manage API keys for bots. Assign keys to managed nodes for packet reporting.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Manage your API keys</span>
+            <Link to="/user/api-keys" className="text-teal-600 dark:text-teal-400 hover:underline text-sm font-medium">
+              API Keys →
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Monitored Nodes</CardTitle>
           <CardDescription>
             Your custom list of nodes to monitor (stored in this browser). Manage from the Monitor page.
