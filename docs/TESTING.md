@@ -33,7 +33,7 @@ Browser tests use Playwright to run end-to-end tests in a real Chromium instance
 
 2. **Optional: Meshflow API** – Some tests mock API responses and need no backend. Tests that hit the real API require the API to be running (see [meshflow-api tests/TESTING.md](../../meshflow-api/tests/TESTING.md) for setup).
 
-3. **Optional: Mapbox token** – The traceroute heatmap map interaction tests (node click, popup) require `VITE_MAPBOX_TOKEN` in `.env` and a fully loaded map. These tests are skipped automatically when the map canvas is not available.
+3. **Optional: Mapbox token** – Map interaction tests may require `VITE_MAPBOX_TOKEN` in `.env` and a fully loaded map. These tests are skipped automatically when the map canvas is not available.
 
 ### Auth bypass
 
@@ -57,7 +57,7 @@ npm run browser
 This will:
 
 1. Start the dev server with `browser:dev` (auth bypass on port 5174) if not already running
-2. Run all tests in `browser/`
+2. Run all tests in `tests/browser/`
 
 Other commands:
 
@@ -68,20 +68,25 @@ npm run browser:headed   # Run with visible browser window
 
 ### Test structure
 
-- **Location**: `browser/*.spec.ts`
-- **Fixtures**: `browser/fixtures/` – JSON and other test data
+- **Location**: `tests/browser/*.spec.ts`
+- **Fixtures**: `tests/browser/fixtures/` – JSON and other test data
+- **Page objects**: `tests/browser/pages/` – Page Object Model
 - **Config**: `playwright.config.ts` – base URL, web server, timeouts
 
 ### Mocking API responses
 
-Tests can mock API calls with `page.route()` so they don’t need a live API:
+Tests use `installApiMocks(page)` from `tests/browser/api-mock.ts` to mock all API responses. No live API is required. Tests can mock API calls with `page.route()` so they don’t need a live API:
 
 ```typescript
 test.beforeEach(async ({ page }) => {
-  await page.route('**/traceroutes/heatmap-edges/**', (route) =>
-    route.fulfill({ status: 200, body: JSON.stringify(heatmapFixture) })
-  );
+  await installApiMocks(page);
 });
 ```
 
-The traceroute heatmap tests use this pattern and run without the Meshflow API.
+Individual tests can override specific endpoints by passing a second argument:
+
+```typescript
+await installApiMocks(page, {
+  '**/api/nodes/observed-nodes/**': (route) => route.fulfill({ status: 200, body: JSON.stringify(customData) }),
+});
+```
