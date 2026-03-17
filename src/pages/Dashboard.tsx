@@ -31,7 +31,7 @@ function DashboardContent() {
 
   return (
     <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-      <div className="px-4 lg:px-6">
+      <div className="px-4 lg:px-6" data-testid="dashboard-recently-active-nodes">
         <Card>
           <CardHeader>
             <CardTitle>Recently Active Nodes</CardTitle>
@@ -60,7 +60,7 @@ function DashboardContent() {
           </CardContent>
         </Card>
       </div>
-      <div className="px-4 lg:px-6">
+      <div className="px-4 lg:px-6" data-testid="dashboard-meshflow-map">
         <Card>
           <CardHeader>
             <CardTitle>Meshflow Map</CardTitle>
@@ -85,10 +85,10 @@ function DashboardContent() {
           </CardContent>
         </Card>
       </div>
-      <div className="px-4 lg:px-6">
+      <div className="px-4 lg:px-6" data-testid="dashboard-mesh-activity">
         <PacketStatsChart title="Mesh Activity" description="Total packets per hour" config={packetChartConfig} />
       </div>
-      <div className="px-4 lg:px-6">
+      <div className="px-4 lg:px-6" data-testid="dashboard-node-activity">
         <NodeActivityTable nodes={nodes || []} />
       </div>
     </div>

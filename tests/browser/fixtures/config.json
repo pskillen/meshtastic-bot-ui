@@ -1,8 +1,8 @@
 {
   "apis": {
     "meshBot": {
-      "baseUrl": "http://localhost:8000",
-      "basePath": "/api"
+      "baseUrl": "http://localhost:5174",
+      "basePath": "api"
     }
   }
 }
