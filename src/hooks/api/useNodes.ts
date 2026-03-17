@@ -10,7 +10,15 @@ import {
   useSuspenseQuery,
 } from '@tanstack/react-query';
 import { useMeshtasticApi } from './useApi';
-import { DeviceMetrics, ObservedNode, Position, ManagedNode, OwnedManagedNode } from '@/lib/models';
+import {
+  DeviceMetrics,
+  EnvironmentMetrics,
+  ObservedNode,
+  Position,
+  PowerMetrics,
+  ManagedNode,
+  OwnedManagedNode,
+} from '@/lib/models';
 import { DateRangeParams } from '@/lib/types';
 import { PaginatedResponse } from '@/lib/models';
 import React from 'react';
@@ -486,6 +494,42 @@ export function useNodeMetricsSuspense(id: number, params?: DateRangeParams) {
     refetchInterval: 1000 * 60, // 1 minute
     queryKey: key,
     queryFn: () => api.getNodeDeviceMetrics(id, params),
+  });
+  return { metrics: query.data };
+}
+
+/**
+ * Suspense-enabled hook to fetch environment metrics for a node
+ * Use inside a <Suspense> boundary. No isLoading or error states are returned.
+ */
+export function useNodeEnvironmentMetricsSuspense(id: number, params?: DateRangeParams) {
+  const api = useMeshtasticApi();
+  params = roundDateParams(params);
+  const keyValue = getKeyValue(params);
+  const key = ['nodes', id, 'environment-metrics', keyValue];
+
+  const query = useSuspenseQuery<EnvironmentMetrics[], Error>({
+    refetchInterval: 1000 * 60, // 1 minute
+    queryKey: key,
+    queryFn: () => api.getNodeEnvironmentMetrics(id, params),
+  });
+  return { metrics: query.data };
+}
+
+/**
+ * Suspense-enabled hook to fetch power metrics for a node
+ * Use inside a <Suspense> boundary. No isLoading or error states are returned.
+ */
+export function useNodePowerMetricsSuspense(id: number, params?: DateRangeParams) {
+  const api = useMeshtasticApi();
+  params = roundDateParams(params);
+  const keyValue = getKeyValue(params);
+  const key = ['nodes', id, 'power-metrics', keyValue];
+
+  const query = useSuspenseQuery<PowerMetrics[], Error>({
+    refetchInterval: 1000 * 60, // 1 minute
+    queryKey: key,
+    queryFn: () => api.getNodePowerMetrics(id, params),
   });
   return { metrics: query.data };
 }

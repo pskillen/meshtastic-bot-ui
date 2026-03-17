@@ -1,10 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ReferenceArea } from 'recharts';
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ReferenceArea, Text } from 'recharts';
 import { useNodeMetricsSuspense } from '@/hooks/api/useNodes';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
@@ -16,10 +14,23 @@ interface ExtendedPayload extends Payload<ValueType, NameType> {
   activeLabel?: number;
 }
 
+export interface DateRangeProp {
+  startDate: Date;
+  endDate: Date;
+}
+
+const X_AXIS_TICK_COUNT = 8;
+
+export type BatteryDisplayMode = 'voltage' | 'percentage';
+
 interface BatteryChartShadcnProps {
   nodeId: number;
   timeRangeOptions?: TimeRangeOption[];
   defaultTimeRange?: string;
+  /** When provided, use this date range instead of internal state (controlled mode). Hides the time range selector. */
+  controlledDateRange?: DateRangeProp;
+  /** Battery Y-axis display: voltage (V) or percentage (%). */
+  displayMode?: BatteryDisplayMode;
 }
 
 export function BatteryChartShadcn({
@@ -33,20 +44,25 @@ export function BatteryChartShadcn({
     { key: '14d', label: '14 days' },
   ],
   defaultTimeRange = '48h',
+  controlledDateRange,
+  displayMode: controlledDisplayMode,
 }: BatteryChartShadcnProps) {
   const [timeRangeLabel, setTimeRangeLabel] = React.useState(defaultTimeRange);
-  const [dateRange, setDateRange] = React.useState<{ startDate: Date; endDate: Date }>({
-    startDate: new Date(Date.now() - 48 * 60 * 60 * 1000), // Default to 48 hours ago
+  const [internalDateRange, setInternalDateRange] = React.useState<{ startDate: Date; endDate: Date }>({
+    startDate: new Date(Date.now() - 48 * 60 * 60 * 1000),
     endDate: new Date(),
   });
-  const [displayMode, setDisplayMode] = React.useState<'voltage' | 'percentage'>('voltage');
+  const displayMode = controlledDisplayMode ?? 'voltage';
+
+  const dateRange = controlledDateRange ?? internalDateRange;
+  const isControlled = controlledDateRange != null;
 
   const { metrics } = useNodeMetricsSuspense(nodeId, dateRange);
 
   const handleTimeRangeChange = (value: string, timeRange: { startDate: Date; endDate: Date }) => {
     if (value === timeRangeLabel) return;
     setTimeRangeLabel(value);
-    setDateRange(timeRange);
+    if (!isControlled) setInternalDateRange(timeRange);
   };
 
   const chartConfig: ChartConfig = {
@@ -90,6 +106,38 @@ export function BatteryChartShadcn({
     return [String(value), name];
   };
 
+  const xTicks = React.useMemo(() => {
+    const start = dateRange.startDate.getTime();
+    const end = dateRange.endDate.getTime();
+    const ticks: number[] = [];
+    for (let i = 0; i <= X_AXIS_TICK_COUNT; i++) {
+      ticks.push(start + (end - start) * (i / X_AXIS_TICK_COUNT));
+    }
+    return ticks;
+  }, [dateRange.startDate, dateRange.endDate]);
+
+  const renderXAxisTick = React.useCallback(
+    (props: { x: number; y: number; payload: { value: number }; tickFormatter?: (v: number, i: number) => string }) => {
+      const { x, y, payload, tickFormatter } = props;
+      const isOurTick = xTicks.some((t) => Math.abs(t - payload.value) < 60_000);
+      if (!isOurTick) return <g />;
+      const value = tickFormatter ? tickFormatter(payload.value, 0) : String(payload.value);
+      return (
+        <Text
+          x={x}
+          y={y}
+          textAnchor="end"
+          verticalAnchor="start"
+          angle={-35}
+          className="recharts-cartesian-axis-tick-value"
+        >
+          {value}
+        </Text>
+      );
+    },
+    [xTicks]
+  );
+
   // Transform metrics data to chart format (skip metrics without reported_time)
   const chartData = React.useMemo(() => {
     if (!metrics) return [];
@@ -111,17 +159,11 @@ export function BatteryChartShadcn({
         <CardDescription>
           <span className="@[540px]/card:block hidden">Battery voltage, level, and channel utilization over time</span>
         </CardDescription>
-        <div className="absolute right-4 top-4">
-          <TimeRangeSelect options={timeRangeOptions} value={timeRangeLabel} onChange={handleTimeRangeChange} />
-        </div>
-        <div className="absolute right-4 top-16 flex items-center gap-2">
-          <Switch
-            id="display-mode"
-            checked={displayMode === 'percentage'}
-            onCheckedChange={(checked) => setDisplayMode(checked ? 'percentage' : 'voltage')}
-          />
-          <Label htmlFor="display-mode">Show as {displayMode === 'voltage' ? 'Voltage' : 'Percentage'}</Label>
-        </div>
+        {!isControlled && (
+          <div className="absolute right-4 top-4">
+            <TimeRangeSelect options={timeRangeOptions} value={timeRangeLabel} onChange={handleTimeRangeChange} />
+          </div>
+        )}
       </CardHeader>
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
         <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
@@ -173,16 +215,18 @@ export function BatteryChartShadcn({
               dataKey="timestamp"
               tickLine={false}
               axisLine={false}
-              tickMargin={8}
-              minTickGap={32}
+              tickMargin={12}
+              ticks={xTicks}
+              tick={renderXAxisTick}
+              interval={0}
               domain={[dateRange.startDate.getTime(), dateRange.endDate.getTime()]}
               tickFormatter={(value: number) => {
                 const date = new Date(value);
                 return date.toLocaleDateString('en-GB', {
                   month: 'short',
                   day: 'numeric',
-                  hour: 'numeric',
-                  minute: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
                 });
               }}
               scale="time"

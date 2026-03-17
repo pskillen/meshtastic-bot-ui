@@ -5,17 +5,15 @@ import { useRecentNodes } from '@/hooks/useRecentNodes';
 import { formatDistanceToNow } from 'date-fns';
 import { subDays, subHours } from 'date-fns';
 import { formatUptimeSeconds } from '@/lib/utils';
-import { BatteryChartShadcn } from '@/components/BatteryChartShadcn';
-import { NeighbourPieChart } from '@/components/NeighbourPieChart';
-import { PacketTypeChart } from '@/components/PacketTypeChart';
-import { ReceivedPacketTypeChart } from '@/components/ReceivedPacketTypeChart';
+import { NodeStatsSection } from '@/components/nodes/NodeStatsSection';
 import { NodesMap } from '@/components/nodes/NodesMap';
 import { NodeTracerouteLinksMap } from '@/components/nodes/NodeTracerouteLinksMap';
 import { LinkSNRCharts } from '@/components/nodes/LinkSNRCharts';
 import { BatteryGauge } from '@/components/nodes/BatteryGauge';
+import { MetricsCard } from '@/components/nodes/MetricsCard';
 import { PercentGauge } from '@/components/nodes/PercentGauge';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { useState, useEffect, Suspense, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Pause, Play, CheckCircle, Clock, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -106,34 +104,6 @@ function TracerouteLinksSection({ nodeId }: { nodeId: number }) {
           )}
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-function NeighbourStatsSection({ nodeId }: { nodeId: number }) {
-  const [showChart, setShowChart] = useState(false);
-
-  if (!showChart) {
-    return (
-      <div className="mb-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Packets by source</CardTitle>
-            <CardDescription>Packets received from each neighbour (direct or last hop). Click to load.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => setShowChart(true)} variant="outline">
-              Load packets by source
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  return (
-    <div className="mb-6">
-      <NeighbourPieChart nodeId={nodeId} defaultTimeRange={'24h'} />
     </div>
   );
 }
@@ -348,6 +318,51 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
             </CardContent>
           </Card>
         )}
+
+        {node.latest_environment_metrics && (
+          <MetricsCard
+            title="Environment Metrics"
+            reportedTime={node.latest_environment_metrics.reported_time}
+            metrics={[
+              { label: 'Temperature', value: node.latest_environment_metrics.temperature, unit: '°C' },
+              { label: 'Relative Humidity', value: node.latest_environment_metrics.relative_humidity, unit: '%' },
+              { label: 'Barometric Pressure', value: node.latest_environment_metrics.barometric_pressure, unit: 'hPa' },
+              { label: 'Gas Resistance', value: node.latest_environment_metrics.gas_resistance, unit: 'Ω' },
+              { label: 'IAQ', value: node.latest_environment_metrics.iaq },
+              { label: 'Lux', value: node.latest_environment_metrics.lux, unit: 'lx' },
+              { label: 'Wind Direction', value: node.latest_environment_metrics.wind_direction, unit: '°' },
+              { label: 'Wind Speed', value: node.latest_environment_metrics.wind_speed, unit: 'm/s' },
+              { label: 'Radiation', value: node.latest_environment_metrics.radiation },
+              { label: 'Rainfall 1h', value: node.latest_environment_metrics.rainfall_1h, unit: 'mm' },
+              { label: 'Rainfall 24h', value: node.latest_environment_metrics.rainfall_24h, unit: 'mm' },
+            ]}
+          />
+        )}
+
+        {node.latest_power_metrics &&
+          (() => {
+            const pm = node.latest_power_metrics;
+            const channelMetrics = [1, 2, 3, 4, 5, 6, 7, 8]
+              .map((n) => {
+                const v = (pm as Record<string, number | null | undefined>)[`ch${n}_voltage`];
+                const c = (pm as Record<string, number | null | undefined>)[`ch${n}_current`];
+                if (v != null || c != null) {
+                  const parts = [];
+                  if (v != null) parts.push(`${v.toFixed(2)}V`);
+                  if (c != null) parts.push(`${c.toFixed(2)}A`);
+                  return { label: `Ch${n}`, value: parts.join(' / ') };
+                }
+                return null;
+              })
+              .filter(Boolean) as { label: string; value: string }[];
+            return channelMetrics.length > 0 ? (
+              <MetricsCard
+                title="Power Metrics"
+                reportedTime={node.latest_power_metrics.reported_time}
+                metrics={channelMetrics}
+              />
+            ) : null;
+          })()}
       </div>
 
       <div className="mb-6">
@@ -407,70 +422,7 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
       {!compact && (
         <>
           <TracerouteLinksSection nodeId={nodeId} />
-          <div className="mb-6">
-            <Suspense
-              fallback={
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Battery</CardTitle>
-                    <CardDescription>Loading chart…</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[200px] flex items-center justify-center bg-muted rounded-md">
-                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-              }
-            >
-              <BatteryChartShadcn nodeId={nodeId} defaultTimeRange={'48h'} />
-            </Suspense>
-          </div>
-
-          <div className="mb-6">
-            <Suspense
-              fallback={
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Packet Types</CardTitle>
-                    <CardDescription>Loading chart…</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[200px] flex items-center justify-center bg-muted rounded-md">
-                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-              }
-            >
-              <PacketTypeChart nodeId={nodeId} defaultTimeRange={'48h'} />
-            </Suspense>
-          </div>
-
-          {isManagedNode && (
-            <>
-              <div className="mb-6">
-                <Suspense
-                  fallback={
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Received Packets</CardTitle>
-                        <CardDescription>Loading chart…</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="h-[200px] flex items-center justify-center bg-muted rounded-md">
-                          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  }
-                >
-                  <ReceivedPacketTypeChart nodeId={nodeId} defaultTimeRange={'48h'} />
-                </Suspense>
-              </div>
-              <NeighbourStatsSection nodeId={nodeId} />
-            </>
-          )}
+          <NodeStatsSection nodeId={nodeId} node={node} isManagedNode={isManagedNode} />
         </>
       )}
 

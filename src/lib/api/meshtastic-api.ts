@@ -4,6 +4,8 @@ import {
   ManagedNode,
   OwnedManagedNode,
   DeviceMetrics,
+  EnvironmentMetrics,
+  PowerMetrics,
   Position,
   NodeSearchResult,
   PaginatedResponse,
@@ -157,6 +159,41 @@ export class MeshtasticApi extends BaseApi {
     if (params?.endDate) searchParams.append('end_date', params.endDate.toISOString());
 
     const metrics = await this.get<DeviceMetrics[]>(`/nodes/observed-nodes/${id}/device_metrics/`, searchParams);
+    return metrics.map((metric) => ({
+      ...metric,
+      logged_time: metric.logged_time != null ? new Date(metric.logged_time) : null,
+      reported_time: metric.reported_time != null ? new Date(metric.reported_time) : null,
+    }));
+  }
+
+  /**
+   * Get environment metrics for a specific node
+   */
+  async getNodeEnvironmentMetrics(id: number, params?: DateRangeParams): Promise<EnvironmentMetrics[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.startDate) searchParams.append('start_date', params.startDate.toISOString());
+    if (params?.endDate) searchParams.append('end_date', params.endDate.toISOString());
+
+    const metrics = await this.get<EnvironmentMetrics[]>(
+      `/nodes/observed-nodes/${id}/environment_metrics/`,
+      searchParams
+    );
+    return metrics.map((metric) => ({
+      ...metric,
+      logged_time: metric.logged_time != null ? new Date(metric.logged_time) : null,
+      reported_time: metric.reported_time != null ? new Date(metric.reported_time) : null,
+    }));
+  }
+
+  /**
+   * Get power metrics for a specific node
+   */
+  async getNodePowerMetrics(id: number, params?: DateRangeParams): Promise<PowerMetrics[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.startDate) searchParams.append('start_date', params.startDate.toISOString());
+    if (params?.endDate) searchParams.append('end_date', params.endDate.toISOString());
+
+    const metrics = await this.get<PowerMetrics[]>(`/nodes/observed-nodes/${id}/power_metrics/`, searchParams);
     return metrics.map((metric) => ({
       ...metric,
       logged_time: metric.logged_time != null ? new Date(metric.logged_time) : null,
