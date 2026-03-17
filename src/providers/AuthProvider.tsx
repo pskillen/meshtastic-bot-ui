@@ -72,22 +72,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => clearInterval(interval);
   }, [config?.apis?.meshBot?.baseUrl]);
 
-  // Check authentication status on mount and initialize user if authenticated
+  // Sync auth state from authService on mount
   useEffect(() => {
     const checkAuth = async () => {
       const isAuth = authService.isAuthenticated();
       setIsAuthenticated(isAuth);
+      setAuthProvider(isAuth ? authService.getAuthProvider() : null);
 
       if (isAuth) {
-        const provider = authService.getAuthProvider();
-        setAuthProvider(provider);
-
-        // Initialize user details
         try {
           const user = await authService.initializeUser(config.apis.meshBot.baseUrl);
           if (!user) {
-            // User details could not be loaded (expired/invalid session)
-            authService.logout();
+            authService.clearTokens();
             setIsAuthenticated(false);
             setAuthProvider(null);
             navigate('/login', { state: { reason: 'session_expired' } });
@@ -95,7 +91,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
         } catch (error) {
           console.error('Failed to initialize user details:', error);
-          authService.logout();
+          authService.clearTokens();
           setIsAuthenticated(false);
           setAuthProvider(null);
           navigate('/login', { state: { reason: 'session_expired' } });
@@ -109,28 +105,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     checkAuth();
   }, [config.apis.meshBot.baseUrl]);
 
-  // Subscribe to auth error events
+  // Register session-expired callback (called by axios interceptor via authService)
   useEffect(() => {
-    // Handle auth errors (like 401 unauthorized)
-    const unsubscribe = eventService.subscribe(
-      AuthEventType.AUTH_ERROR,
-      (errorData: { message?: string; reason?: string }) => {
-        console.log('Auth error received:', errorData);
-        // Perform logout
-        authService.logout();
-        setIsAuthenticated(false);
-        setAuthProvider(null);
-        setError(errorData?.message || 'Authentication failed. Please log in again.');
-        navigate('/login', {
-          state: { reason: errorData?.reason || 'auth_failed' },
-        });
-      }
-    );
-
-    // Cleanup subscription on unmount
-    return () => {
-      unsubscribe();
-    };
+    const unsubscribe = authService.onSessionExpired((params) => {
+      setIsAuthenticated(false);
+      setAuthProvider(null);
+      setError(params.message || 'Authentication failed. Please log in again.');
+      navigate('/login', {
+        state: { reason: params.reason || 'auth_failed' },
+      });
+    });
+    return unsubscribe;
   }, [navigate]);
 
   // Handle OAuth callback
@@ -141,13 +126,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const params = new URLSearchParams(location.search);
         const token = params.get('token');
         if (token) {
-          // Direct JWT token from backend (e.g. /oauth/callback?token=...)
-          // Store only access token; avoid overwriting refresh with empty string
           try {
             setIsLoading(true);
             authService.setAccessTokenOnly(token);
-            setIsAuthenticated(true);
-            setAuthProvider(null);
+            setIsAuthenticated(authService.isAuthenticated());
+            setAuthProvider(authService.getAuthProvider());
             navigate('/');
           } catch (err) {
             setError(err instanceof Error ? err.message : 'OAuth token handling failed');
@@ -188,12 +171,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = async (username: string, password: string) => {
     setError(null);
     setIsLoading(true);
-
     try {
       await authService.login(config.apis.meshBot.baseUrl, username, password);
-      setIsAuthenticated(true);
-      setAuthProvider('password');
-      navigate('/'); // Redirect to home page after login
+      setIsAuthenticated(authService.isAuthenticated());
+      setAuthProvider(authService.getAuthProvider());
+      navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
       setIsAuthenticated(false);
@@ -236,13 +218,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const handleGoogleCallback = async (code: string) => {
     setError(null);
     setIsLoading(true);
-
     try {
-      // Exchange the code for tokens
       await authService.loginWithGoogle(config.apis.meshBot.baseUrl, code);
-      setIsAuthenticated(true);
-      setAuthProvider('google');
-      navigate('/'); // Redirect to home page after login
+      setIsAuthenticated(authService.isAuthenticated());
+      setAuthProvider(authService.getAuthProvider());
+      navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Google login failed');
       setIsAuthenticated(false);
@@ -255,13 +235,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const handleGitHubCallback = async (code: string) => {
     setError(null);
     setIsLoading(true);
-
     try {
-      // Exchange the code for tokens
       await authService.loginWithGitHub(config.apis.meshBot.baseUrl, code);
-      setIsAuthenticated(true);
-      setAuthProvider('github');
-      navigate('/'); // Redirect to home page after login
+      setIsAuthenticated(authService.isAuthenticated());
+      setAuthProvider(authService.getAuthProvider());
+      navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'GitHub login failed');
       setIsAuthenticated(false);
