@@ -117,6 +117,28 @@ export class MeshtasticApi extends BaseApi {
   }
 
   /**
+   * Get weather nodes (nodes with environment metrics within cutoff).
+   */
+  async getWeatherNodes(params?: {
+    environmentReportedAfter?: Date;
+    page?: number;
+    pageSize?: number;
+  }): Promise<PaginatedResponse<ObservedNode>> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.pageSize) searchParams.append('page_size', params.pageSize.toString());
+    if (params?.environmentReportedAfter) {
+      searchParams.append('environment_reported_after', params.environmentReportedAfter.toISOString());
+    }
+
+    const response = await this.get<PaginatedResponse<ObservedNode>>('/nodes/observed-nodes/weather/', searchParams);
+    return {
+      ...response,
+      results: response.results.map((node) => parseObservedNodeFromAPI(node)),
+    };
+  }
+
+  /**
    * Search for observed nodes
    */
   async searchNodes(query: string): Promise<NodeSearchResult[]> {
@@ -160,6 +182,30 @@ export class MeshtasticApi extends BaseApi {
 
     const metrics = await this.get<DeviceMetrics[]>(`/nodes/observed-nodes/${id}/device_metrics/`, searchParams);
     return metrics.map((metric) => ({
+      ...metric,
+      logged_time: metric.logged_time != null ? new Date(metric.logged_time) : null,
+      reported_time: metric.reported_time != null ? new Date(metric.reported_time) : null,
+    }));
+  }
+
+  /**
+   * Get environment metrics for multiple nodes in one request (bulk).
+   * Returns flat list; frontend groups by node_id for per-node charts.
+   */
+  async getEnvironmentMetricsBulk(
+    nodeIds: number[],
+    params?: DateRangeParams
+  ): Promise<Array<EnvironmentMetrics & { node_id: number; node_id_str: string; short_name: string | null }>> {
+    if (nodeIds.length === 0) return [];
+    const searchParams = new URLSearchParams();
+    searchParams.append('node_ids', nodeIds.join(','));
+    if (params?.startDate) searchParams.append('start_date', params.startDate.toISOString());
+    if (params?.endDate) searchParams.append('end_date', params.endDate.toISOString());
+
+    const response = await this.get<{
+      results: Array<EnvironmentMetrics & { node_id: number; node_id_str: string; short_name: string | null }>;
+    }>('/nodes/environment-metrics-bulk/', searchParams);
+    return (response.results || []).map((metric) => ({
       ...metric,
       logged_time: metric.logged_time != null ? new Date(metric.logged_time) : null,
       reported_time: metric.reported_time != null ? new Date(metric.reported_time) : null,

@@ -28,6 +28,8 @@ function getBreadcrumbSegments(pathname: string): { path: string; label: string 
         segments.push({ path: `/nodes/${parts[1]}/claim`, label: 'Claim' });
       }
     }
+  } else if (parts[0] === 'weather') {
+    segments.push({ path: '/weather', label: 'Weather' });
   } else if (parts[0] === 'map') {
     segments.push({ path: '/map', label: 'Map' });
   } else if (parts[0] === 'messages') {

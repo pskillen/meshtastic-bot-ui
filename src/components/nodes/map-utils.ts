@@ -57,18 +57,35 @@ function escapeHtml(s: string): string {
   return div.innerHTML;
 }
 
+function escapeHtmlForMarker(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 /**
  * Create a custom marker icon with bottom-centre anchor.
  * The teardrop tip aligns with the map point.
  * @param dimmed - When true, applies opacity 0.5 (for unselected nodes when one is selected)
+ * @param opacity - Optional 0-1 opacity override
+ * @param grayscale - Optional 0-1 grayscale (CSS filter, 0=full color, 1=100% gray)
  */
-export function createNodeIcon(text: string, color: string, highlighted = false, dimmed = false): L.DivIcon {
+export function createNodeIcon(
+  text: string,
+  color: string,
+  highlighted = false,
+  dimmed = false,
+  opacity?: number,
+  grayscale?: number
+): L.DivIcon {
   const highlightClass = highlighted ? ' marker-pin-highlighted' : '';
-  const dimmedStyle = dimmed ? 'opacity: 0.5;' : '';
+  const styles: string[] = [];
+  if (opacity != null) styles.push(`opacity: ${opacity}`);
+  else if (dimmed) styles.push('opacity: 0.5');
+  if (grayscale != null && grayscale > 0) styles.push(`filter: grayscale(${grayscale * 100}%)`);
+  const containerStyle = styles.length > 0 ? styles.join('; ') + ';' : '';
   return L.divIcon({
     className: 'custom-node-marker',
     html: `
-      <div class="marker-container" style="${dimmedStyle}">
+      <div class="marker-container" style="${containerStyle}">
         <div class="marker-pin${highlightClass}" style="background: ${color};"></div>
         <span class="marker-text">${text}</span>
       </div>
@@ -76,6 +93,48 @@ export function createNodeIcon(text: string, color: string, highlighted = false,
     iconSize: [40, 40],
     iconAnchor: [20, 40],
     popupAnchor: [0, -40],
+  });
+}
+
+const WEATHER_MARKER_WIDTH = 130;
+const WEATHER_MARKER_HEIGHT = 56;
+
+/**
+ * Create a larger rounded-rectangle marker for weather nodes.
+ * Better readability for multi-line labels (temp | pressure | RH).
+ * @param text - Label content (e.g. "9.5°C | 955 hPa | 68%")
+ * @param color - Background color
+ * @param highlighted - When true, adds highlight ring
+ * @param dimmed - When true, applies opacity 0.5
+ * @param opacity - Optional 0-1 opacity override
+ * @param grayscale - Optional 0-1 grayscale (0=full color, 1=100% gray)
+ */
+export function createWeatherNodeIcon(
+  text: string,
+  color: string,
+  highlighted = false,
+  dimmed = false,
+  opacity?: number,
+  grayscale?: number
+): L.DivIcon {
+  const styles: string[] = [];
+  if (opacity != null) styles.push(`opacity: ${opacity}`);
+  else if (dimmed) styles.push('opacity: 0.5');
+  if (grayscale != null && grayscale > 0) styles.push(`filter: grayscale(${grayscale * 100}%)`);
+  const containerStyle = styles.length > 0 ? styles.join('; ') + ';' : '';
+  const highlightStyle = highlighted ? 'box-shadow: 0 0 0 3px rgba(226, 153, 6, 0.9);' : '';
+  return L.divIcon({
+    className: 'custom-node-marker weather-node-marker',
+    html: `
+      <div class="weather-marker-container" style="${containerStyle}">
+        <div class="weather-marker-pill" style="background: ${color}; ${highlightStyle}">
+          <span class="weather-marker-text">${escapeHtmlForMarker(text)}</span>
+        </div>
+      </div>
+    `,
+    iconSize: [WEATHER_MARKER_WIDTH, WEATHER_MARKER_HEIGHT],
+    iconAnchor: [WEATHER_MARKER_WIDTH / 2, WEATHER_MARKER_HEIGHT],
+    popupAnchor: [0, -WEATHER_MARKER_HEIGHT],
   });
 }
 

@@ -1,5 +1,6 @@
 import {
   BarChartIcon,
+  CloudRainIcon,
   NetworkIcon,
   RadioIcon,
   ActivityIcon,
@@ -61,6 +62,14 @@ export function NavMain() {
               <Link to="/nodes/infrastructure">
                 <ServerIcon />
                 <span>Mesh Infrastructure</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem key="Weather">
+            <SidebarMenuButton asChild tooltip="Weather">
+              <Link to="/weather">
+                <CloudRainIcon />
+                <span>Weather</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

@@ -9,6 +9,7 @@ import { WebSocketProvider } from '@/providers/WebSocketProvider';
 
 import { NodesList } from '@/pages/nodes/NodesList';
 import { MeshInfrastructure } from '@/pages/nodes/MeshInfrastructure';
+import { Weather } from '@/pages/Weather';
 import { NodeMap } from '@/pages/map/NodeMap';
 import { MessageHistory } from '@/pages/messages/MessageHistory';
 import { Dashboard } from '@/pages/Dashboard';
@@ -48,6 +49,7 @@ function App() {
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/nodes" element={<NodesList />} />
                   <Route path="/nodes/infrastructure" element={<MeshInfrastructure />} />
+                  <Route path="/weather" element={<Weather />} />
                   <Route path="/nodes/my-nodes" element={<MyNodes />} />
                   <Route path="/nodes/monitor" element={<MonitorNodes />} />
                   <Route path="/nodes/:id/claim" element={<ClaimNode />} />

@@ -367,6 +367,53 @@ export function useInfrastructureNodesSuspense(options?: UseInfrastructureNodesO
   };
 }
 
+export interface UseWeatherNodesOptions {
+  pageSize?: number;
+  environmentReportedAfter?: Date;
+}
+
+/**
+ * Suspense-enabled hook to fetch weather nodes (nodes with environment metrics within cutoff).
+ */
+export function useWeatherNodesSuspense(options?: UseWeatherNodesOptions) {
+  const api = useMeshtasticApi();
+  const pageSize = options?.pageSize || 100;
+  const environmentReportedAfterKey = options?.environmentReportedAfter
+    ? roundToFiveMinutes(options.environmentReportedAfter)
+    : null;
+
+  const nodesQuery = useSuspenseInfiniteQuery<PaginatedResponse<ObservedNode>, Error>({
+    refetchInterval: 1000 * 60, // 1 minute
+    queryKey: ['nodes', 'weather', pageSize, environmentReportedAfterKey],
+    queryFn: async ({ pageParam = 1 }) =>
+      api.getWeatherNodes({
+        page: pageParam as number,
+        pageSize,
+        environmentReportedAfter: options?.environmentReportedAfter,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => (lastPage.next ? allPages.length + 1 : undefined),
+  });
+
+  if (!nodesQuery.data) {
+    return {
+      nodes: [],
+      totalNodes: 0,
+      fetchNextPage: nodesQuery.fetchNextPage,
+      hasNextPage: false,
+    };
+  }
+
+  const allNodes = nodesQuery.data.pages.flatMap((page) => page.results);
+
+  return {
+    nodes: allNodes,
+    totalNodes: nodesQuery.data.pages[0]?.count || 0,
+    fetchNextPage: nodesQuery.fetchNextPage,
+    hasNextPage: nodesQuery.hasNextPage,
+  };
+}
+
 /**
  * Suspense-enabled hook to fetch managed nodes with pagination
  */
