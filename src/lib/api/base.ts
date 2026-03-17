@@ -96,12 +96,10 @@ export abstract class BaseApi {
             // Retry the request
             return this.axios(originalRequest);
           } catch (refreshError) {
-            // If refresh fails, emit auth error event with session_expired reason
-            eventService.emit(AuthEventType.AUTH_ERROR, {
+            // If refresh fails, notify authService (AuthProvider callback handles redirect)
+            authService.handleSessionExpired({
               message: 'Your session has expired. Please log in again.',
-              status: 401,
               reason: 'session_expired',
-              data: refreshError,
             });
 
             // Create and throw an API error
@@ -113,12 +111,10 @@ export abstract class BaseApi {
             throw apiError;
           }
         } else if (error.response?.status === 401 && !authService.getRefreshToken()) {
-          // If we get a 401 and there's no refresh token, emit auth error event and throw
-          eventService.emit(AuthEventType.AUTH_ERROR, {
+          // If we get a 401 and there's no refresh token, notify authService
+          authService.handleSessionExpired({
             message: 'Your session has expired. Please log in again.',
-            status: 401,
             reason: 'session_expired',
-            data: error.response?.data,
           });
           throw {
             message: 'Your session has expired. Please log in again.',
@@ -127,7 +123,7 @@ export abstract class BaseApi {
           } as ApiError;
         }
 
-        // 403: Do not emit AUTH_ERROR; let error propagate so callers can show permission message
+        // 403: Do not treat as session expiry; let error propagate so callers can show permission message
         if (error.response?.status === 403) {
           const apiError: ApiError = {
             message: error.response?.data?.detail || "You don't have permission to access this resource.",
@@ -158,10 +154,10 @@ export abstract class BaseApi {
         if (error.response?.status === 401) {
           apiError.message = 'Your session has expired. Please log in again.';
 
-          // Emit auth error event for any 401 that wasn't handled by the refresh token logic
+          // Notify authService for any 401 that wasn't handled by the refresh token logic
           if (!originalRequest._retry) {
-            eventService.emit(AuthEventType.AUTH_ERROR, {
-              ...apiError,
+            authService.handleSessionExpired({
+              message: apiError.message,
               reason: 'session_expired',
             });
           }

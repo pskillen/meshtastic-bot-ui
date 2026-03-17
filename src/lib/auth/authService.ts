@@ -1,6 +1,11 @@
 import { ApiConfig } from '@/lib/types';
 import { eventService } from '@/lib/events/eventService';
 
+export interface SessionExpiredParams {
+  reason?: string;
+  message?: string;
+}
+
 // Token storage keys
 const ACCESS_TOKEN_KEY = 'meshflow_access_token';
 const REFRESH_TOKEN_KEY = 'meshflow_refresh_token';
@@ -34,8 +39,25 @@ export enum AuthEventType {
   AUTH_LOGOUT = 'auth_logout',
 }
 
-// Authentication service
+// Callback for session expired (registered by AuthProvider); allows direct invocation without events
+let _sessionExpiredCallback: ((params: SessionExpiredParams) => void) | null = null;
+
+// Authentication service - single source of truth for tokens and user
 export const authService = {
+  /** Register callback for session expired. Returns unsubscribe. */
+  onSessionExpired(callback: (params: SessionExpiredParams) => void): () => void {
+    _sessionExpiredCallback = callback;
+    return () => {
+      _sessionExpiredCallback = null;
+    };
+  },
+
+  /** Called by axios interceptor on 401/refresh failure. Clears tokens and invokes callback. */
+  handleSessionExpired(params: SessionExpiredParams = {}): void {
+    this.clearTokens();
+    _sessionExpiredCallback?.(params);
+  },
+
   // Store tokens in local storage
   setTokens(tokens: AuthTokens, provider: AuthProvider = 'password'): void {
     localStorage.setItem(ACCESS_TOKEN_KEY, tokens.access);
@@ -257,7 +279,7 @@ export const authService = {
     return data.access;
   },
 
-  // Logout user
+  // Logout user (user-initiated; does not trigger session-expired redirect)
   logout(): void {
     this.clearTokens();
     eventService.emit(AuthEventType.AUTH_LOGOUT);
