@@ -1,5 +1,5 @@
 import { useState, Suspense } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useUserClaims } from '@/hooks/api/useNodeClaims';
 import { useMyManagedNodesSuspense, useMyClaimedNodesSuspense } from '@/hooks/api/useNodes';
@@ -35,6 +35,19 @@ function NodeSettingsContent() {
     null
   );
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const activeTab = ['nodes', 'pending-claims', 'managed'].includes(tabParam ?? '') ? tabParam! : 'nodes';
+
+  const handleTabChange = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (value === 'nodes') {
+      next.delete('tab');
+    } else {
+      next.set('tab', value);
+    }
+    setSearchParams(next, { replace: true });
+  };
 
   const handleRunAsManagedNode = (node: ObservedNode) => {
     setSelectedNode(node);
@@ -113,7 +126,7 @@ function NodeSettingsContent() {
         <SetupManagedNode node={selectedNode} isOpen={isSetupDialogOpen} onClose={handleCloseSetupDialog} />
       )}
 
-      <Tabs defaultValue="nodes">
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="mb-4">
           <TabsTrigger value="nodes">My Nodes</TabsTrigger>
           <TabsTrigger value="pending-claims">Pending Claims</TabsTrigger>
@@ -438,7 +451,7 @@ function ManagedNodeSettings({
                     </p>
                   </div>
                   <div className="flex gap-1">
-                    <Badge variant={apiKey.is_active ? 'default' : 'outline'} className="text-xs">
+                    <Badge variant={apiKey.is_active ? 'default' : 'destructive'} className="text-xs">
                       {apiKey.is_active ? 'Active' : 'Inactive'}
                     </Badge>
                     <Button size="sm" variant="outline" onClick={() => openAssignModal(apiKey.id, apiKey.nodes)}>

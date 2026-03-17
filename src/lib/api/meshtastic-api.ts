@@ -312,10 +312,10 @@ export class MeshtasticApi extends BaseApi {
   }
 
   /**
-   * Update an API key (name, is_active)
+   * Update an API key (name, is_active). Uses PATCH for partial updates.
    */
   async updateApiKey(apiKeyId: string, data: { name?: string; is_active?: boolean }): Promise<NodeApiKey> {
-    return this.put<NodeApiKey>(`/nodes/api-keys/${apiKeyId}/`, data);
+    return this.patch<NodeApiKey>(`/nodes/api-keys/${apiKeyId}/`, data);
   }
 
   // ===== Constellations API =====

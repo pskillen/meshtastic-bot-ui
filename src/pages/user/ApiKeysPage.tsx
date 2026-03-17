@@ -148,8 +148,17 @@ function ApiKeysContent() {
         <CardHeader>
           <CardTitle>Manage API Keys</CardTitle>
           <CardDescription>
-            API keys authenticate bots to report packets and receive commands. Create keys, assign them to managed
-            nodes, and deactivate or delete when no longer needed.
+            <p>
+              API keys authenticate bots to report packets and receive commands. Create keys, assign them to managed
+              nodes, and deactivate or delete when no longer needed.
+            </p>
+            <p>
+              Bot setup instructions (Docker, .env) are in{' '}
+              <Link to="/user/nodes?tab=managed" className="text-primary hover:underline font-medium">
+                Node Settings → Managed Nodes
+              </Link>{' '}
+              - expand a node and click Setup next to each key.
+            </p>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -365,7 +374,7 @@ function ApiKeyCard({
             >
               {constellationName}
             </Badge>
-            <Badge variant={apiKey.is_active ? 'default' : 'outline'} className="text-xs">
+            <Badge variant={apiKey.is_active ? 'default' : 'destructive'} className="text-xs">
               {apiKey.is_active ? 'Active' : 'Inactive'}
             </Badge>
           </div>
