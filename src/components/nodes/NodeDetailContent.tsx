@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useNodeSuspense, useNodePositions, useManagedNodesSuspense } from '@/hooks/api/useNodes';
+import { useNodeSuspense, useManagedNodesSuspense } from '@/hooks/api/useNodes';
 import { useNodeTracerouteLinks } from '@/hooks/api/useNodeTracerouteLinks';
 import { useRecentNodes } from '@/hooks/useRecentNodes';
 import { formatDistanceToNow } from 'date-fns';
@@ -15,7 +15,7 @@ import { PercentGauge } from '@/components/nodes/PercentGauge';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Pause, Play, CheckCircle, Clock, Copy } from 'lucide-react';
+import { CheckCircle, Clock, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { authService } from '@/lib/auth/authService';
@@ -110,9 +110,7 @@ function TracerouteLinksSection({ nodeId }: { nodeId: number }) {
 
 export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContentProps) {
   const node = useNodeSuspense(nodeId);
-  const positionsQuery = useNodePositions(nodeId);
   const { recentNodes, addRecentNode } = useRecentNodes();
-  const [autoRefresh, setAutoRefresh] = useState(true);
 
   const handleCopyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -130,16 +128,13 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
     }
   }, [nodeId, addRecentNode, node]);
 
-  const toggleAutoRefresh = () => setAutoRefresh(!autoRefresh);
-
-  const positions = positionsQuery.data;
+  const pos = node.latest_position;
   const hasPositions =
-    positions &&
-    positions.length > 0 &&
-    typeof positions[0].latitude === 'number' &&
-    positions[0].latitude !== 0 &&
-    typeof positions[0].longitude === 'number' &&
-    positions[0].longitude !== 0;
+    pos &&
+    typeof pos.latitude === 'number' &&
+    pos.latitude !== 0 &&
+    typeof pos.longitude === 'number' &&
+    pos.longitude !== 0;
 
   const currentUser = authService.getCurrentUser();
   const roleLabel = getRoleLabel(node.role);
@@ -265,6 +260,9 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
               <p>
                 <span className="font-medium">Last Heard:</span>{' '}
                 {node.last_heard ? formatDistanceToNow(node.last_heard, { addSuffix: true }) : 'Never'}
+                <span className="block text-xs text-muted-foreground mt-0.5">
+                  Last time any packet was received from this node (telemetry, messages, etc.)
+                </span>
               </p>
             </div>
           </CardContent>
@@ -272,29 +270,15 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
 
         {node.latest_device_metrics && (
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader>
               <div>
                 <CardTitle>Device Metrics</CardTitle>
                 <CardDescription>
+                  Battery, voltage, channel utilisation — last reported{' '}
                   {node.latest_device_metrics.reported_time
                     ? formatDistanceToNow(node.latest_device_metrics.reported_time, { addSuffix: true })
                     : '—'}
                 </CardDescription>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={toggleAutoRefresh} className="flex items-center gap-1">
-                  {autoRefresh ? (
-                    <>
-                      <Pause className="h-4 w-4" />
-                      <span>Pause</span>
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-4 w-4" />
-                      <span>Resume</span>
-                    </>
-                  )}
-                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -371,38 +355,38 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
             <CardTitle>Node Location</CardTitle>
             {hasPositions ? (
               <CardDescription>
-                Last position reported{' '}
-                {positions[0].reported_time
-                  ? formatDistanceToNow(positions[0].reported_time, { addSuffix: true })
-                  : '—'}
+                GPS position broadcast by the node — last reported{' '}
+                {pos?.reported_time ? formatDistanceToNow(pos.reported_time, { addSuffix: true }) : '—'}
               </CardDescription>
             ) : (
-              <CardDescription>No position data available</CardDescription>
+              <CardDescription>
+                No GPS position data. A node can be active (Last Heard) without broadcasting its location.
+              </CardDescription>
             )}
           </CardHeader>
           <CardContent>
-            {hasPositions ? (
+            {hasPositions && pos ? (
               <>
                 <div className="flex flex-wrap md:flex-nowrap gap-4 mb-2 items-end">
                   <div className="flex flex-col items-start">
                     <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Lat</span>
-                    <span className="text-base font-mono">{positions[0].latitude.toFixed(6)}°</span>
+                    <span className="text-base font-mono">{pos.latitude!.toFixed(6)}°</span>
                   </div>
                   <span className="hidden md:inline-block h-6 border-l border-slate-200 dark:border-slate-700 mx-2"></span>
                   <div className="flex flex-col items-start">
                     <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Long</span>
-                    <span className="text-base font-mono">{positions[0].longitude.toFixed(6)}°</span>
+                    <span className="text-base font-mono">{pos.longitude!.toFixed(6)}°</span>
                   </div>
                   <span className="hidden md:inline-block h-6 border-l border-slate-200 dark:border-slate-700 mx-2"></span>
                   <div className="flex flex-col items-start">
                     <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Alt</span>
                     <span className="text-base font-mono">
-                      {positions[0].altitude != null ? `${positions[0].altitude.toFixed(1)}m` : '—'}
+                      {pos.altitude != null ? `${pos.altitude.toFixed(1)}m` : '—'}
                     </span>
                   </div>
-                  {positions[0].location_source && (
+                  {pos.location_source && (
                     <span className="ml-4 px-2 py-0.5 rounded bg-muted text-xs text-muted-foreground border border-slate-200 dark:border-slate-700">
-                      {positions[0].location_source}
+                      {pos.location_source}
                     </span>
                   )}
                 </div>

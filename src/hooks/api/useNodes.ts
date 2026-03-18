@@ -588,7 +588,6 @@ export function useNodePowerMetricsSuspense(id: number, params?: DateRangeParams
 export function useNodeSuspense(id: number) {
   const api = useMeshtasticApi();
   const query = useSuspenseQuery<ObservedNode, Error>({
-    refetchInterval: 1000 * 60, // 1 minute
     queryKey: ['nodes', id],
     queryFn: () => api.getNode(id),
   });

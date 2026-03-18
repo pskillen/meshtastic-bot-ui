@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback, Suspense } from 'react';
 import { Link } from 'react-router-dom';
-import { subDays, subHours, format } from 'date-fns';
+import { subDays, subHours, format, formatDistanceToNow } from 'date-fns';
 import { useInfrastructureNodesSuspense, useManagedNodesSuspense } from '@/hooks/api/useNodes';
 import { useMultiNodeMetricsSuspense } from '@/hooks/api/useMultiNodeMetrics';
 import { InfrastructureNodeCard } from '@/components/nodes/InfrastructureNodeCard';
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ObservedNode } from '@/lib/models';
 import { MapPinOff } from 'lucide-react';
@@ -206,7 +207,8 @@ function MeshInfrastructureContent() {
               Nodes without recent location
             </CardTitle>
             <CardDescription>
-              Infrastructure nodes that have not published location in the last 7 days ({nodesWithoutLocation.length})
+              Infrastructure nodes that have not broadcast their GPS position in the last 7 days (
+              {nodesWithoutLocation.length}). A node can be active (Last Heard) without reporting location.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -215,7 +217,8 @@ function MeshInfrastructureContent() {
                 <TableRow>
                   <TableHead>Node</TableHead>
                   <TableHead>Node ID</TableHead>
-                  <TableHead>Last Location Reported</TableHead>
+                  <TableHead>Last heard</TableHead>
+                  <TableHead>Last GPS position reported</TableHead>
                   <TableHead>Owner</TableHead>
                   <TableHead className="w-0"></TableHead>
                 </TableRow>
@@ -223,15 +226,66 @@ function MeshInfrastructureContent() {
               <TableBody>
                 {nodesWithoutLocation.map((node) => {
                   const lastLocation = getLastLocationReported(node);
+                  const cutoff = subDays(new Date(), 7);
+                  const isOffline =
+                    !node.last_heard ||
+                    (node.last_heard instanceof Date ? node.last_heard : new Date(node.last_heard)) < cutoff;
                   return (
                     <TableRow key={node.internal_id}>
                       <TableCell>
-                        <Link to={`/nodes/${node.node_id}`} className="font-medium text-primary hover:underline">
-                          {node.long_name} ({node.short_name || node.node_id_str})
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <Link to={`/nodes/${node.node_id}`} className="font-medium text-primary hover:underline">
+                            {node.long_name} ({node.short_name || node.node_id_str})
+                          </Link>
+                          {isOffline && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs border-red-500/70 text-red-700 dark:border-red-400 dark:text-red-300"
+                            >
+                              OFFLINE
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground">{node.node_id_str}</TableCell>
-                      <TableCell>{lastLocation ? format(lastLocation, 'PPpp') : 'Never'}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          {node.last_heard ? (
+                            <>
+                              <span>
+                                {format(
+                                  node.last_heard instanceof Date ? node.last_heard : new Date(node.last_heard),
+                                  'PPpp'
+                                )}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {formatDistanceToNow(
+                                  node.last_heard instanceof Date ? node.last_heard : new Date(node.last_heard),
+                                  {
+                                    addSuffix: true,
+                                  }
+                                )}
+                              </span>
+                            </>
+                          ) : (
+                            'Never'
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          {lastLocation ? (
+                            <>
+                              <span>{format(lastLocation, 'PPpp')}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {formatDistanceToNow(lastLocation, { addSuffix: true })}
+                              </span>
+                            </>
+                          ) : (
+                            'Never'
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{node.owner?.username ?? '—'}</TableCell>
                       <TableCell>
                         <Link to={`/nodes/${node.node_id}`} className="text-primary text-sm hover:underline">
