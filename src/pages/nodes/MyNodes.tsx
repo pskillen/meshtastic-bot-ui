@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, AlertCircle, Radio, Settings, CheckCircle2 } from 'lucide-react';
 import { useConfig } from '@/providers/ConfigProvider';
-import { BotSetupInstructions } from '@/components/nodes/BotSetupInstructions';
+import { BotSetupInstructions, type BotDefaults } from '@/components/nodes/BotSetupInstructions';
 import { ObservedNode } from '@/lib/models';
+import type { NodeApiKeyConstellation } from '@/lib/models';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SetupManagedNode } from '@/components/nodes/SetupManagedNode';
@@ -221,6 +222,17 @@ function MyNodesContent() {
                 apiKey={firstApiKey}
                 apiBaseUrl={config.apis.meshBot.baseUrl}
                 nodeShortName={showInstructionsNode.short_name || showInstructionsNode.node_id_str}
+                botDefaults={(() => {
+                  const c = nodeApiKeys[0]?.constellation;
+                  if (c && typeof c === 'object') {
+                    const obj = c as NodeApiKeyConstellation;
+                    return {
+                      ignorePortnums: obj.bot_default_ignore_portnums ?? undefined,
+                      hopLimit: obj.bot_default_hop_limit ?? undefined,
+                    } as BotDefaults;
+                  }
+                  return undefined;
+                })()}
               />
             ) : nodeApiKeys.length === 0 ? (
               <Alert variant="destructive">

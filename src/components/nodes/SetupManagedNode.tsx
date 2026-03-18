@@ -574,6 +574,19 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
             apiKey={effectiveApiKey}
             apiBaseUrl={config.apis.meshBot.baseUrl}
             nodeShortName={nodeName}
+            botDefaults={
+              selectedConstellation != null
+                ? (() => {
+                    const c = constellations.find((x) => x.id === selectedConstellation);
+                    return c
+                      ? {
+                          ignorePortnums: c.bot_default_ignore_portnums ?? undefined,
+                          hopLimit: c.bot_default_hop_limit ?? undefined,
+                        }
+                      : undefined;
+                  })()
+                : undefined
+            }
           />
         ) : (
           <Alert variant="destructive">

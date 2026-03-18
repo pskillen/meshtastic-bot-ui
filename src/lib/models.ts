@@ -55,6 +55,8 @@ export interface ManagedNode {
     id: number;
     name?: string;
     map_color?: string;
+    bot_default_ignore_portnums?: string | null;
+    bot_default_hop_limit?: number | null;
   };
   allow_auto_traceroute?: boolean;
   position: {
@@ -354,6 +356,8 @@ export interface Constellation {
   created_by: number;
   channels: MessageChannel[];
   map_color: string;
+  bot_default_ignore_portnums?: string | null;
+  bot_default_hop_limit?: number | null;
 }
 
 export interface NodeClaim {
@@ -370,11 +374,21 @@ export interface NodeClaim {
   accepted_at: string | null;
 }
 
+/** Constellation object returned in API key list/detail (includes bot setup defaults) */
+export interface NodeApiKeyConstellation {
+  id: number;
+  name: string;
+  map_color: string;
+  bot_default_ignore_portnums?: string | null;
+  bot_default_hop_limit?: number | null;
+}
+
 export interface NodeApiKey {
   id: string;
   key: string;
   name: string;
-  constellation: number;
+  /** Constellation ID (create response) or object (list/detail response) */
+  constellation: number | NodeApiKeyConstellation;
   created_at: string;
   owner: number;
   last_used: string | null;
