@@ -31,9 +31,11 @@ function NodeSettingsContent() {
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [selectedAssignNodes, setSelectedAssignNodes] = useState<number[]>([]);
   const [isAssigning, setIsAssigning] = useState(false);
-  const [setupInstructionsKey, setSetupInstructionsKey] = useState<{ apiKey: string; nodeShortName: string } | null>(
-    null
-  );
+  const [setupInstructionsKey, setSetupInstructionsKey] = useState<{
+    apiKey: string;
+    nodeShortName: string;
+    botDefaults?: { ignorePortnums?: string | null; hopLimit?: number | null };
+  } | null>(null);
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
@@ -388,6 +390,7 @@ function NodeSettingsContent() {
                   apiKey={setupInstructionsKey.apiKey}
                   apiBaseUrl={config.apis.meshBot.baseUrl}
                   nodeShortName={setupInstructionsKey.nodeShortName}
+                  botDefaults={setupInstructionsKey.botDefaults}
                 />
               </DialogContent>
             </Dialog>
@@ -416,7 +419,13 @@ function ManagedNodeSettings({
   isLoadingApiKeys: boolean;
   handleCopyToClipboard: (text: string) => void;
   openAssignModal: (keyId: string, currentNodes: number[]) => void;
-  onShowSetupInstructions: (params: { apiKey: string; nodeShortName: string } | null) => void;
+  onShowSetupInstructions: (
+    params: {
+      apiKey: string;
+      nodeShortName: string;
+      botDefaults?: { ignorePortnums?: string | null; hopLimit?: number | null };
+    } | null
+  ) => void;
 }) {
   return (
     <div className="space-y-4 pt-2">
@@ -465,6 +474,12 @@ function ManagedNodeSettings({
                           onShowSetupInstructions({
                             apiKey: apiKey.key,
                             nodeShortName: node.short_name || node.node_id_str,
+                            botDefaults: node.constellation
+                              ? {
+                                  ignorePortnums: node.constellation.bot_default_ignore_portnums ?? undefined,
+                                  hopLimit: node.constellation.bot_default_hop_limit ?? undefined,
+                                }
+                              : undefined,
                           })
                         }
                         title="Setup instructions"

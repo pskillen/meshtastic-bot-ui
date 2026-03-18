@@ -3,18 +3,52 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Copy, Download, ExternalLink } from 'lucide-react';
 
+export interface BotDefaults {
+  ignorePortnums?: string | null;
+  hopLimit?: number | null;
+}
+
 interface BotSetupInstructionsProps {
   apiKey: string;
   apiBaseUrl: string;
   nodeShortName?: string;
+  botDefaults?: BotDefaults;
 }
 
 function deriveWsUrl(httpUrl: string): string {
   return httpUrl.replace(/^http:\/\//, 'ws://').replace(/^https:\/\//, 'wss://');
 }
 
-function generateDockerComposeEmbedded(apiBaseUrl: string, apiKey: string): string {
+function buildBotEnvVars(botDefaults?: BotDefaults): string[] {
+  const lines: string[] = [];
+  if (botDefaults?.ignorePortnums?.trim()) {
+    lines.push(`      - IGNORE_PORTNUMS=${botDefaults.ignorePortnums.trim()}`);
+  }
+  const hopLimit = botDefaults?.hopLimit;
+  if (typeof hopLimit === 'number' && hopLimit >= 1 && hopLimit <= 7) {
+    lines.push(`      - TR_HOPS_LIMIT=${hopLimit}`);
+    lines.push(`      - TEXT_MESSAGE_MAX_HOPS=${hopLimit}`);
+  }
+  return lines;
+}
+
+function buildBotEnvVarsForEnvFile(botDefaults?: BotDefaults): string[] {
+  const lines: string[] = [];
+  if (botDefaults?.ignorePortnums?.trim()) {
+    lines.push(`IGNORE_PORTNUMS=${botDefaults.ignorePortnums.trim()}`);
+  }
+  const hopLimit = botDefaults?.hopLimit;
+  if (typeof hopLimit === 'number' && hopLimit >= 1 && hopLimit <= 7) {
+    lines.push(`TR_HOPS_LIMIT=${hopLimit}`);
+    lines.push(`TEXT_MESSAGE_MAX_HOPS=${hopLimit}`);
+  }
+  return lines;
+}
+
+function generateDockerComposeEmbedded(apiBaseUrl: string, apiKey: string, botDefaults?: BotDefaults): string {
   const wsUrl = deriveWsUrl(apiBaseUrl);
+  const botEnvLines = buildBotEnvVars(botDefaults);
+  const botEnvBlock = botEnvLines.length > 0 ? '\n' + botEnvLines.join('\n') : '';
   return `---
 services:
   meshtastic-bot:
@@ -27,7 +61,7 @@ services:
       - STORAGE_API_ROOT=${apiBaseUrl}
       - STORAGE_API_TOKEN=${apiKey}
       - STORAGE_API_VERSION=2
-      - MESHFLOW_WS_URL=${wsUrl}
+      - MESHFLOW_WS_URL=${wsUrl}${botEnvBlock}
     volumes:
       - ./data:/app/data
     depends_on:
@@ -67,8 +101,10 @@ services:
 `;
 }
 
-function generateEnvFile(apiBaseUrl: string, apiKey: string): string {
+function generateEnvFile(apiBaseUrl: string, apiKey: string, botDefaults?: BotDefaults): string {
   const wsUrl = deriveWsUrl(apiBaseUrl);
+  const botEnvLines = buildBotEnvVarsForEnvFile(botDefaults);
+  const botEnvBlock = botEnvLines.length > 0 ? '\n\n' + botEnvLines.join('\n') : '';
   return `# Meshtastic Bot configuration
 # Copy this file to .env in the same directory as docker-compose.yaml
 
@@ -78,7 +114,7 @@ ADMIN_NODES='!xxxxxxxx'
 STORAGE_API_ROOT=${apiBaseUrl}
 STORAGE_API_TOKEN=${apiKey}
 STORAGE_API_VERSION=2
-MESHFLOW_WS_URL=${wsUrl}
+MESHFLOW_WS_URL=${wsUrl}${botEnvBlock}
 `;
 }
 
@@ -92,13 +128,13 @@ function downloadFile(filename: string, content: string) {
   URL.revokeObjectURL(url);
 }
 
-export function BotSetupInstructions({ apiKey, apiBaseUrl }: BotSetupInstructionsProps) {
+export function BotSetupInstructions({ apiKey, apiBaseUrl, botDefaults }: BotSetupInstructionsProps) {
   const [format, setFormat] = useState<'embedded' | 'separate'>('embedded');
   const [copied, setCopied] = useState<'compose' | 'env' | null>(null);
 
-  const dockerComposeEmbedded = generateDockerComposeEmbedded(apiBaseUrl, apiKey);
+  const dockerComposeEmbedded = generateDockerComposeEmbedded(apiBaseUrl, apiKey, botDefaults);
   const dockerComposeSeparate = generateDockerComposeSeparate();
-  const envContent = generateEnvFile(apiBaseUrl, apiKey);
+  const envContent = generateEnvFile(apiBaseUrl, apiKey, botDefaults);
 
   const handleCopy = (text: string, type: 'compose' | 'env') => {
     navigator.clipboard.writeText(text);
