@@ -8,8 +8,10 @@ The Messages page displays mesh text messages from the Meshflow network. Users c
 
 Each message uses a compact layout to fit more content on screen and reduce scrolling:
 
-- **Header (single row)**: Avatar, sender name, relative time (e.g. "2h ago"), overflow menu
+- **Header (single row)**: Avatar, sender name, relative time (e.g. "2h ago"), "x heard" button (inline)
 - **Body**: Message text, emoji reactions (inline badges), replies (indented with left border)
+
+Consecutive messages from the same sender within 15 minutes are combined into a single block, with older messages shown below a divider.
 
 ### Information Priority
 
