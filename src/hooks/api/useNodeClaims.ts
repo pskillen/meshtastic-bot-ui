@@ -124,6 +124,24 @@ export function useUserClaims() {
 }
 
 /**
+ * Withdraw the current user's outstanding (unaccepted) claim for a node.
+ */
+export function useCancelNodeClaim() {
+  const api = useMeshtasticApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (nodeId: number) => api.cancelNodeClaim(nodeId),
+    onSuccess: (_, nodeId) => {
+      queryClient.invalidateQueries({ queryKey: ['node-claims', 'mine'] });
+      queryClient.invalidateQueries({ queryKey: ['nodes', nodeId, 'claim'] });
+      queryClient.invalidateQueries({ queryKey: ['nodes', nodeId] });
+      queryClient.invalidateQueries({ queryKey: ['observed-nodes', 'mine'] });
+    },
+  });
+}
+
+/**
  * Suspense-enabled hook to fetch all claims for the current user
  * Use inside a <Suspense> boundary. No isLoading or error states are returned.
  */

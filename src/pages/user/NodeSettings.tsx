@@ -1,22 +1,33 @@
-import { useState, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useUserClaims } from '@/hooks/api/useNodeClaims';
+import { useCancelNodeClaim, useUserClaims } from '@/hooks/api/useNodeClaims';
+import { useConstellationChannels } from '@/hooks/api/useConstellations';
 import { useMyManagedNodesSuspense, useMyClaimedNodesSuspense } from '@/hooks/api/useNodes';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Info, Copy, Radio, HelpCircle } from 'lucide-react';
+import { Loader2, AlertCircle, Info, Copy, Radio, HelpCircle, ChevronDown, KeyRound } from 'lucide-react';
 import { useConfig } from '@/providers/ConfigProvider';
 import { BotSetupInstructions } from '@/components/nodes/BotSetupInstructions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { ObservedNode } from '@/lib/models';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ObservedNode, type MessageChannel, type OwnedManagedNode, type NodeApiKey } from '@/lib/models';
 import { SetupManagedNode } from '@/components/nodes/SetupManagedNode';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMeshtasticApi } from '@/hooks/api/useApi';
+import { cn } from '@/lib/utils';
 // TODO: Add QRCode support for API keys in the future
 
 function NodeSettingsContent() {
@@ -27,16 +38,13 @@ function NodeSettingsContent() {
   const { myClaimedNodes } = useMyClaimedNodesSuspense();
   const [selectedNode, setSelectedNode] = useState<ObservedNode | null>(null);
   const [isSetupDialogOpen, setIsSetupDialogOpen] = useState(false);
-  const [assignKeyId, setAssignKeyId] = useState<string | null>(null);
-  const [assignModalOpen, setAssignModalOpen] = useState(false);
-  const [selectedAssignNodes, setSelectedAssignNodes] = useState<number[]>([]);
-  const [isAssigning, setIsAssigning] = useState(false);
   const [setupInstructionsKey, setSetupInstructionsKey] = useState<{
     apiKey: string;
     nodeShortName: string;
     botDefaults?: { ignorePortnums?: string | null; hopLimit?: number | null };
   } | null>(null);
-  const queryClient = useQueryClient();
+  const [cancelClaimForNodeId, setCancelClaimForNodeId] = useState<number | null>(null);
+  const cancelClaimMutation = useCancelNodeClaim();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const activeTab = ['nodes', 'pending-claims', 'managed'].includes(tabParam ?? '') ? tabParam! : 'nodes';
@@ -73,52 +81,6 @@ function NodeSettingsContent() {
     queryKey: ['api-keys'],
     queryFn: () => api.getApiKeys(),
   });
-
-  // Assign/unassign nodes modal logic
-  const openAssignModal = (keyId: string, currentNodes: number[]) => {
-    setAssignKeyId(keyId);
-    setSelectedAssignNodes(currentNodes);
-    setAssignModalOpen(true);
-  };
-  const closeAssignModal = () => {
-    setAssignModalOpen(false);
-    setAssignKeyId(null);
-    setSelectedAssignNodes([]);
-  };
-  const handleAssignNodes = async () => {
-    if (!assignKeyId) return;
-    setIsAssigning(true);
-    try {
-      const apiKey = apiKeys?.find((k) => k.id === assignKeyId);
-      if (!apiKey) return;
-      for (const nodeId of selectedAssignNodes) {
-        if (!apiKey.nodes.includes(nodeId)) {
-          await api.addNodeToApiKey(assignKeyId, nodeId);
-        }
-      }
-      for (const nodeId of apiKey.nodes) {
-        if (!selectedAssignNodes.includes(nodeId)) {
-          await api.removeNodeFromApiKey(assignKeyId, nodeId);
-        }
-      }
-      await queryClient.invalidateQueries({ queryKey: ['api-keys'] });
-      closeAssignModal();
-    } finally {
-      setIsAssigning(false);
-    }
-  };
-
-  const assignKey = assignKeyId ? apiKeys?.find((k) => k.id === assignKeyId) : null;
-  const assignKeyConstellationId =
-    assignKey && typeof assignKey.constellation === 'number'
-      ? assignKey.constellation
-      : assignKey && typeof assignKey.constellation === 'object' && assignKey.constellation
-        ? (assignKey.constellation as { id: number }).id
-        : null;
-  const nodesForAssignModal =
-    assignKeyConstellationId != null
-      ? myManagedNodes.filter((n) => n.constellation?.id === assignKeyConstellationId)
-      : myManagedNodes;
 
   return (
     <div className="container mx-auto py-6 space-y-6 px-6">
@@ -213,7 +175,7 @@ function NodeSettingsContent() {
                     <div className="space-y-4">
                       {pendingClaims.map((claim) => (
                         <div key={claim.node.node_id} className="border rounded-md p-4">
-                          <div className="flex justify-between items-start">
+                          <div className="flex justify-between items-start gap-2">
                             <div>
                               <h3 className="font-medium">{claim.node.short_name || claim.node.node_id_str}</h3>
                               <p className="text-sm text-slate-500 dark:text-slate-400">{claim.node.long_name}</p>
@@ -222,6 +184,14 @@ function NodeSettingsContent() {
                                 Claimed {formatDistanceToNow(new Date(claim.created_at), { addSuffix: true })}
                               </p>
                             </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0 text-destructive border-destructive/40 hover:bg-destructive/10"
+                              onClick={() => setCancelClaimForNodeId(claim.node.node_id)}
+                            >
+                              Cancel claim
+                            </Button>
                           </div>
                           <div className="mt-2">
                             <Link
@@ -282,7 +252,11 @@ function NodeSettingsContent() {
                   {myManagedNodes.map((node) => {
                     const nodeApiKeys = apiKeys?.filter((key) => key.nodes.includes(node.node_id)) || [];
                     return (
-                      <AccordionItem key={node.node_id} value={`node-${node.node_id}`} className="border rounded-lg">
+                      <AccordionItem
+                        key={node.node_id}
+                        value={`node-${node.node_id}`}
+                        className="border-2 border-slate-300 dark:border-slate-500 rounded-lg bg-slate-50/80 dark:bg-slate-950/40 shadow-sm"
+                      >
                         <AccordionTrigger className="px-4 py-3 hover:no-underline">
                           <div className="flex flex-1 items-center justify-between text-left">
                             <div>
@@ -316,7 +290,6 @@ function NodeSettingsContent() {
                             config={config}
                             isLoadingApiKeys={isLoadingApiKeys}
                             handleCopyToClipboard={handleCopyToClipboard}
-                            openAssignModal={openAssignModal}
                             onShowSetupInstructions={setSetupInstructionsKey}
                           />
                         </AccordionContent>
@@ -336,50 +309,6 @@ function NodeSettingsContent() {
               )}
             </CardContent>
           </Card>
-          {assignModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-              <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 w-full max-w-md border border-slate-200 dark:border-slate-700">
-                <h3 className="text-lg font-medium mb-2">Assign/Remove Nodes</h3>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-1">Select nodes to assign to this API key:</label>
-                  <div className="max-h-48 overflow-y-auto border rounded p-2">
-                    {nodesForAssignModal.length > 0 ? (
-                      nodesForAssignModal.map((node) => (
-                        <div key={node.node_id} className="flex items-center gap-2 mb-1">
-                          <input
-                            type="checkbox"
-                            id={`assign-node-${node.node_id}`}
-                            checked={selectedAssignNodes.includes(node.node_id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedAssignNodes((prev) => [...prev, node.node_id]);
-                              } else {
-                                setSelectedAssignNodes((prev) => prev.filter((id) => id !== node.node_id));
-                              }
-                            }}
-                          />
-                          <label htmlFor={`assign-node-${node.node_id}`}>{node.short_name || node.node_id_str}</label>
-                        </div>
-                      ))
-                    ) : (
-                      <span className="text-xs text-slate-400">
-                        No managed nodes in this constellation. Add nodes from My Nodes first.
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <Button variant="outline" size="sm" onClick={closeAssignModal} disabled={isAssigning}>
-                    Cancel
-                  </Button>
-                  <Button variant="default" size="sm" onClick={handleAssignNodes} disabled={isAssigning}>
-                    {isAssigning ? 'Saving...' : 'Save'}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
           {setupInstructionsKey && config && (
             <Dialog open={!!setupInstructionsKey} onOpenChange={(open) => !open && setSetupInstructionsKey(null)}>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -397,12 +326,69 @@ function NodeSettingsContent() {
           )}
         </TabsContent>
       </Tabs>
+
+      <Dialog open={cancelClaimForNodeId !== null} onOpenChange={(open) => !open && setCancelClaimForNodeId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel this claim?</DialogTitle>
+            <DialogDescription>
+              This withdraws your pending claim. You can start again later from the node page if you change your mind.
+            </DialogDescription>
+          </DialogHeader>
+          {cancelClaimMutation.isError && (
+            <p className="text-sm text-destructive">Could not cancel the claim. Try again.</p>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setCancelClaimForNodeId(null)}>
+              Back
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={cancelClaimMutation.isPending}
+              onClick={() => {
+                if (cancelClaimForNodeId == null) return;
+                cancelClaimMutation.mutate(cancelClaimForNodeId, {
+                  onSuccess: () => setCancelClaimForNodeId(null),
+                });
+              }}
+            >
+              {cancelClaimMutation.isPending ? 'Canceling…' : 'Cancel claim'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-import type { OwnedManagedNode } from '@/lib/models';
-import type { NodeApiKey } from '@/lib/models';
+function channelMappingsFromNode(node: OwnedManagedNode) {
+  return {
+    channel_0: node.channel_0?.id ?? null,
+    channel_1: node.channel_1?.id ?? null,
+    channel_2: node.channel_2?.id ?? null,
+    channel_3: node.channel_3?.id ?? null,
+    channel_4: node.channel_4?.id ?? null,
+    channel_5: node.channel_5?.id ?? null,
+    channel_6: node.channel_6?.id ?? null,
+    channel_7: node.channel_7?.id ?? null,
+  };
+}
+
+type ChannelMappings = ReturnType<typeof channelMappingsFromNode>;
+
+const CHANNEL_SLOT_INDEXES = [0, 1, 2, 3, 4, 5, 6, 7] as const;
+
+function countMappedSlots(mappings: ChannelMappings): number {
+  return CHANNEL_SLOT_INDEXES.filter((i) => mappings[`channel_${i}` as keyof ChannelMappings] != null).length;
+}
+
+function channelMappingsEqual(a: ChannelMappings, b: ChannelMappings): boolean {
+  return CHANNEL_SLOT_INDEXES.every((i) => {
+    const k = `channel_${i}` as keyof ChannelMappings;
+    return a[k] === b[k];
+  });
+}
 
 function ManagedNodeSettings({
   node,
@@ -410,7 +396,6 @@ function ManagedNodeSettings({
   config,
   isLoadingApiKeys,
   handleCopyToClipboard,
-  openAssignModal,
   onShowSetupInstructions,
 }: {
   node: OwnedManagedNode;
@@ -418,7 +403,6 @@ function ManagedNodeSettings({
   config: ReturnType<typeof useConfig>;
   isLoadingApiKeys: boolean;
   handleCopyToClipboard: (text: string) => void;
-  openAssignModal: (keyId: string, currentNodes: number[]) => void;
   onShowSetupInstructions: (
     params: {
       apiKey: string;
@@ -427,6 +411,44 @@ function ManagedNodeSettings({
     } | null
   ) => void;
 }) {
+  const api = useMeshtasticApi();
+  const queryClient = useQueryClient();
+  const constellationId = node.constellation.id;
+  const { data: constellationChannels = [], isLoading: channelsLoading } = useConstellationChannels(constellationId);
+
+  const [mappings, setMappings] = useState<ChannelMappings>(() => channelMappingsFromNode(node));
+  const [channelMapOpen, setChannelMapOpen] = useState(false);
+
+  useEffect(() => {
+    setMappings(channelMappingsFromNode(node));
+  }, [node]);
+
+  const savedMappings = useMemo(() => channelMappingsFromNode(node), [node]);
+  const isChannelMapDirty = !channelMappingsEqual(mappings, savedMappings);
+
+  const saveChannels = useMutation({
+    mutationFn: () =>
+      api.patchManagedNode(node.node_id, {
+        channel_0: mappings.channel_0,
+        channel_1: mappings.channel_1,
+        channel_2: mappings.channel_2,
+        channel_3: mappings.channel_3,
+        channel_4: mappings.channel_4,
+        channel_5: mappings.channel_5,
+        channel_6: mappings.channel_6,
+        channel_7: mappings.channel_7,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['managed-nodes', 'mine'] });
+      setChannelMapOpen(false);
+    },
+  });
+
+  const setSlot = (index: number, raw: string) => {
+    const v = raw === 'none' ? null : Number(raw);
+    setMappings((prev) => ({ ...prev, [`channel_${index}`]: v }) as ChannelMappings);
+  };
+
   return (
     <div className="space-y-4 pt-2">
       <div className="flex gap-2">
@@ -437,8 +459,124 @@ function ManagedNodeSettings({
         </Link>
       </div>
 
-      <div>
-        <p className="text-sm font-medium mb-2">API Keys</p>
+      <div className="border rounded-md bg-slate-50/50 dark:bg-slate-900/30 overflow-hidden">
+        <button
+          type="button"
+          aria-expanded={channelMapOpen}
+          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium hover:bg-slate-100/80 dark:hover:bg-slate-800/50 transition-colors"
+          onClick={() => setChannelMapOpen((o) => !o)}
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
+                channelMapOpen && 'rotate-180'
+              )}
+            />
+            <span className="truncate">Meshtastic channel mapping</span>
+          </span>
+          <span className="shrink-0 text-xs font-normal text-muted-foreground">
+            {countMappedSlots(mappings)} / 8 mapped
+            {isChannelMapDirty ? ' · unsaved' : ''}
+          </span>
+        </button>
+        {channelMapOpen ? (
+          <div className="space-y-3 border-t border-slate-200/80 dark:border-slate-700/80 px-4 pb-4 pt-3">
+            <p className="text-xs text-muted-foreground">
+              Map each radio slot (0–7) to a message channel in{' '}
+              <span className="font-medium">{node.constellation.name}</span>. Used to attribute packets and text from
+              this node.
+            </p>
+            {channelsLoading ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin text-slate-500 dark:text-slate-400" />
+              </div>
+            ) : constellationChannels.length === 0 ? (
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertTitle>No channels in this constellation</AlertTitle>
+                <AlertDescription className="text-xs">
+                  Add message channels to the constellation first, or continue with all slots unmapped.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  {CHANNEL_SLOT_INDEXES.map((i) => {
+                    const slotKey = `channel_${i}` as keyof ChannelMappings;
+                    const cur = mappings[slotKey];
+                    return (
+                      <div key={i} className="flex items-center gap-2">
+                        <Label htmlFor={`managed-ch-${node.node_id}-${i}`} className="w-24 shrink-0 text-sm">
+                          Slot {i}
+                        </Label>
+                        <Select value={cur == null ? 'none' : String(cur)} onValueChange={(v) => setSlot(i, v)}>
+                          <SelectTrigger id={`managed-ch-${node.node_id}-${i}`} className="flex-1">
+                            <SelectValue placeholder="Unmapped" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">None (unmapped)</SelectItem>
+                            {constellationChannels.map((ch: MessageChannel) => (
+                              <SelectItem key={ch.id} value={String(ch.id)}>
+                                {ch.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={saveChannels.isPending}
+                    onClick={() => saveChannels.mutate()}
+                  >
+                    {saveChannels.isPending ? 'Saving…' : 'Save channel mappings'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!isChannelMapDirty || saveChannels.isPending}
+                    onClick={() => {
+                      setMappings(savedMappings);
+                      saveChannels.reset();
+                    }}
+                  >
+                    Revert
+                  </Button>
+                  {saveChannels.isError && <span className="text-sm text-destructive">Could not save. Try again.</span>}
+                </div>
+              </>
+            )}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">API Keys</p>
+            <p className="text-xs text-muted-foreground max-w-md leading-relaxed">
+              Create keys and attach them to this node on the API Keys page. Keys must belong to the same constellation
+              as this node.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 shrink-0 gap-2 border-slate-300 dark:border-slate-600"
+            asChild
+          >
+            <Link to="/user/api-keys">
+              <KeyRound className="h-3.5 w-3.5 opacity-80" />
+              Manage API keys
+            </Link>
+          </Button>
+        </div>
         {isLoadingApiKeys ? (
           <div className="flex justify-center py-4">
             <Loader2 className="h-6 w-6 animate-spin text-slate-500 dark:text-slate-400" />
@@ -459,13 +597,10 @@ function ManagedNodeSettings({
                         : `Created: ${new Date(apiKey.created_at).toLocaleString()}`}
                     </p>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex flex-wrap gap-1">
                     <Badge variant={apiKey.is_active ? 'default' : 'destructive'} className="text-xs">
                       {apiKey.is_active ? 'Active' : 'Inactive'}
                     </Badge>
-                    <Button size="sm" variant="outline" onClick={() => openAssignModal(apiKey.id, apiKey.nodes)}>
-                      Assign/Remove Nodes
-                    </Button>
                     {config && (
                       <Button
                         size="sm"
@@ -485,7 +620,7 @@ function ManagedNodeSettings({
                         title="Setup instructions"
                       >
                         <HelpCircle className="h-4 w-4 mr-1" />
-                        Setup
+                        Bot setup instructions
                       </Button>
                     )}
                   </div>

@@ -69,14 +69,14 @@ export interface ManagedNode {
 
 // OwnedManagedNode extends ManagedNode with channel mappings
 export interface OwnedManagedNode extends ManagedNode {
-  channel_0?: { id: number } | null;
-  channel_1?: { id: number } | null;
-  channel_2?: { id: number } | null;
-  channel_3?: { id: number } | null;
-  channel_4?: { id: number } | null;
-  channel_5?: { id: number } | null;
-  channel_6?: { id: number } | null;
-  channel_7?: { id: number } | null;
+  channel_0?: { id: number; name?: string } | null;
+  channel_1?: { id: number; name?: string } | null;
+  channel_2?: { id: number; name?: string } | null;
+  channel_3?: { id: number; name?: string } | null;
+  channel_4?: { id: number; name?: string } | null;
+  channel_5?: { id: number; name?: string } | null;
+  channel_6?: { id: number; name?: string } | null;
+  channel_7?: { id: number; name?: string } | null;
   default_location_latitude?: number | null;
   default_location_longitude?: number | null;
 }
