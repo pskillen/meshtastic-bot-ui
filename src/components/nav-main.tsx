@@ -8,6 +8,7 @@ import {
   ServerIcon,
   RouteIcon,
   MapIcon,
+  SignalIcon,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -91,9 +92,17 @@ export function NavMain() {
           </SidebarMenuItem>
           <SidebarMenuItem key="Traceroute Heatmap">
             <SidebarMenuButton asChild tooltip="Traceroute Heatmap">
-              <Link to="/traceroutes/heatmap">
+              <Link to="/traceroutes/map/heat">
                 <MapIcon />
                 <span>Traceroute Heatmap</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem key="Traceroute Link Quality">
+            <SidebarMenuButton asChild tooltip="Traceroute Link Quality">
+              <Link to="/traceroutes/map/snr">
+                <SignalIcon />
+                <span>Traceroute Link Quality</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

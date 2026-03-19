@@ -1,14 +1,15 @@
 import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { subHours, subDays } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { useHeatmapEdges } from '@/hooks/api/useHeatmapEdges';
 import { TracerouteHeatmapMap } from '@/components/traceroutes/TracerouteHeatmapMap';
 import { RouteIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 type TimeRange = '24h' | '7d' | '30d' | 'custom';
+export type EdgeMetric = 'packets' | 'snr';
 
 function NetworkStatsCard({
   meta,
@@ -26,16 +27,27 @@ function NetworkStatsCard({
         <div>Active Nodes: {meta.active_nodes_count.toLocaleString()}</div>
         <div>Total Trace Routes: {meta.total_trace_routes_count.toLocaleString()}</div>
         <div className="pt-2">
-          <div className="mb-1 text-xs text-muted-foreground">Traffic</div>
+          <div className="mb-1 text-xs text-muted-foreground">Packets: Quiet → Busy</div>
           <div
             className="h-2 w-full rounded"
             style={{
-              background: 'linear-gradient(to right, #3b82f6, #f97316, #ef4444)',
+              background: 'linear-gradient(to right, #3b82f6, #f97316)',
             }}
           />
           <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-            <span>Low (Cool)</span>
-            <span>High (Hot)</span>
+            <span>Quiet (blue)</span>
+            <span>Busy (orange)</span>
+          </div>
+          <div className="mb-1 mt-2 text-xs text-muted-foreground">Link quality: Unhealthy → Healthy</div>
+          <div
+            className="h-2 w-full rounded"
+            style={{
+              background: 'linear-gradient(to right, #ef4444, #22c55e)',
+            }}
+          />
+          <div className="mt-1 flex justify-between text-xs text-muted-foreground">
+            <span>Unhealthy (red)</span>
+            <span>Healthy (green)</span>
           </div>
         </div>
       </CardContent>
@@ -43,9 +55,8 @@ function NetworkStatsCard({
   );
 }
 
-export function TracerouteHeatmapPage() {
+export function TracerouteHeatmapPage({ edgeMetric }: { edgeMetric: EdgeMetric }) {
   const [timeRange, setTimeRange] = useState<TimeRange>('7d');
-  const [showLabels, setShowLabels] = useState(true);
 
   const triggeredAtAfter = useMemo(() => {
     if (timeRange === '24h') return subHours(new Date(), 24);
@@ -56,6 +67,7 @@ export function TracerouteHeatmapPage() {
 
   const { data, isLoading, error } = useHeatmapEdges({
     triggeredAtAfter,
+    edgeMetric,
   });
 
   const edges = data?.edges ?? [];
@@ -71,16 +83,29 @@ export function TracerouteHeatmapPage() {
           <h1 className="text-xl font-semibold sm:text-2xl">Traceroute Heatmap</h1>
         </div>
         <div className="flex flex-wrap items-center gap-4" data-testid="heatmap-filters">
-          <div className="flex items-center gap-2">
-            <Switch
-              id="heatmap-node-labels"
-              checked={showLabels}
-              onCheckedChange={setShowLabels}
-              aria-label="Node labels"
-            />
-            <Label htmlFor="heatmap-node-labels" className="text-sm cursor-pointer">
-              Node labels
-            </Label>
+          <div className="flex rounded-md border border-input bg-muted/50 p-0.5">
+            <Link
+              to="/traceroutes/map/heat"
+              className={cn(
+                'rounded px-3 py-1.5 text-sm font-medium transition-colors',
+                edgeMetric === 'packets'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              Packets
+            </Link>
+            <Link
+              to="/traceroutes/map/snr"
+              className={cn(
+                'rounded px-3 py-1.5 text-sm font-medium transition-colors',
+                edgeMetric === 'snr'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              Link quality (SNR)
+            </Link>
           </div>
           <div className="w-full sm:w-auto sm:min-w-[180px]">
             <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
@@ -117,7 +142,7 @@ export function TracerouteHeatmapPage() {
                 Loading heatmap data...
               </div>
             )}
-            {!error && !isLoading && <TracerouteHeatmapMap edges={edges} nodes={nodes} showLabels={showLabels} />}
+            {!error && !isLoading && <TracerouteHeatmapMap edges={edges} nodes={nodes} edgeMetric={edgeMetric} />}
           </CardContent>
         </Card>
 

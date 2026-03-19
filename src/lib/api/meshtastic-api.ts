@@ -613,12 +613,29 @@ export class MeshtasticApi extends BaseApi {
   }
 
   /**
+   * Get traceroute statistics (sources, success/failure, top routers, success over time)
+   */
+  async getTracerouteStats(params?: { triggered_at_after?: string }): Promise<{
+    sources: Array<{ trigger_type: string; count: number }>;
+    success_failure: Array<{ status: string; count: number }>;
+    top_routers: Array<{ node_id: number; node_id_str: string; short_name: string; count: number }>;
+    success_over_time: Array<{ date: string; completed: number; failed: number }>;
+  }> {
+    const searchParams = new URLSearchParams();
+    if (params?.triggered_at_after) {
+      searchParams.append('triggered_at_after', params.triggered_at_after);
+    }
+    return this.get('/traceroutes/stats/', searchParams);
+  }
+
+  /**
    * Get aggregated heatmap edges and nodes for traceroute visualization
    */
   async getHeatmapEdges(params?: {
     triggered_at_after?: string;
     constellation_id?: number;
     bbox?: [number, number, number, number];
+    edge_metric?: 'packets' | 'snr';
   }): Promise<{
     edges: Array<{
       from_node_id: number;
@@ -628,6 +645,7 @@ export class MeshtasticApi extends BaseApi {
       to_lat: number;
       to_lng: number;
       weight: number;
+      avg_snr?: number;
     }>;
     nodes: Array<{
       node_id: number;
@@ -651,6 +669,9 @@ export class MeshtasticApi extends BaseApi {
     }
     if (params?.bbox && params.bbox.length >= 4) {
       searchParams.append('bbox', params.bbox.join(','));
+    }
+    if (params?.edge_metric) {
+      searchParams.append('edge_metric', params.edge_metric);
     }
     return this.get('/traceroutes/heatmap-edges/', searchParams);
   }
