@@ -11,10 +11,15 @@ import { subDays } from 'date-fns';
 import { Payload, ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent';
 import { getAggregationWindow, aggregateStats } from '@/lib/stats-aggregation';
 
+/** Which snapshot series this chart displays (each gets its own Y-axis scale). */
+export type OnlineNodesChartMetric = 'online_nodes' | 'new_nodes';
+
 interface OnlineNodesChartProps {
   title: string;
   description?: string;
   config: ChartConfig;
+  /** Snapshot type; use separate chart instances for online vs new nodes so scales are readable. */
+  metric: OnlineNodesChartMetric;
   timeRangeOptions?: TimeRangeOption[];
   defaultTimeRange?: string;
   /** When true, render without Card/TimeRangeSelect; use dateRange from parent */
@@ -26,6 +31,7 @@ export function OnlineNodesChart({
   title,
   description,
   config,
+  metric,
   timeRangeOptions = [
     { key: '48h', label: 'Last 48 hours' },
     { key: '1d', label: 'Today' },
@@ -55,10 +61,9 @@ export function OnlineNodesChart({
     [dateRange.startDate, dateRange.endDate]
   );
 
-  const { online_nodes: onlineSnapshots, new_nodes: newNodesSnapshots } = useStatsSnapshotsForTypesSuspense(
-    ['online_nodes', 'new_nodes'] as const,
-    params
-  );
+  const statTypes = React.useMemo(() => [metric] as const, [metric]);
+  const snapshotResults = useStatsSnapshotsForTypesSuspense(statTypes, params);
+  const snapshots = metric === 'online_nodes' ? snapshotResults.online_nodes : snapshotResults.new_nodes;
 
   const handleTimeRangeChange = (value: string, timeRange: { startDate: Date; endDate: Date }) => {
     if (value === timeRangeLabel) return;
@@ -71,60 +76,39 @@ export function OnlineNodesChart({
     [dateRange.startDate, dateRange.endDate]
   );
 
-  // Merge online_nodes and new_nodes by timestamp, aggregate, add moving average
   const chartData = React.useMemo(() => {
-    const online = onlineSnapshots?.results?.filter((s) => s.constellation_id === null) ?? [];
-    const newNodes = newNodesSnapshots?.results?.filter((s) => s.constellation_id === null) ?? [];
+    const rows = snapshots?.results?.filter((s) => s.constellation_id === null) ?? [];
+    const raw = rows
+      .map((s) => ({
+        timestamp: new Date(s.recorded_at).getTime(),
+        value: s.value?.count ?? 0,
+      }))
+      .sort((a, b) => a.timestamp - b.timestamp);
 
-    const byTs = new Map<number, { online: number; newNodes: number }>();
-    for (const s of online) {
-      const ts = new Date(s.recorded_at).getTime();
-      byTs.set(ts, { online: s.value?.count ?? 0, newNodes: byTs.get(ts)?.newNodes ?? 0 });
-    }
-    for (const s of newNodes) {
-      const ts = new Date(s.recorded_at).getTime();
-      const existing = byTs.get(ts);
-      byTs.set(ts, {
-        online: existing?.online ?? 0,
-        newNodes: s.value?.count ?? 0,
-      });
-    }
+    const mergeMethod = metric === 'online_nodes' ? 'average' : 'sum';
+    const aggregated = aggregateStats(raw, aggregationWindow, mergeMethod);
 
-    const raw = Array.from(byTs.entries())
-      .sort((a, b) => a[0] - b[0])
-      .map(([ts, v]) => ({ timestamp: ts, value: v.online, newNodes: v.newNodes }));
-
-    const onlineAgg = aggregateStats(
-      raw.map((s) => ({ timestamp: s.timestamp, value: s.value })),
-      aggregationWindow,
-      'average'
-    );
-    const newNodesAgg = aggregateStats(
-      raw.map((s) => ({ timestamp: s.timestamp, value: s.newNodes })),
-      aggregationWindow,
-      'sum'
-    );
-    const newNodesByTs = new Map(newNodesAgg.map((s) => [s.timestamp, s.value]));
-    const stats = onlineAgg.map((s) => ({
-      ...s,
-      newNodes: newNodesByTs.get(s.timestamp) ?? 0,
-    }));
-
-    const windowSize = aggregationWindow === 'hourly' ? Math.min(24, stats.length) : Math.min(4, stats.length);
-    return stats.map((stat, index) => {
+    const windowSize =
+      aggregationWindow === 'hourly' ? Math.min(24, aggregated.length) : Math.min(4, aggregated.length);
+    return aggregated.map((stat, index) => {
       const startIdx = Math.max(0, index - windowSize + 1);
-      const window = stats.slice(startIdx, index + 1);
+      const window = aggregated.slice(startIdx, index + 1);
       const avg = window.length > 0 ? window.reduce((acc, i) => acc + i.value, 0) / window.length : 0;
       return { ...stat, movingAverage: avg };
     });
-  }, [onlineSnapshots, newNodesSnapshots, aggregationWindow]);
+  }, [snapshots, aggregationWindow, metric]);
 
   const yAxisDomain = React.useMemo(() => {
     if (!chartData.length) return [0, 'auto'] as [number, 'auto'];
-    const values = chartData.map((item) => item.value);
-    const maxVal = Math.max(...values, 1);
-    return [0, maxVal] as [number, number];
-  }, [chartData]);
+    const values = chartData.flatMap((item) => [item.value, item.movingAverage]);
+    const maxVal = Math.max(...values, 0);
+    if (metric === 'new_nodes') {
+      const top = maxVal <= 0 ? 1 : Math.max(Math.ceil(maxVal * 1.15), maxVal + 1);
+      return [0, top] as [number, number];
+    }
+    const maxOnline = Math.max(...values, 1);
+    return [0, maxOnline] as [number, number];
+  }, [chartData, metric]);
 
   const tickFormatter = (value: number) => {
     const date = new Date(value);
@@ -153,7 +137,7 @@ export function OnlineNodesChart({
     <ChartContainer config={config} className="aspect-auto h-[250px] w-full">
       <ComposedChart data={chartData}>
         <defs>
-          <linearGradient id="fillOnlineNodes" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={`fillOnlineNodes-${metric}`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="var(--color-value)" stopOpacity={1.0} />
             <stop offset="95%" stopColor="var(--color-value)" stopOpacity={0.1} />
           </linearGradient>
@@ -171,20 +155,18 @@ export function OnlineNodesChart({
           domain={[dateRange.startDate.getTime(), dateRange.endDate.getTime()]}
           tickFormatter={tickFormatter}
         />
-        <YAxis domain={yAxisDomain} tickLine={false} axisLine={false} tickMargin={8} />
+        <YAxis
+          domain={yAxisDomain}
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          allowDecimals={metric === 'new_nodes'}
+        />
         <ChartTooltip
           cursor={false}
           content={<ChartTooltipContent labelFormatter={tooltipLabelFormatter} indicator="dot" />}
         />
         <Bar dataKey="value" fill="var(--color-value)" fillOpacity={0.7} barSize={8} />
-        <Line
-          type="monotone"
-          dataKey="newNodes"
-          stroke="var(--color-newNodes)"
-          strokeWidth={2}
-          dot={false}
-          name="New nodes"
-        />
         <Line
           type="monotone"
           dataKey="movingAverage"
