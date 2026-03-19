@@ -6,7 +6,7 @@ import { useConstellationChannels } from '@/hooks/api/useConstellations';
 import { useMyManagedNodesSuspense, useMyClaimedNodesSuspense } from '@/hooks/api/useNodes';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Info, Copy, Radio, HelpCircle, ChevronDown } from 'lucide-react';
+import { Loader2, AlertCircle, Info, Copy, Radio, HelpCircle, ChevronDown, KeyRound } from 'lucide-react';
 import { useConfig } from '@/providers/ConfigProvider';
 import { BotSetupInstructions } from '@/components/nodes/BotSetupInstructions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -38,10 +38,6 @@ function NodeSettingsContent() {
   const { myClaimedNodes } = useMyClaimedNodesSuspense();
   const [selectedNode, setSelectedNode] = useState<ObservedNode | null>(null);
   const [isSetupDialogOpen, setIsSetupDialogOpen] = useState(false);
-  const [assignKeyId, setAssignKeyId] = useState<string | null>(null);
-  const [assignModalOpen, setAssignModalOpen] = useState(false);
-  const [selectedAssignNodes, setSelectedAssignNodes] = useState<number[]>([]);
-  const [isAssigning, setIsAssigning] = useState(false);
   const [setupInstructionsKey, setSetupInstructionsKey] = useState<{
     apiKey: string;
     nodeShortName: string;
@@ -49,7 +45,6 @@ function NodeSettingsContent() {
   } | null>(null);
   const [cancelClaimForNodeId, setCancelClaimForNodeId] = useState<number | null>(null);
   const cancelClaimMutation = useCancelNodeClaim();
-  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const activeTab = ['nodes', 'pending-claims', 'managed'].includes(tabParam ?? '') ? tabParam! : 'nodes';
@@ -86,52 +81,6 @@ function NodeSettingsContent() {
     queryKey: ['api-keys'],
     queryFn: () => api.getApiKeys(),
   });
-
-  // Assign/unassign nodes modal logic
-  const openAssignModal = (keyId: string, currentNodes: number[]) => {
-    setAssignKeyId(keyId);
-    setSelectedAssignNodes(currentNodes);
-    setAssignModalOpen(true);
-  };
-  const closeAssignModal = () => {
-    setAssignModalOpen(false);
-    setAssignKeyId(null);
-    setSelectedAssignNodes([]);
-  };
-  const handleAssignNodes = async () => {
-    if (!assignKeyId) return;
-    setIsAssigning(true);
-    try {
-      const apiKey = apiKeys?.find((k) => k.id === assignKeyId);
-      if (!apiKey) return;
-      for (const nodeId of selectedAssignNodes) {
-        if (!apiKey.nodes.includes(nodeId)) {
-          await api.addNodeToApiKey(assignKeyId, nodeId);
-        }
-      }
-      for (const nodeId of apiKey.nodes) {
-        if (!selectedAssignNodes.includes(nodeId)) {
-          await api.removeNodeFromApiKey(assignKeyId, nodeId);
-        }
-      }
-      await queryClient.invalidateQueries({ queryKey: ['api-keys'] });
-      closeAssignModal();
-    } finally {
-      setIsAssigning(false);
-    }
-  };
-
-  const assignKey = assignKeyId ? apiKeys?.find((k) => k.id === assignKeyId) : null;
-  const assignKeyConstellationId =
-    assignKey && typeof assignKey.constellation === 'number'
-      ? assignKey.constellation
-      : assignKey && typeof assignKey.constellation === 'object' && assignKey.constellation
-        ? (assignKey.constellation as { id: number }).id
-        : null;
-  const nodesForAssignModal =
-    assignKeyConstellationId != null
-      ? myManagedNodes.filter((n) => n.constellation?.id === assignKeyConstellationId)
-      : myManagedNodes;
 
   return (
     <div className="container mx-auto py-6 space-y-6 px-6">
@@ -303,7 +252,11 @@ function NodeSettingsContent() {
                   {myManagedNodes.map((node) => {
                     const nodeApiKeys = apiKeys?.filter((key) => key.nodes.includes(node.node_id)) || [];
                     return (
-                      <AccordionItem key={node.node_id} value={`node-${node.node_id}`} className="border rounded-lg">
+                      <AccordionItem
+                        key={node.node_id}
+                        value={`node-${node.node_id}`}
+                        className="border-2 border-slate-300 dark:border-slate-500 rounded-lg bg-slate-50/80 dark:bg-slate-950/40 shadow-sm"
+                      >
                         <AccordionTrigger className="px-4 py-3 hover:no-underline">
                           <div className="flex flex-1 items-center justify-between text-left">
                             <div>
@@ -337,7 +290,6 @@ function NodeSettingsContent() {
                             config={config}
                             isLoadingApiKeys={isLoadingApiKeys}
                             handleCopyToClipboard={handleCopyToClipboard}
-                            openAssignModal={openAssignModal}
                             onShowSetupInstructions={setSetupInstructionsKey}
                           />
                         </AccordionContent>
@@ -357,50 +309,6 @@ function NodeSettingsContent() {
               )}
             </CardContent>
           </Card>
-          {assignModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-              <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 w-full max-w-md border border-slate-200 dark:border-slate-700">
-                <h3 className="text-lg font-medium mb-2">Assign/Remove Nodes</h3>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-1">Select nodes to assign to this API key:</label>
-                  <div className="max-h-48 overflow-y-auto border rounded p-2">
-                    {nodesForAssignModal.length > 0 ? (
-                      nodesForAssignModal.map((node) => (
-                        <div key={node.node_id} className="flex items-center gap-2 mb-1">
-                          <input
-                            type="checkbox"
-                            id={`assign-node-${node.node_id}`}
-                            checked={selectedAssignNodes.includes(node.node_id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedAssignNodes((prev) => [...prev, node.node_id]);
-                              } else {
-                                setSelectedAssignNodes((prev) => prev.filter((id) => id !== node.node_id));
-                              }
-                            }}
-                          />
-                          <label htmlFor={`assign-node-${node.node_id}`}>{node.short_name || node.node_id_str}</label>
-                        </div>
-                      ))
-                    ) : (
-                      <span className="text-xs text-slate-400">
-                        No managed nodes in this constellation. Add nodes from My Nodes first.
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <Button variant="outline" size="sm" onClick={closeAssignModal} disabled={isAssigning}>
-                    Cancel
-                  </Button>
-                  <Button variant="default" size="sm" onClick={handleAssignNodes} disabled={isAssigning}>
-                    {isAssigning ? 'Saving...' : 'Save'}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
           {setupInstructionsKey && config && (
             <Dialog open={!!setupInstructionsKey} onOpenChange={(open) => !open && setSetupInstructionsKey(null)}>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -488,7 +396,6 @@ function ManagedNodeSettings({
   config,
   isLoadingApiKeys,
   handleCopyToClipboard,
-  openAssignModal,
   onShowSetupInstructions,
 }: {
   node: OwnedManagedNode;
@@ -496,7 +403,6 @@ function ManagedNodeSettings({
   config: ReturnType<typeof useConfig>;
   isLoadingApiKeys: boolean;
   handleCopyToClipboard: (text: string) => void;
-  openAssignModal: (keyId: string, currentNodes: number[]) => void;
   onShowSetupInstructions: (
     params: {
       apiKey: string;
@@ -650,8 +556,27 @@ function ManagedNodeSettings({
         ) : null}
       </div>
 
-      <div>
-        <p className="text-sm font-medium mb-2">API Keys</p>
+      <div className="space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">API Keys</p>
+            <p className="text-xs text-muted-foreground max-w-md leading-relaxed">
+              Create keys and attach them to this node on the API Keys page. Keys must belong to the same constellation
+              as this node.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 shrink-0 gap-2 border-slate-300 dark:border-slate-600"
+            asChild
+          >
+            <Link to="/user/api-keys">
+              <KeyRound className="h-3.5 w-3.5 opacity-80" />
+              Manage API keys
+            </Link>
+          </Button>
+        </div>
         {isLoadingApiKeys ? (
           <div className="flex justify-center py-4">
             <Loader2 className="h-6 w-6 animate-spin text-slate-500 dark:text-slate-400" />
@@ -672,13 +597,10 @@ function ManagedNodeSettings({
                         : `Created: ${new Date(apiKey.created_at).toLocaleString()}`}
                     </p>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex flex-wrap gap-1">
                     <Badge variant={apiKey.is_active ? 'default' : 'destructive'} className="text-xs">
                       {apiKey.is_active ? 'Active' : 'Inactive'}
                     </Badge>
-                    <Button size="sm" variant="outline" onClick={() => openAssignModal(apiKey.id, apiKey.nodes)}>
-                      Assign/Remove Nodes
-                    </Button>
                     {config && (
                       <Button
                         size="sm"
@@ -698,7 +620,7 @@ function ManagedNodeSettings({
                         title="Setup instructions"
                       >
                         <HelpCircle className="h-4 w-4 mr-1" />
-                        Setup
+                        Bot setup instructions
                       </Button>
                     )}
                   </div>
