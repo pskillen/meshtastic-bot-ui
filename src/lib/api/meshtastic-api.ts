@@ -447,10 +447,16 @@ export class MeshtasticApi extends BaseApi {
   }
 
   /**
-   * Get channels for a constellation
+   * Get channels for a constellation (DRF paginated list; we return the `results` array).
    */
   async getConstellationChannels(constellationId: number): Promise<MessageChannel[]> {
-    return this.get<MessageChannel[]>(`/constellations/${constellationId}/channels/`);
+    const searchParams = new URLSearchParams();
+    searchParams.append('page_size', '1000');
+    const response = await this.get<PaginatedResponse<MessageChannel>>(
+      `/constellations/${constellationId}/channels/`,
+      searchParams
+    );
+    return response.results ?? [];
   }
 
   // ===== Messages API =====
