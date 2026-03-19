@@ -264,6 +264,14 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
                   Last time any packet was received from this node (telemetry, messages, etc.)
                 </span>
               </p>
+              {node.inferred_max_hops != null && (
+                <p>
+                  <span className="font-medium">Inferred Max Hops:</span> {node.inferred_max_hops}
+                  <span className="block text-xs text-muted-foreground mt-0.5">
+                    Inferred from packets; recommended is 7
+                  </span>
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>

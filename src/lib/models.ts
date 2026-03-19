@@ -29,6 +29,7 @@ export interface ObservedNode {
   role?: number | null;
   is_licensed?: boolean | null;
   is_unmessagable?: boolean | null;
+  inferred_max_hops?: number | null;
   // Additional fields for UI compatibility
   last_heard?: Date | null;
   latest_device_metrics?: DeviceMetrics | null;
