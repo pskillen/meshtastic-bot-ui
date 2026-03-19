@@ -340,7 +340,11 @@ export interface StatsSnapshot {
   recorded_at: string;
   stat_type: 'online_nodes' | 'new_nodes' | 'packet_volume';
   constellation_id: number | null;
-  value: { count: number; window_hours?: number };
+  value: {
+    count: number;
+    window_hours?: number;
+    by_type?: Record<string, number>;
+  };
 }
 
 export interface MessageChannel {

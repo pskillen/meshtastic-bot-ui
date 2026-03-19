@@ -1,7 +1,7 @@
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery, useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
 import { useMeshtasticApi } from './useApi';
 import { PaginatedResponse, StatsSnapshot } from '@/lib/models';
-import { StatsSnapshotsParams } from '@/lib/types';
+import type { StatsSnapshotsParams } from '@/lib/types';
 import { roundToNearestMinutes } from 'date-fns';
 
 function getStatsSnapshotsKey(params?: StatsSnapshotsParams): string {
@@ -50,4 +50,32 @@ export function useStatsSnapshotsSuspense(params?: StatsSnapshotsParams) {
   return {
     snapshots: query.data,
   };
+}
+
+/**
+ * Fetch multiple stat types in parallel. Use inside a <Suspense> boundary.
+ * Returns a map of statType -> snapshots.
+ */
+export function useStatsSnapshotsForTypesSuspense(
+  statTypes: readonly string[],
+  params: Omit<NonNullable<Parameters<typeof useStatsSnapshotsSuspense>[0]>, 'statType'>
+) {
+  const api = useMeshtasticApi();
+
+  const queries = useSuspenseQueries({
+    queries: statTypes.map((statType) => {
+      const st = statType as 'online_nodes' | 'new_nodes' | 'packet_volume';
+      const fullParams: StatsSnapshotsParams = { ...params, statType: st };
+      return {
+        queryKey: ['stats-snapshots', getStatsSnapshotsKey(fullParams)],
+        queryFn: () => api.getStatsSnapshots(fullParams),
+        refetchInterval: 5 * 1000 * 60,
+      };
+    }),
+  });
+
+  return Object.fromEntries(statTypes.map((statType, i) => [statType, queries[i].data])) as Record<
+    (typeof statTypes)[number],
+    Awaited<ReturnType<typeof api.getStatsSnapshots>>
+  >;
 }
