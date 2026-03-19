@@ -279,6 +279,13 @@ export class MeshtasticApi extends BaseApi {
   }
 
   /**
+   * Cancel / withdraw the current user's pending claim for a node
+   */
+  async cancelNodeClaim(nodeId: number): Promise<void> {
+    await this.delete<void>(`/nodes/observed-nodes/${nodeId}/claim/`);
+  }
+
+  /**
    * Get all node claims for the current user
    * @returns Array of NodeClaim objects
    */
@@ -313,6 +320,25 @@ export class MeshtasticApi extends BaseApi {
    */
   async getManagedNode(id: number): Promise<ManagedNode> {
     return this.get<ManagedNode>(`/nodes/managed-nodes/${id}/`);
+  }
+
+  /**
+   * Partially update a managed node (e.g. Meshtastic channel slot → MessageChannel mappings).
+   */
+  async patchManagedNode(
+    nodeId: number,
+    body: {
+      channel_0?: number | null;
+      channel_1?: number | null;
+      channel_2?: number | null;
+      channel_3?: number | null;
+      channel_4?: number | null;
+      channel_5?: number | null;
+      channel_6?: number | null;
+      channel_7?: number | null;
+    }
+  ): Promise<OwnedManagedNode> {
+    return this.patch<OwnedManagedNode>(`/nodes/managed-nodes/${nodeId}/`, body);
   }
 
   /**
