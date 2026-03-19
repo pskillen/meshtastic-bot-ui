@@ -1,7 +1,8 @@
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useUserClaims } from '@/hooks/api/useNodeClaims';
+import { useCancelNodeClaim, useUserClaims } from '@/hooks/api/useNodeClaims';
+import { useConstellationChannels } from '@/hooks/api/useConstellations';
 import { useMyManagedNodesSuspense, useMyClaimedNodesSuspense } from '@/hooks/api/useNodes';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -11,11 +12,20 @@ import { BotSetupInstructions } from '@/components/nodes/BotSetupInstructions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { ObservedNode } from '@/lib/models';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ObservedNode, type MessageChannel, type OwnedManagedNode, type NodeApiKey } from '@/lib/models';
 import { SetupManagedNode } from '@/components/nodes/SetupManagedNode';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMeshtasticApi } from '@/hooks/api/useApi';
 // TODO: Add QRCode support for API keys in the future
 
@@ -36,6 +46,8 @@ function NodeSettingsContent() {
     nodeShortName: string;
     botDefaults?: { ignorePortnums?: string | null; hopLimit?: number | null };
   } | null>(null);
+  const [cancelClaimForNodeId, setCancelClaimForNodeId] = useState<number | null>(null);
+  const cancelClaimMutation = useCancelNodeClaim();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
@@ -213,7 +225,7 @@ function NodeSettingsContent() {
                     <div className="space-y-4">
                       {pendingClaims.map((claim) => (
                         <div key={claim.node.node_id} className="border rounded-md p-4">
-                          <div className="flex justify-between items-start">
+                          <div className="flex justify-between items-start gap-2">
                             <div>
                               <h3 className="font-medium">{claim.node.short_name || claim.node.node_id_str}</h3>
                               <p className="text-sm text-slate-500 dark:text-slate-400">{claim.node.long_name}</p>
@@ -222,6 +234,14 @@ function NodeSettingsContent() {
                                 Claimed {formatDistanceToNow(new Date(claim.created_at), { addSuffix: true })}
                               </p>
                             </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0 text-destructive border-destructive/40 hover:bg-destructive/10"
+                              onClick={() => setCancelClaimForNodeId(claim.node.node_id)}
+                            >
+                              Cancel claim
+                            </Button>
                           </div>
                           <div className="mt-2">
                             <Link
@@ -397,12 +417,56 @@ function NodeSettingsContent() {
           )}
         </TabsContent>
       </Tabs>
+
+      <Dialog open={cancelClaimForNodeId !== null} onOpenChange={(open) => !open && setCancelClaimForNodeId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel this claim?</DialogTitle>
+            <DialogDescription>
+              This withdraws your pending claim. You can start again later from the node page if you change your mind.
+            </DialogDescription>
+          </DialogHeader>
+          {cancelClaimMutation.isError && (
+            <p className="text-sm text-destructive">Could not cancel the claim. Try again.</p>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setCancelClaimForNodeId(null)}>
+              Back
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={cancelClaimMutation.isPending}
+              onClick={() => {
+                if (cancelClaimForNodeId == null) return;
+                cancelClaimMutation.mutate(cancelClaimForNodeId, {
+                  onSuccess: () => setCancelClaimForNodeId(null),
+                });
+              }}
+            >
+              {cancelClaimMutation.isPending ? 'Canceling…' : 'Cancel claim'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-import type { OwnedManagedNode } from '@/lib/models';
-import type { NodeApiKey } from '@/lib/models';
+function channelMappingsFromNode(node: OwnedManagedNode) {
+  return {
+    channel_0: node.channel_0?.id ?? null,
+    channel_1: node.channel_1?.id ?? null,
+    channel_2: node.channel_2?.id ?? null,
+    channel_3: node.channel_3?.id ?? null,
+    channel_4: node.channel_4?.id ?? null,
+    channel_5: node.channel_5?.id ?? null,
+    channel_6: node.channel_6?.id ?? null,
+    channel_7: node.channel_7?.id ?? null,
+  };
+}
+
+type ChannelMappings = ReturnType<typeof channelMappingsFromNode>;
 
 function ManagedNodeSettings({
   node,
@@ -427,6 +491,38 @@ function ManagedNodeSettings({
     } | null
   ) => void;
 }) {
+  const api = useMeshtasticApi();
+  const queryClient = useQueryClient();
+  const constellationId = node.constellation.id;
+  const { data: constellationChannels = [], isLoading: channelsLoading } = useConstellationChannels(constellationId);
+
+  const [mappings, setMappings] = useState<ChannelMappings>(() => channelMappingsFromNode(node));
+  useEffect(() => {
+    setMappings(channelMappingsFromNode(node));
+  }, [node]);
+
+  const saveChannels = useMutation({
+    mutationFn: () =>
+      api.patchManagedNode(node.node_id, {
+        channel_0: mappings.channel_0,
+        channel_1: mappings.channel_1,
+        channel_2: mappings.channel_2,
+        channel_3: mappings.channel_3,
+        channel_4: mappings.channel_4,
+        channel_5: mappings.channel_5,
+        channel_6: mappings.channel_6,
+        channel_7: mappings.channel_7,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['managed-nodes', 'mine'] });
+    },
+  });
+
+  const setSlot = (index: number, raw: string) => {
+    const v = raw === 'none' ? null : Number(raw);
+    setMappings((prev) => ({ ...prev, [`channel_${index}`]: v }) as ChannelMappings);
+  };
+
   return (
     <div className="space-y-4 pt-2">
       <div className="flex gap-2">
@@ -435,6 +531,63 @@ function ManagedNodeSettings({
             View Node Details
           </Button>
         </Link>
+      </div>
+
+      <div className="border rounded-md p-4 space-y-3 bg-slate-50/50 dark:bg-slate-900/30">
+        <p className="text-sm font-medium">Meshtastic channel mapping</p>
+        <p className="text-xs text-muted-foreground">
+          Map each radio slot (0–7) to a message channel in{' '}
+          <span className="font-medium">{node.constellation.name}</span>. Used to attribute packets and text from this
+          node.
+        </p>
+        {channelsLoading ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="h-6 w-6 animate-spin text-slate-500 dark:text-slate-400" />
+          </div>
+        ) : constellationChannels.length === 0 ? (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>No channels in this constellation</AlertTitle>
+            <AlertDescription className="text-xs">
+              Add message channels to the constellation first, or continue with all slots unmapped.
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <>
+            <div className="space-y-2">
+              {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
+                const slotKey = `channel_${i}` as keyof ChannelMappings;
+                const cur = mappings[slotKey];
+                return (
+                  <div key={i} className="flex items-center gap-2">
+                    <Label htmlFor={`managed-ch-${node.node_id}-${i}`} className="w-24 shrink-0 text-sm">
+                      Slot {i}
+                    </Label>
+                    <Select value={cur == null ? 'none' : String(cur)} onValueChange={(v) => setSlot(i, v)}>
+                      <SelectTrigger id={`managed-ch-${node.node_id}-${i}`} className="flex-1">
+                        <SelectValue placeholder="Unmapped" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None (unmapped)</SelectItem>
+                        {constellationChannels.map((ch: MessageChannel) => (
+                          <SelectItem key={ch.id} value={String(ch.id)}>
+                            {ch.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Button type="button" size="sm" disabled={saveChannels.isPending} onClick={() => saveChannels.mutate()}>
+                {saveChannels.isPending ? 'Saving…' : 'Save channel mappings'}
+              </Button>
+              {saveChannels.isError && <span className="text-sm text-destructive">Could not save. Try again.</span>}
+            </div>
+          </>
+        )}
       </div>
 
       <div>
