@@ -7,6 +7,7 @@ import { TimeRangeSelect, TimeRangeOption } from '@/components/TimeRangeSelect';
 import { OnlineNodesChart } from '@/components/OnlineNodesChart';
 import { PacketStatsChartFromSnapshots } from '@/components/PacketStatsChartFromSnapshots';
 import { ChartConfig } from '@/components/ui/chart';
+import { PACKET_TYPE_DISPLAY_NAMES } from '@/lib/stats-aggregation';
 
 const MESH_STATS_TIME_OPTIONS: TimeRangeOption[] = [
   { key: '48h', label: 'Last 48 hours' },
@@ -21,13 +22,33 @@ const onlineNodesChartConfig = {
     label: 'Online nodes',
     color: 'hsl(var(--chart-1))',
   },
+  newNodes: {
+    label: 'New nodes',
+    color: 'hsl(var(--chart-2))',
+  },
 } satisfies ChartConfig;
+
+const PACKET_TYPE_COLORS = [
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+  'hsl(220 70% 50%)',
+  'hsl(280 60% 55%)',
+];
 
 const packetChartConfig = {
   value: {
     label: 'Packets',
     color: 'hsl(var(--chart-2))',
   },
+  ...Object.fromEntries(
+    Object.keys(PACKET_TYPE_DISPLAY_NAMES).map((k, i) => [
+      k,
+      { label: PACKET_TYPE_DISPLAY_NAMES[k], color: PACKET_TYPE_COLORS[i % PACKET_TYPE_COLORS.length] },
+    ])
+  ),
 } satisfies ChartConfig;
 
 export function MeshStatsSection() {

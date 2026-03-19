@@ -5,13 +5,13 @@ export type AggregationWindow = 'hourly' | '6h' | 'daily';
 /**
  * Determine aggregation window based on time range span.
  * - <= 2 days: hourly (no aggregation)
- * - > 2 days and <= 7 days: 6-hour windows
- * - > 7 days: daily (local midnight)
+ * - > 2 days and <= 8 days: 6-hour windows (covers "7 days" which can span up to ~8 days)
+ * - > 8 days: daily (local midnight)
  */
 export function getAggregationWindow(startDate: Date, endDate: Date): AggregationWindow {
   const spanHours = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
   if (spanHours <= 48) return 'hourly';
-  if (spanHours <= 168) return '6h';
+  if (spanHours <= 192) return '6h'; // 8 days = 192h; ensures "7 days" uses 6h bins
   return 'daily';
 }
 
@@ -70,3 +70,45 @@ export function aggregateStats(
     }))
     .sort((a, b) => a.timestamp - b.timestamp);
 }
+
+export interface ByTypeDataPoint {
+  timestamp: number;
+  byType: Record<string, number>;
+}
+
+/**
+ * Aggregate by_type data into larger windows. Sums each type per bucket.
+ */
+export function aggregateStatsByType(points: ByTypeDataPoint[], window: AggregationWindow): ByTypeDataPoint[] {
+  if (window === 'hourly' || points.length === 0) return points;
+
+  const bucketKey = (ts: number) => {
+    const d = getBucketStart(new Date(ts), window === '6h' ? '6h' : 'daily');
+    return d.getTime();
+  };
+
+  const buckets = new Map<number, Record<string, number>>();
+  for (const p of points) {
+    const key = bucketKey(p.timestamp);
+    const existing = buckets.get(key) ?? {};
+    for (const [k, v] of Object.entries(p.byType)) {
+      existing[k] = (existing[k] ?? 0) + v;
+    }
+    buckets.set(key, existing);
+  }
+
+  return Array.from(buckets.entries())
+    .map(([ts, byType]) => ({ timestamp: ts, byType }))
+    .sort((a, b) => a.timestamp - b.timestamp);
+}
+
+/** Display names for packet types in charts */
+export const PACKET_TYPE_DISPLAY_NAMES: Record<string, string> = {
+  text_message: 'Messages',
+  position: 'Position',
+  node_info: 'Node Info',
+  device_metrics: 'Device',
+  local_stats: 'Local Stats',
+  environment_metrics: 'Environment',
+  traceroute: 'Traceroute',
+};

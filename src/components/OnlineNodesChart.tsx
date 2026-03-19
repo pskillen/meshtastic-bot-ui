@@ -6,7 +6,7 @@ import { CartesianGrid, XAxis, YAxis, Bar, Line, ComposedChart } from 'recharts'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { TimeRangeSelect, TimeRangeOption } from '@/components/TimeRangeSelect';
-import { useStatsSnapshotsSuspense } from '@/hooks/api/useStatsSnapshots';
+import { useStatsSnapshotsForTypesSuspense } from '@/hooks/api/useStatsSnapshots';
 import { subDays } from 'date-fns';
 import { Payload, ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent';
 import { getAggregationWindow, aggregateStats } from '@/lib/stats-aggregation';
@@ -47,7 +47,6 @@ export function OnlineNodesChart({
 
   const params = React.useMemo(
     () => ({
-      statType: 'online_nodes' as const,
       constellationId: -1,
       recordedAtAfter: dateRange.startDate,
       recordedAtBefore: dateRange.endDate,
@@ -56,7 +55,10 @@ export function OnlineNodesChart({
     [dateRange.startDate, dateRange.endDate]
   );
 
-  const { snapshots } = useStatsSnapshotsSuspense(params);
+  const { online_nodes: onlineSnapshots, new_nodes: newNodesSnapshots } = useStatsSnapshotsForTypesSuspense(
+    ['online_nodes', 'new_nodes'] as const,
+    params
+  );
 
   const handleTimeRangeChange = (value: string, timeRange: { startDate: Date; endDate: Date }) => {
     if (value === timeRangeLabel) return;
@@ -69,23 +71,45 @@ export function OnlineNodesChart({
     [dateRange.startDate, dateRange.endDate]
   );
 
-  // Filter to global only, sort, optionally aggregate, then add moving average
+  // Merge online_nodes and new_nodes by timestamp, aggregate, add moving average
   const chartData = React.useMemo(() => {
-    if (!snapshots?.results) return [];
+    const online = onlineSnapshots?.results?.filter((s) => s.constellation_id === null) ?? [];
+    const newNodes = newNodesSnapshots?.results?.filter((s) => s.constellation_id === null) ?? [];
 
-    const globalOnly = snapshots.results.filter((s) => s.constellation_id === null);
-    const sorted = [...globalOnly].sort(
-      (a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
+    const byTs = new Map<number, { online: number; newNodes: number }>();
+    for (const s of online) {
+      const ts = new Date(s.recorded_at).getTime();
+      byTs.set(ts, { online: s.value?.count ?? 0, newNodes: byTs.get(ts)?.newNodes ?? 0 });
+    }
+    for (const s of newNodes) {
+      const ts = new Date(s.recorded_at).getTime();
+      const existing = byTs.get(ts);
+      byTs.set(ts, {
+        online: existing?.online ?? 0,
+        newNodes: s.value?.count ?? 0,
+      });
+    }
+
+    const raw = Array.from(byTs.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([ts, v]) => ({ timestamp: ts, value: v.online, newNodes: v.newNodes }));
+
+    const onlineAgg = aggregateStats(
+      raw.map((s) => ({ timestamp: s.timestamp, value: s.value })),
+      aggregationWindow,
+      'average'
     );
-
-    let stats = sorted.map((s) => ({
-      timestamp: new Date(s.recorded_at).getTime(),
-      value: s.value?.count ?? 0,
+    const newNodesAgg = aggregateStats(
+      raw.map((s) => ({ timestamp: s.timestamp, value: s.newNodes })),
+      aggregationWindow,
+      'sum'
+    );
+    const newNodesByTs = new Map(newNodesAgg.map((s) => [s.timestamp, s.value]));
+    const stats = onlineAgg.map((s) => ({
+      ...s,
+      newNodes: newNodesByTs.get(s.timestamp) ?? 0,
     }));
 
-    stats = aggregateStats(stats, aggregationWindow, 'average');
-
-    // Add moving average (window size depends on aggregation)
     const windowSize = aggregationWindow === 'hourly' ? Math.min(24, stats.length) : Math.min(4, stats.length);
     return stats.map((stat, index) => {
       const startIdx = Math.max(0, index - windowSize + 1);
@@ -93,7 +117,7 @@ export function OnlineNodesChart({
       const avg = window.length > 0 ? window.reduce((acc, i) => acc + i.value, 0) / window.length : 0;
       return { ...stat, movingAverage: avg };
     });
-  }, [snapshots, aggregationWindow]);
+  }, [onlineSnapshots, newNodesSnapshots, aggregationWindow]);
 
   const yAxisDomain = React.useMemo(() => {
     if (!chartData.length) return [0, 'auto'] as [number, 'auto'];
@@ -153,6 +177,14 @@ export function OnlineNodesChart({
           content={<ChartTooltipContent labelFormatter={tooltipLabelFormatter} indicator="dot" />}
         />
         <Bar dataKey="value" fill="var(--color-value)" fillOpacity={0.7} barSize={8} />
+        <Line
+          type="monotone"
+          dataKey="newNodes"
+          stroke="var(--color-newNodes)"
+          strokeWidth={2}
+          dot={false}
+          name="New nodes"
+        />
         <Line
           type="monotone"
           dataKey="movingAverage"
