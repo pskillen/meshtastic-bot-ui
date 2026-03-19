@@ -13,6 +13,7 @@ import { useTracerouteTriggerableNodesSuspense, useTriggerTraceroute } from '@/h
 import { useNodesSuspense } from '@/hooks/api/useNodes';
 import { TriggerTracerouteModal } from './TriggerTracerouteModal';
 import { TracerouteDetailModal } from './TracerouteDetailModal';
+import { TracerouteStatsSection } from '@/components/traceroutes/TracerouteStatsSection';
 import { AutoTraceRoute } from '@/lib/models';
 import { RouteIcon, RotateCw } from 'lucide-react';
 
@@ -93,7 +94,8 @@ export function TracerouteHistory() {
   const traceroutes = data?.results ?? [];
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto py-6 space-y-6">
+      <TracerouteStatsSection />
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">

@@ -79,7 +79,7 @@ function TracerouteLinksSection({ nodeId }: { nodeId: number }) {
           {!error && !isLoading && !hasData && (
             <div className="flex min-h-[200px] flex-col items-center justify-center gap-2 text-muted-foreground">
               <p>No traceroute data for this node</p>
-              <Link to="/traceroutes/heatmap" className="text-sm text-teal-600 dark:text-teal-400 hover:underline">
+              <Link to="/traceroutes/map/heat" className="text-sm text-teal-600 dark:text-teal-400 hover:underline">
                 View Traceroute Heatmap
               </Link>
             </div>

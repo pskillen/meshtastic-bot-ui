@@ -46,6 +46,22 @@ export function useTracerouteTriggerableNodes() {
   });
 }
 
+export interface UseTracerouteStatsParams {
+  triggeredAtAfter?: Date;
+}
+
+export function useTracerouteStats(params?: UseTracerouteStatsParams) {
+  const api = useMeshtasticApi();
+  const triggeredAtAfter = params?.triggeredAtAfter?.toISOString();
+  return useQuery({
+    queryKey: ['traceroutes', 'stats', { triggeredAtAfter }],
+    queryFn: () =>
+      api.getTracerouteStats({
+        triggered_at_after: triggeredAtAfter,
+      }),
+  });
+}
+
 export function useTracerouteTriggerableNodesSuspense() {
   const api = useMeshtasticApi();
   const { data } = useSuspenseQuery({

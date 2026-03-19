@@ -57,7 +57,9 @@ function App() {
                   <Route path="/map" element={<NodeMap />} />
                   <Route path="/messages" element={<MessageHistory />} />
                   <Route path="/traceroutes" element={<TracerouteHistory />} />
-                  <Route path="/traceroutes/heatmap" element={<TracerouteHeatmapPage />} />
+                  <Route path="/traceroutes/heatmap" element={<Navigate to="/traceroutes/map/heat" replace />} />
+                  <Route path="/traceroutes/map/heat" element={<TracerouteHeatmapPage edgeMetric="packets" />} />
+                  <Route path="/traceroutes/map/snr" element={<TracerouteHeatmapPage edgeMetric="snr" />} />
                   <Route path="/user/nodes" element={<NodeSettings />} />
                   <Route path="/user/settings" element={<SettingsPage />} />
                   <Route path="/user/api-keys" element={<ApiKeysPage />} />

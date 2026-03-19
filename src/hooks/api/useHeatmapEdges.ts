@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useMeshtasticApi } from './useApi';
 
 export interface HeatmapEdge {
@@ -9,6 +9,7 @@ export interface HeatmapEdge {
   to_lat: number;
   to_lng: number;
   weight: number;
+  avg_snr?: number;
 }
 
 export interface HeatmapNode {
@@ -33,6 +34,7 @@ export interface UseHeatmapEdgesParams {
   triggeredAtAfter?: Date;
   constellationId?: number;
   bbox?: [number, number, number, number];
+  edgeMetric?: 'packets' | 'snr';
 }
 
 export function useHeatmapEdges(params?: UseHeatmapEdgesParams) {
@@ -40,12 +42,22 @@ export function useHeatmapEdges(params?: UseHeatmapEdgesParams) {
   const triggeredAtAfter = params?.triggeredAtAfter?.toISOString();
 
   return useQuery({
-    queryKey: ['heatmap-edges', { triggeredAtAfter, constellationId: params?.constellationId, bbox: params?.bbox }],
+    queryKey: [
+      'heatmap-edges',
+      {
+        triggeredAtAfter,
+        constellationId: params?.constellationId,
+        bbox: params?.bbox,
+        edgeMetric: params?.edgeMetric,
+      },
+    ],
+    placeholderData: keepPreviousData,
     queryFn: () =>
       api.getHeatmapEdges({
         triggered_at_after: triggeredAtAfter,
         constellation_id: params?.constellationId,
         bbox: params?.bbox,
+        edge_metric: params?.edgeMetric,
       }),
   });
 }
