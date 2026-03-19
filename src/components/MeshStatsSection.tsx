@@ -17,14 +17,17 @@ const MESH_STATS_TIME_OPTIONS: TimeRangeOption[] = [
   { key: '30d', label: 'Last 30 days' },
 ];
 
-const onlineNodesChartConfig = {
+const onlineNodesOnlyChartConfig = {
   value: {
     label: 'Online nodes',
     color: 'hsl(var(--chart-1))',
   },
-  newNodes: {
+} satisfies ChartConfig;
+
+const newNodesOnlyChartConfig = {
+  value: {
     label: 'New nodes',
-    color: 'hsl(var(--chart-2))',
+    color: 'hsl(var(--chart-3))',
   },
 } satisfies ChartConfig;
 
@@ -69,7 +72,8 @@ export function MeshStatsSection() {
       <CardHeader className="relative">
         <CardTitle>Mesh stats</CardTitle>
         <CardDescription>
-          Online nodes and packet volume over time. Longer ranges are aggregated into 6-hour or daily windows.
+          Online nodes, new node discovery, and packet volume over time. Longer ranges are aggregated into 6-hour or
+          daily windows.
         </CardDescription>
         <div className="absolute right-4 top-4">
           <TimeRangeSelect options={MESH_STATS_TIME_OPTIONS} value={timeRangeKey} onChange={handleTimeRangeChange} />
@@ -79,9 +83,20 @@ export function MeshStatsSection() {
         <OnlineNodesChart
           title="Online Nodes"
           description="Online nodes (heard within 2h)"
-          config={onlineNodesChartConfig}
+          metric="online_nodes"
+          config={onlineNodesOnlyChartConfig}
           embedded
           dateRange={dateRange}
+          movingAverage={true}
+        />
+        <OnlineNodesChart
+          title="New Nodes"
+          description="Newly discovered nodes per window (sum)"
+          metric="new_nodes"
+          config={newNodesOnlyChartConfig}
+          embedded
+          dateRange={dateRange}
+          movingAverage={false}
         />
         <PacketStatsChartFromSnapshots
           title="Mesh Activity"
