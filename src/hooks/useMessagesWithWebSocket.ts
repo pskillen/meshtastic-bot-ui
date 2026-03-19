@@ -53,7 +53,7 @@ export function useMessagesWithWebSocket(options?: UseMessagesWithWebSocketOptio
 
           // Update the query cache
           queryClient.setQueryData(
-            ['messages', options?.channelId, options?.constellationId, options?.pageSize || 250],
+            ['messages', options?.channelId, options?.constellationId, options?.nodeId, options?.pageSize || 250],
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (oldData: any) => {
               if (!oldData || !oldData.pages || !oldData.pages.length) return oldData;

@@ -5,6 +5,7 @@ import { TextMessage, TextMessageResponse } from '@/lib/models';
 interface UseMessagesOptions {
   channelId?: number;
   constellationId?: number;
+  nodeId?: number;
   pageSize?: number;
   enabled?: boolean;
 }
@@ -22,14 +23,15 @@ export function useMessages(options?: UseMessagesOptions) {
     TextMessageResponse,
     Error,
     InfiniteData<TextMessageResponse>,
-    [string, number | undefined, number | undefined, number],
+    [string, number | undefined, number | undefined, number | undefined, number],
     number
   >({
-    queryKey: ['messages', options?.channelId, options?.constellationId, pageSize],
+    queryKey: ['messages', options?.channelId, options?.constellationId, options?.nodeId, pageSize],
     queryFn: async ({ pageParam = 1 }) => {
       return api.getTextMessages({
         channelId: options?.channelId,
         constellationId: options?.constellationId,
+        nodeId: options?.nodeId,
         page: pageParam,
         page_size: pageSize,
       });
@@ -85,11 +87,12 @@ export function useMessagesSuspense(options?: UseMessagesOptions) {
   const pageSize = options?.pageSize || 250;
 
   const messagesQuery = useSuspenseInfiniteQuery<TextMessageResponse, Error>({
-    queryKey: ['messages', options?.channelId, options?.constellationId, pageSize],
+    queryKey: ['messages', options?.channelId, options?.constellationId, options?.nodeId, pageSize],
     queryFn: async ({ pageParam = 1 }) =>
       api.getTextMessages({
         channelId: options?.channelId,
         constellationId: options?.constellationId,
+        nodeId: options?.nodeId,
         page: pageParam as number,
         page_size: pageSize,
       }),

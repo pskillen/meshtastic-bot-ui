@@ -435,12 +435,14 @@ export class MeshtasticApi extends BaseApi {
   async getTextMessages(params: {
     channelId?: number;
     constellationId?: number;
+    nodeId?: number;
     page?: number;
     page_size?: number;
   }): Promise<TextMessageResponse> {
     const searchParams = new URLSearchParams();
     if (params.channelId) searchParams.append('channel_id', params.channelId.toString());
     if (params.constellationId) searchParams.append('constellation_id', params.constellationId.toString());
+    if (params.nodeId) searchParams.append('sender_node_id', params.nodeId.toString());
     if (params.page) searchParams.append('page', params.page.toString());
     if (params.page_size) searchParams.append('page_size', params.page_size.toString());
     return this.get<TextMessageResponse>('/messages/text/', searchParams);
