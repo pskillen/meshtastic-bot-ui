@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useCancelNodeClaim, useUserClaims } from '@/hooks/api/useNodeClaims';
@@ -6,7 +6,7 @@ import { useConstellationChannels } from '@/hooks/api/useConstellations';
 import { useMyManagedNodesSuspense, useMyClaimedNodesSuspense } from '@/hooks/api/useNodes';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Info, Copy, Radio, HelpCircle } from 'lucide-react';
+import { Loader2, AlertCircle, Info, Copy, Radio, HelpCircle, ChevronDown } from 'lucide-react';
 import { useConfig } from '@/providers/ConfigProvider';
 import { BotSetupInstructions } from '@/components/nodes/BotSetupInstructions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -27,6 +27,7 @@ import { ObservedNode, type MessageChannel, type OwnedManagedNode, type NodeApiK
 import { SetupManagedNode } from '@/components/nodes/SetupManagedNode';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMeshtasticApi } from '@/hooks/api/useApi';
+import { cn } from '@/lib/utils';
 // TODO: Add QRCode support for API keys in the future
 
 function NodeSettingsContent() {
@@ -468,6 +469,19 @@ function channelMappingsFromNode(node: OwnedManagedNode) {
 
 type ChannelMappings = ReturnType<typeof channelMappingsFromNode>;
 
+const CHANNEL_SLOT_INDEXES = [0, 1, 2, 3, 4, 5, 6, 7] as const;
+
+function countMappedSlots(mappings: ChannelMappings): number {
+  return CHANNEL_SLOT_INDEXES.filter((i) => mappings[`channel_${i}` as keyof ChannelMappings] != null).length;
+}
+
+function channelMappingsEqual(a: ChannelMappings, b: ChannelMappings): boolean {
+  return CHANNEL_SLOT_INDEXES.every((i) => {
+    const k = `channel_${i}` as keyof ChannelMappings;
+    return a[k] === b[k];
+  });
+}
+
 function ManagedNodeSettings({
   node,
   nodeApiKeys,
@@ -497,9 +511,14 @@ function ManagedNodeSettings({
   const { data: constellationChannels = [], isLoading: channelsLoading } = useConstellationChannels(constellationId);
 
   const [mappings, setMappings] = useState<ChannelMappings>(() => channelMappingsFromNode(node));
+  const [channelMapOpen, setChannelMapOpen] = useState(false);
+
   useEffect(() => {
     setMappings(channelMappingsFromNode(node));
   }, [node]);
+
+  const savedMappings = useMemo(() => channelMappingsFromNode(node), [node]);
+  const isChannelMapDirty = !channelMappingsEqual(mappings, savedMappings);
 
   const saveChannels = useMutation({
     mutationFn: () =>
@@ -515,6 +534,7 @@ function ManagedNodeSettings({
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['managed-nodes', 'mine'] });
+      setChannelMapOpen(false);
     },
   });
 
@@ -533,61 +553,101 @@ function ManagedNodeSettings({
         </Link>
       </div>
 
-      <div className="border rounded-md p-4 space-y-3 bg-slate-50/50 dark:bg-slate-900/30">
-        <p className="text-sm font-medium">Meshtastic channel mapping</p>
-        <p className="text-xs text-muted-foreground">
-          Map each radio slot (0–7) to a message channel in{' '}
-          <span className="font-medium">{node.constellation.name}</span>. Used to attribute packets and text from this
-          node.
-        </p>
-        {channelsLoading ? (
-          <div className="flex justify-center py-4">
-            <Loader2 className="h-6 w-6 animate-spin text-slate-500 dark:text-slate-400" />
+      <div className="border rounded-md bg-slate-50/50 dark:bg-slate-900/30 overflow-hidden">
+        <button
+          type="button"
+          aria-expanded={channelMapOpen}
+          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium hover:bg-slate-100/80 dark:hover:bg-slate-800/50 transition-colors"
+          onClick={() => setChannelMapOpen((o) => !o)}
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
+                channelMapOpen && 'rotate-180'
+              )}
+            />
+            <span className="truncate">Meshtastic channel mapping</span>
+          </span>
+          <span className="shrink-0 text-xs font-normal text-muted-foreground">
+            {countMappedSlots(mappings)} / 8 mapped
+            {isChannelMapDirty ? ' · unsaved' : ''}
+          </span>
+        </button>
+        {channelMapOpen ? (
+          <div className="space-y-3 border-t border-slate-200/80 dark:border-slate-700/80 px-4 pb-4 pt-3">
+            <p className="text-xs text-muted-foreground">
+              Map each radio slot (0–7) to a message channel in{' '}
+              <span className="font-medium">{node.constellation.name}</span>. Used to attribute packets and text from
+              this node.
+            </p>
+            {channelsLoading ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin text-slate-500 dark:text-slate-400" />
+              </div>
+            ) : constellationChannels.length === 0 ? (
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertTitle>No channels in this constellation</AlertTitle>
+                <AlertDescription className="text-xs">
+                  Add message channels to the constellation first, or continue with all slots unmapped.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  {CHANNEL_SLOT_INDEXES.map((i) => {
+                    const slotKey = `channel_${i}` as keyof ChannelMappings;
+                    const cur = mappings[slotKey];
+                    return (
+                      <div key={i} className="flex items-center gap-2">
+                        <Label htmlFor={`managed-ch-${node.node_id}-${i}`} className="w-24 shrink-0 text-sm">
+                          Slot {i}
+                        </Label>
+                        <Select value={cur == null ? 'none' : String(cur)} onValueChange={(v) => setSlot(i, v)}>
+                          <SelectTrigger id={`managed-ch-${node.node_id}-${i}`} className="flex-1">
+                            <SelectValue placeholder="Unmapped" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">None (unmapped)</SelectItem>
+                            {constellationChannels.map((ch: MessageChannel) => (
+                              <SelectItem key={ch.id} value={String(ch.id)}>
+                                {ch.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={saveChannels.isPending}
+                    onClick={() => saveChannels.mutate()}
+                  >
+                    {saveChannels.isPending ? 'Saving…' : 'Save channel mappings'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!isChannelMapDirty || saveChannels.isPending}
+                    onClick={() => {
+                      setMappings(savedMappings);
+                      saveChannels.reset();
+                    }}
+                  >
+                    Revert
+                  </Button>
+                  {saveChannels.isError && <span className="text-sm text-destructive">Could not save. Try again.</span>}
+                </div>
+              </>
+            )}
           </div>
-        ) : constellationChannels.length === 0 ? (
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertTitle>No channels in this constellation</AlertTitle>
-            <AlertDescription className="text-xs">
-              Add message channels to the constellation first, or continue with all slots unmapped.
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <>
-            <div className="space-y-2">
-              {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
-                const slotKey = `channel_${i}` as keyof ChannelMappings;
-                const cur = mappings[slotKey];
-                return (
-                  <div key={i} className="flex items-center gap-2">
-                    <Label htmlFor={`managed-ch-${node.node_id}-${i}`} className="w-24 shrink-0 text-sm">
-                      Slot {i}
-                    </Label>
-                    <Select value={cur == null ? 'none' : String(cur)} onValueChange={(v) => setSlot(i, v)}>
-                      <SelectTrigger id={`managed-ch-${node.node_id}-${i}`} className="flex-1">
-                        <SelectValue placeholder="Unmapped" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None (unmapped)</SelectItem>
-                        {constellationChannels.map((ch: MessageChannel) => (
-                          <SelectItem key={ch.id} value={String(ch.id)}>
-                            {ch.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <Button type="button" size="sm" disabled={saveChannels.isPending} onClick={() => saveChannels.mutate()}>
-                {saveChannels.isPending ? 'Saving…' : 'Save channel mappings'}
-              </Button>
-              {saveChannels.isError && <span className="text-sm text-destructive">Could not save. Try again.</span>}
-            </div>
-          </>
-        )}
+        ) : null}
       </div>
 
       <div>
