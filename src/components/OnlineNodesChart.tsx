@@ -25,6 +25,7 @@ interface OnlineNodesChartProps {
   /** When true, render without Card/TimeRangeSelect; use dateRange from parent */
   embedded?: boolean;
   dateRange?: { startDate: Date; endDate: Date };
+  movingAverage?: boolean;
 }
 
 export function OnlineNodesChart({
@@ -42,6 +43,7 @@ export function OnlineNodesChart({
   defaultTimeRange = '2d',
   embedded = false,
   dateRange: controlledDateRange,
+  movingAverage = true,
 }: OnlineNodesChartProps) {
   const [timeRangeLabel, setTimeRangeLabel] = React.useState(defaultTimeRange);
   const [internalDateRange, setInternalDateRange] = React.useState<{ startDate: Date; endDate: Date }>({
@@ -167,14 +169,16 @@ export function OnlineNodesChart({
           content={<ChartTooltipContent labelFormatter={tooltipLabelFormatter} indicator="dot" />}
         />
         <Bar dataKey="value" fill="var(--color-value)" fillOpacity={0.7} barSize={8} />
-        <Line
-          type="monotone"
-          dataKey="movingAverage"
-          stroke="var(--color-value)"
-          strokeWidth={2}
-          dot={false}
-          name={aggregationWindow === 'hourly' ? '24h Moving Average' : 'Moving Average'}
-        />
+        {movingAverage && (
+          <Line
+            type="monotone"
+            dataKey="movingAverage"
+            stroke="var(--color-value)"
+            strokeWidth={2}
+            dot={false}
+            name={aggregationWindow === 'hourly' ? '24h Moving Average' : 'Moving Average'}
+          />
+        )}
       </ComposedChart>
     </ChartContainer>
   );

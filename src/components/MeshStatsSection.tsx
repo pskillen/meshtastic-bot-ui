@@ -27,7 +27,7 @@ const onlineNodesOnlyChartConfig = {
 const newNodesOnlyChartConfig = {
   value: {
     label: 'New nodes',
-    color: 'hsl(var(--chart-2))',
+    color: 'hsl(var(--chart-3))',
   },
 } satisfies ChartConfig;
 
@@ -87,6 +87,7 @@ export function MeshStatsSection() {
           config={onlineNodesOnlyChartConfig}
           embedded
           dateRange={dateRange}
+          movingAverage={true}
         />
         <OnlineNodesChart
           title="New Nodes"
@@ -95,6 +96,7 @@ export function MeshStatsSection() {
           config={newNodesOnlyChartConfig}
           embedded
           dateRange={dateRange}
+          movingAverage={false}
         />
         <PacketStatsChartFromSnapshots
           title="Mesh Activity"
