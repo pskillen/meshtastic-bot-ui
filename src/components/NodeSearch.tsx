@@ -43,10 +43,18 @@ export function NodeSearch({ onNodeSelect, displayValue, onClearSelection }: Nod
     return () => clearTimeout(timeoutId);
   }, [query, searchNodes]);
 
+  const searchFieldShell =
+    'rounded-lg border-2 border-slate-300 bg-white shadow-md shadow-slate-900/10 dark:border-slate-500 dark:bg-slate-950 dark:shadow-md dark:shadow-black/35';
+
+  const searchInputClass =
+    'h-9 w-full border-0 bg-transparent shadow-none focus-visible:ring-2 focus-visible:ring-teal-500/45 dark:focus-visible:ring-teal-400/35';
+
   if (displayValue != null && displayValue !== '') {
     return (
       <div className="flex items-center gap-2">
-        <Input type="text" readOnly className="h-9 flex-1 bg-muted" value={displayValue} />
+        <div className={`relative min-w-0 flex-1 ${searchFieldShell}`}>
+          <Input type="text" readOnly className={`${searchInputClass} pr-3`} value={displayValue} />
+        </div>
         {onClearSelection && (
           <Button
             type="button"
@@ -65,11 +73,11 @@ export function NodeSearch({ onNodeSelect, displayValue, onClearSelection }: Nod
 
   return (
     <div ref={searchRef} className="relative w-full">
-      <div className="relative">
+      <div className={`relative ${searchFieldShell}`}>
         <Input
           type="text"
           placeholder="Search nodes..."
-          className="h-9 w-full"
+          className={`${searchInputClass} pr-10`}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -77,14 +85,17 @@ export function NodeSearch({ onNodeSelect, displayValue, onClearSelection }: Nod
           }}
           onFocus={() => setIsOpen(true)}
         />
-        <SearchIcon className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <SearchIcon
+          className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-slate-400"
+          aria-hidden
+        />
       </div>
 
       {isOpen && (query.length >= 2 || searchResults) && (
-        <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-50 bg-popover rounded-lg shadow-lg border border-border">
+        <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-50 rounded-lg border-2 border-slate-300 bg-popover shadow-lg shadow-slate-900/15 dark:border-slate-600 dark:shadow-black/50">
           {isSearching ? (
             <div className="p-2 text-center">
-              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary mx-auto"></div>
+              <div className="mx-auto h-4 w-4 animate-spin rounded-full border-2 border-teal-600 border-t-transparent dark:border-teal-400 dark:border-t-transparent" />
             </div>
           ) : searchResults?.length === 0 ? (
             <div className="p-2 text-muted-foreground">No nodes found</div>

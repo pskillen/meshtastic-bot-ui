@@ -34,7 +34,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <div className="px-4 py-2">
+        <div className="px-4 py-3">
           <NodeSearch />
         </div>
         <NavMain />
