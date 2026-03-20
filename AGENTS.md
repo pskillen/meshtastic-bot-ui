@@ -64,6 +64,7 @@ npm test             # Vitest
 
 ## Conventions
 
+- UI specification (standalone; not tied to current file layout): `docs/STYLEGUIDE.md`.
 - Use `useNodesSuspense` / `useRecentNodeCountsSuspense` inside `<Suspense>` boundaries.
 - Time-based node queries: pass `lastHeardAfter: Date` to filter; use rounded keys for cache stability.
 - Pages under `src/pages/`; shared components under `src/components/`.

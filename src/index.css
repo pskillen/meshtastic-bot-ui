@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    /* Light mode - LOOK_AND_FEEL: slate-50 base, white cards, slate-200 border, slate-900 text, teal-600 accent */
+    /* Light mode — see docs/STYLEGUIDE.md (slate-50 base, white cards, slate-200 border, slate-900 text, teal-600 accent) */
     --background: 210 40% 98%;
     --foreground: 222 47% 11%;
     --card: 0 0% 100%;
@@ -40,7 +40,7 @@
     --sidebar-ring: 174 80% 31%;
   }
   .dark {
-    /* Dark mode - LOOK_AND_FEEL: slate-900 base, slate-800 cards, slate-700 border, slate-100 text, teal-400 accent */
+    /* Dark mode — see docs/STYLEGUIDE.md (slate-900 base, slate-800 cards, slate-700 border, slate-100 text, teal-400 accent) */
     --background: 222 47% 11%;
     --foreground: 210 40% 96%;
     --card: 217 33% 17%;
