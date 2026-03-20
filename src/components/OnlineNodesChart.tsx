@@ -186,8 +186,10 @@ export function OnlineNodesChart({
   if (embedded) {
     return (
       <div>
-        <h3 className="text-sm font-medium mb-1">{title}</h3>
-        {description && <p className="text-xs text-muted-foreground mb-2">{description}</p>}
+        <h3 className="mb-1 font-header text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+          {title}
+        </h3>
+        {description && <p className="mb-2 text-xs text-muted-foreground">{description}</p>}
         {chartContent}
       </div>
     );

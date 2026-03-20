@@ -245,7 +245,9 @@ export function PacketStatsChartFromSnapshots({
       <div>
         <div className="flex items-center justify-between gap-2 mb-2">
           <div>
-            <h3 className="text-sm font-medium">{title}</h3>
+            <h3 className="font-header text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+              {title}
+            </h3>
             {description && <p className="text-xs text-muted-foreground">{description}</p>}
           </div>
           <ToggleGroup

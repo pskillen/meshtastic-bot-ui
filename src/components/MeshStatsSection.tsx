@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { subDays } from 'date-fns';
+import { SectionFrame, SectionInset, sectionCardShellClassName } from '@/components/layout/section-frame';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TimeRangeSelect, TimeRangeOption } from '@/components/TimeRangeSelect';
 import { OnlineNodesChart } from '@/components/OnlineNodesChart';
@@ -68,44 +69,56 @@ export function MeshStatsSection() {
   };
 
   return (
-    <Card data-testid="dashboard-mesh-stats">
-      <CardHeader className="relative">
-        <CardTitle>Mesh stats</CardTitle>
-        <CardDescription>
-          Online nodes, new node discovery, and packet volume over time. Longer ranges are aggregated into 6-hour or
-          daily windows.
-        </CardDescription>
-        <div className="absolute right-4 top-4">
-          <TimeRangeSelect options={MESH_STATS_TIME_OPTIONS} value={timeRangeKey} onChange={handleTimeRangeChange} />
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-6">
-        <OnlineNodesChart
-          title="Online Nodes"
-          description="Online nodes (heard within 2h)"
-          metric="online_nodes"
-          config={onlineNodesOnlyChartConfig}
-          embedded
-          dateRange={dateRange}
-          movingAverage={true}
-        />
-        <OnlineNodesChart
-          title="New Nodes"
-          description="Newly discovered nodes per window (sum)"
-          metric="new_nodes"
-          config={newNodesOnlyChartConfig}
-          embedded
-          dateRange={dateRange}
-          movingAverage={false}
-        />
-        <PacketStatsChartFromSnapshots
-          title="Mesh Activity"
-          description="Total packets"
-          config={packetChartConfig}
-          embedded
-          dateRange={dateRange}
-        />
-      </CardContent>
-    </Card>
+    <SectionFrame data-testid="dashboard-mesh-stats">
+      <Card className={sectionCardShellClassName}>
+        <CardHeader className="relative">
+          <CardTitle className="font-header text-lg tracking-tight text-slate-900 dark:text-slate-100">
+            Mesh stats
+          </CardTitle>
+          <CardDescription>
+            Online nodes, new node discovery, and packet volume over time. Longer ranges are aggregated into 6-hour or
+            daily windows.
+          </CardDescription>
+          <div className="absolute right-4 top-4">
+            <TimeRangeSelect options={MESH_STATS_TIME_OPTIONS} value={timeRangeKey} onChange={handleTimeRangeChange} />
+          </div>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-0 pt-0">
+          <div className="flex flex-col gap-4 px-6 pb-6">
+            <SectionInset className="p-4">
+              <OnlineNodesChart
+                title="Online Nodes"
+                description="Online nodes (heard within 2h)"
+                metric="online_nodes"
+                config={onlineNodesOnlyChartConfig}
+                embedded
+                dateRange={dateRange}
+                movingAverage={true}
+              />
+            </SectionInset>
+            <SectionInset className="p-4">
+              <OnlineNodesChart
+                title="New Nodes"
+                description="Newly discovered nodes per window (sum)"
+                metric="new_nodes"
+                config={newNodesOnlyChartConfig}
+                embedded
+                dateRange={dateRange}
+                movingAverage={false}
+              />
+            </SectionInset>
+            <SectionInset className="p-4">
+              <PacketStatsChartFromSnapshots
+                title="Mesh Activity"
+                description="Total packets"
+                config={packetChartConfig}
+                embedded
+                dateRange={dateRange}
+              />
+            </SectionInset>
+          </div>
+        </CardContent>
+      </Card>
+    </SectionFrame>
   );
 }

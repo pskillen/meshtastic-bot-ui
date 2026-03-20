@@ -54,17 +54,24 @@ export function SiteBreadcrumb() {
   if (segments.length <= 1) return null;
 
   return (
-    <Breadcrumb>
-      <BreadcrumbList>
+    <Breadcrumb className="min-w-0 flex-1">
+      <BreadcrumbList className="gap-2 text-base text-slate-600 sm:text-lg dark:text-slate-400">
         {segments.flatMap((seg, i) => {
           const item = (
             <BreadcrumbItem key={seg.path}>
               {i < segments.length - 1 ? (
                 <BreadcrumbLink asChild>
-                  <Link to={seg.path}>{seg.label}</Link>
+                  <Link
+                    to={seg.path}
+                    className="font-medium text-teal-700 underline-offset-4 hover:text-teal-800 hover:underline dark:text-teal-400 dark:hover:text-teal-300"
+                  >
+                    {seg.label}
+                  </Link>
                 </BreadcrumbLink>
               ) : (
-                <BreadcrumbPage>{seg.label}</BreadcrumbPage>
+                <BreadcrumbPage className="font-semibold text-slate-900 dark:text-slate-100">
+                  {seg.label}
+                </BreadcrumbPage>
               )}
             </BreadcrumbItem>
           );
