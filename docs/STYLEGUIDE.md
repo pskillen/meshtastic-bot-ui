@@ -9,7 +9,7 @@ Standalone specification for **MeshFlow** front-end UI: hierarchy, color, surfac
 1. **Readable hierarchy** — Structure should read at a glance: page canvas → section frame → nested content → (where needed) list rows, inset controls, or accordions.
 2. **Both themes, same intent** — Light and dark are first-class. Prefer **2px** borders and explicit slate strokes where panels must separate clearly; a default **1px** hairline often disappears on nearby tones.
 3. **Semantic tokens first** — Use global theme tokens (`background`, `foreground`, `card`, `border`, `muted`, `accent`) for surfaces that should track theme. Add explicit **slate** (and `dark:` overrides) when hierarchy or contrast needs it.
-4. **Hierarchy drives light/dark, not stripes** — “Alternating” light and dark means **stepping through nested containers** (page → frame → inset → …): each level is defined **relative to its parent** so depth is obvious. It does **not** mean banding **consecutive sibling blocks** (e.g. chart A / chart B / chart C with different backgrounds) for rhythm. Siblings at the same depth should share the **same** container styling unless content semantics differ.
+4. **Hierarchy drives light/dark, not stripes** — Nesting alternates **canvas (A)** and **framed (B)**: each new bordered box is **one** tone throughout (header, body, footer of that box). The next box **inside** it flips to the other tone. See **[Uniform fill: nested A/B surfaces](#uniform-fill-nested-ab-surfaces)**. It does **not** mean banding **consecutive sibling blocks** for rhythm. Siblings at the same depth should share the **same** container styling unless content semantics differ.
 5. **Consistency** — Encode repeated bundles as shared constants or components; avoid one-off border/background combinations for the same role.
 
 ---
@@ -41,6 +41,22 @@ Contrast should change as you **go inward** through the layout tree, not as you 
 | Each parent/child step uses the frame vs inset rules below                                                   | Striped siblings that only differ cosmetically                                           |
 
 So “light/dark” here is **structural** (which box am I inside?) — not a visual pattern across **consecutive** sections.
+
+### Uniform fill: nested A/B surfaces
+
+Use two abstract tones — **A** (canvas) and **B** (framed / raised). **Nesting depth** picks the tone; **every part** of a given box uses **one** tone end-to-end.
+
+| Level                 | Tone        | Rule                                                                                                                                                                                |
+| --------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Page                  | **A**       | Full-bleed canvas (see [Page canvas](#page-canvas)).                                                                                                                                |
+| First box on the page | **B**       | The **whole** box—title bar, main area, footer of **that** region—is **B**. No inner band that snaps back to **A** unless it is a **separate nested box** (next row of this table). |
+| Box inside that       | **A**       | Full inner box back to canvas tone (a true [nested inset](#nested-inset-inner-container)).                                                                                          |
+| Box inside that       | **B**       | Again **B** everywhere for that box.                                                                                                                                                |
+| Deeper                | **A, B, …** | Keep alternating by **depth**.                                                                                                                                                      |
+
+**Children** (list rows, cards, chips) sit **on** the current tone. They do **not** each carry another “layer” of **B** on top of **B** unless they are **explicitly** the next nested box in the table above. Prefer borders, spacing, and typography to separate peers at the same depth.
+
+Concrete slate values for **A** and **B** are theme-specific (see below); the **pattern** is what must stay consistent.
 
 ### Section frame (outer container)
 
