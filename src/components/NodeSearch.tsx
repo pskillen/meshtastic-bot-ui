@@ -4,6 +4,7 @@ import { useNodes } from '@/hooks/api/useNodes';
 import { SearchIcon, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { searchFieldShellClassName, searchInputUnstyledClassName } from '@/components/layout/section-frame';
 
 interface NodeSearchProps {
   onNodeSelect?: (
@@ -43,17 +44,11 @@ export function NodeSearch({ onNodeSelect, displayValue, onClearSelection }: Nod
     return () => clearTimeout(timeoutId);
   }, [query, searchNodes]);
 
-  const searchFieldShell =
-    'rounded-lg border-2 border-slate-300 bg-white shadow-md shadow-slate-900/10 dark:border-slate-500 dark:bg-slate-950 dark:shadow-md dark:shadow-black/35';
-
-  const searchInputClass =
-    'h-9 w-full border-0 bg-transparent shadow-none focus-visible:ring-2 focus-visible:ring-teal-500/45 dark:focus-visible:ring-teal-400/35';
-
   if (displayValue != null && displayValue !== '') {
     return (
       <div className="flex items-center gap-2">
-        <div className={`relative min-w-0 flex-1 ${searchFieldShell}`}>
-          <Input type="text" readOnly className={`${searchInputClass} pr-3`} value={displayValue} />
+        <div className={`relative min-w-0 flex-1 ${searchFieldShellClassName}`}>
+          <Input type="text" readOnly className={`${searchInputUnstyledClassName} pr-3`} value={displayValue} />
         </div>
         {onClearSelection && (
           <Button
@@ -73,11 +68,11 @@ export function NodeSearch({ onNodeSelect, displayValue, onClearSelection }: Nod
 
   return (
     <div ref={searchRef} className="relative w-full">
-      <div className={`relative ${searchFieldShell}`}>
+      <div className={`relative ${searchFieldShellClassName}`}>
         <Input
           type="text"
           placeholder="Search nodes..."
-          className={`${searchInputClass} pr-10`}
+          className={`${searchInputUnstyledClassName} pr-10`}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);

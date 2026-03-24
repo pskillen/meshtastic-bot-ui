@@ -26,7 +26,7 @@ function BatteryIndicator({ level }: { level: number }) {
   return (
     <div className="flex items-center gap-2 ml-auto">
       <div className="flex items-center gap-2 w-20">
-        <div className="flex-1 min-w-0 h-1.5 rounded-full bg-slate-200 dark:bg-slate-600 overflow-hidden">
+        <div className="flex h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-600">
           <div
             className={cn('h-full rounded-full transition-all', getBatteryBarColor(pct))}
             style={{ width: `${pct}%` }}
@@ -47,7 +47,7 @@ export function NodeCard({ node }: NodeCardProps) {
     <Link
       key={node.node_id}
       to={`/nodes/${node.node_id}`}
-      className="block p-5 bg-white dark:bg-slate-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 border border-slate-200 dark:border-slate-700"
+      className="block rounded-lg border-2 border-slate-400 bg-white p-5 shadow-sm transition-shadow duration-200 hover:shadow-md dark:border-slate-600 dark:bg-slate-900"
     >
       <div className="flex justify-between items-start gap-3 mb-3">
         <div className="min-w-0">

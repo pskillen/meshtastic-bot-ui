@@ -31,6 +31,14 @@ export function SectionInset({ className, ...props }: React.ComponentProps<'div'
 /** Transparent Card shell when the section frame already provides the surface. */
 export const sectionCardShellClassName = 'border-0 bg-transparent shadow-none';
 
+/** Framed search field (sidebar, list pages) — pops on canvas. */
+export const searchFieldShellClassName =
+  'rounded-lg border-2 border-slate-300 bg-white shadow-md shadow-slate-900/10 dark:border-slate-500 dark:bg-slate-950 dark:shadow-md dark:shadow-black/35';
+
+/** Input inside {@link searchFieldShellClassName}: no inner border; teal focus ring. */
+export const searchInputUnstyledClassName =
+  'h-9 w-full border-0 bg-transparent shadow-none focus-visible:ring-2 focus-visible:ring-teal-500/45 dark:focus-visible:ring-teal-400/35';
+
 /** Table in inset: header band contrast (STYLEGUIDE — data tables in insets). */
 export const dashboardTableHeaderClassName =
   '[&_th]:bg-slate-200 dark:[&_th]:bg-slate-700 [&_tr]:border-b-2 [&_tr]:border-slate-400 dark:[&_tr]:border-slate-600';
