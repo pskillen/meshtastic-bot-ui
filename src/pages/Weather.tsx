@@ -61,6 +61,7 @@ function WeatherContent() {
   const { nodes, totalNodes, fetchNextPage, hasNextPage } = useWeatherNodesSuspense({
     environmentReportedAfter,
     pageSize: 100,
+    weatherUse: ['include', 'unknown'],
   });
 
   const { metricsMap } = useMultiNodeEnvironmentMetricsSuspense(nodes, chartDateRange);

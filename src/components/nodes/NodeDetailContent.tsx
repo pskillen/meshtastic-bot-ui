@@ -15,11 +15,13 @@ import { PercentGauge } from '@/components/nodes/PercentGauge';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Clock, Copy } from 'lucide-react';
+import { CheckCircle, Clock, Copy, Settings } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { authService } from '@/lib/auth/authService';
 import { getRoleLabel } from '@/lib/meshtastic';
+import type { EnvironmentExposureSlug, WeatherUseSlug } from '@/lib/models';
+import { NodeEnvironmentSettingsDialog } from '@/components/nodes/NodeEnvironmentSettingsDialog';
 
 interface NodeDetailContentProps {
   nodeId: number;
@@ -111,6 +113,7 @@ function TracerouteLinksSection({ nodeId }: { nodeId: number }) {
 export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContentProps) {
   const node = useNodeSuspense(nodeId);
   const { recentNodes, addRecentNode } = useRecentNodes();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const handleCopyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -177,14 +180,36 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
             </div>
           )}
         </div>
-        {(!node.owner || hasPendingClaim) && (
-          <Link
-            to={`/nodes/${nodeId}/claim`}
-            className="px-4 py-2 bg-teal-600 dark:bg-teal-500 text-white rounded-md hover:bg-teal-700 dark:hover:bg-teal-600 transition-colors text-sm whitespace-nowrap"
-          >
-            {hasPendingClaim ? 'View Claim' : 'Claim Node'}
-          </Link>
-        )}
+        <div className="flex flex-shrink-0 items-start gap-2">
+          {node.environment_settings_editable && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label="Node settings"
+                onClick={() => setSettingsOpen(true)}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+              <NodeEnvironmentSettingsDialog
+                open={settingsOpen}
+                onOpenChange={setSettingsOpen}
+                nodeId={nodeId}
+                initialEnvironmentExposure={(node.environment_exposure ?? 'unknown') as EnvironmentExposureSlug}
+                initialWeatherUse={(node.weather_use ?? 'unknown') as WeatherUseSlug}
+              />
+            </>
+          )}
+          {(!node.owner || hasPendingClaim) && (
+            <Link
+              to={`/nodes/${nodeId}/claim`}
+              className="px-4 py-2 bg-teal-600 dark:bg-teal-500 text-white rounded-md hover:bg-teal-700 dark:hover:bg-teal-600 transition-colors text-sm whitespace-nowrap"
+            >
+              {hasPendingClaim ? 'View Claim' : 'Claim Node'}
+            </Link>
+          )}
+        </div>
       </div>
 
       {!compact && recentNodes.length > 1 && (
@@ -226,6 +251,12 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
                   <span className="font-medium">Role:</span> {roleLabel}
                 </p>
               )}
+              <p>
+                <span className="font-medium">Sensor placement:</span> {node.environment_exposure ?? '—'}
+              </p>
+              <p>
+                <span className="font-medium">Weather views:</span> {node.weather_use ?? '—'}
+              </p>
               {node.mac_addr && (
                 <p>
                   <span className="font-medium">MAC Address:</span> <span className="font-mono">{node.mac_addr}</span>
