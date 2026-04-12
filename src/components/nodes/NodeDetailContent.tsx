@@ -251,12 +251,6 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
                   <span className="font-medium">Role:</span> {roleLabel}
                 </p>
               )}
-              <p>
-                <span className="font-medium">Sensor placement:</span> {node.environment_exposure ?? '—'}
-              </p>
-              <p>
-                <span className="font-medium">Weather views:</span> {node.weather_use ?? '—'}
-              </p>
               {node.mac_addr && (
                 <p>
                   <span className="font-medium">MAC Address:</span> <span className="font-mono">{node.mac_addr}</span>
@@ -342,22 +336,36 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
           </Card>
         )}
 
-        {node.latest_environment_metrics && (
+        {(node.latest_environment_metrics || node.environment_exposure != null || node.weather_use != null) && (
           <MetricsCard
             title="Environment Metrics"
-            reportedTime={node.latest_environment_metrics.reported_time}
+            reportedTime={node.latest_environment_metrics?.reported_time}
             metrics={[
-              { label: 'Temperature', value: node.latest_environment_metrics.temperature, unit: '°C' },
-              { label: 'Relative Humidity', value: node.latest_environment_metrics.relative_humidity, unit: '%' },
-              { label: 'Barometric Pressure', value: node.latest_environment_metrics.barometric_pressure, unit: 'hPa' },
-              { label: 'Gas Resistance', value: node.latest_environment_metrics.gas_resistance, unit: 'Ω' },
-              { label: 'IAQ', value: node.latest_environment_metrics.iaq },
-              { label: 'Lux', value: node.latest_environment_metrics.lux, unit: 'lx' },
-              { label: 'Wind Direction', value: node.latest_environment_metrics.wind_direction, unit: '°' },
-              { label: 'Wind Speed', value: node.latest_environment_metrics.wind_speed, unit: 'm/s' },
-              { label: 'Radiation', value: node.latest_environment_metrics.radiation },
-              { label: 'Rainfall 1h', value: node.latest_environment_metrics.rainfall_1h, unit: 'mm' },
-              { label: 'Rainfall 24h', value: node.latest_environment_metrics.rainfall_24h, unit: 'mm' },
+              { label: 'Sensor placement', value: node.environment_exposure },
+              { label: 'Use for weather', value: node.weather_use },
+              ...(node.latest_environment_metrics
+                ? [
+                    { label: 'Temperature', value: node.latest_environment_metrics.temperature, unit: '°C' },
+                    {
+                      label: 'Relative Humidity',
+                      value: node.latest_environment_metrics.relative_humidity,
+                      unit: '%',
+                    },
+                    {
+                      label: 'Barometric Pressure',
+                      value: node.latest_environment_metrics.barometric_pressure,
+                      unit: 'hPa',
+                    },
+                    { label: 'Gas Resistance', value: node.latest_environment_metrics.gas_resistance, unit: 'Ω' },
+                    { label: 'IAQ', value: node.latest_environment_metrics.iaq },
+                    { label: 'Lux', value: node.latest_environment_metrics.lux, unit: 'lx' },
+                    { label: 'Wind Direction', value: node.latest_environment_metrics.wind_direction, unit: '°' },
+                    { label: 'Wind Speed', value: node.latest_environment_metrics.wind_speed, unit: 'm/s' },
+                    { label: 'Radiation', value: node.latest_environment_metrics.radiation },
+                    { label: 'Rainfall 1h', value: node.latest_environment_metrics.rainfall_1h, unit: 'mm' },
+                    { label: 'Rainfall 24h', value: node.latest_environment_metrics.rainfall_24h, unit: 'mm' },
+                  ]
+                : []),
             ]}
           />
         )}
