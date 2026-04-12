@@ -3,6 +3,7 @@ import { subHours } from 'date-fns';
 import { useWeatherNodesSuspense } from '@/hooks/api/useNodes';
 import { useMultiNodeEnvironmentMetricsSuspense } from '@/hooks/api/useMultiNodeEnvironmentMetrics';
 import { WeatherNodeCard } from '@/components/nodes/WeatherNodeCard';
+import { WeatherMapAgeLegend } from '@/components/nodes/WeatherMapAgeLegend';
 import { WeatherNodesMap } from '@/components/nodes/WeatherNodesMap';
 import { TimeRangeSelect } from '@/components/TimeRangeSelect';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,6 +18,9 @@ const CHART_TIME_RANGE_OPTIONS = [
 ];
 
 type EnvCutoffRange = '2h' | '6h' | '12h' | '24h';
+
+/** Map legend and marker fade/hide window (hours). */
+const WEATHER_MAP_ENV_AGE_HOURS = 24;
 
 const ENV_CUTOFF_OPTIONS: { value: EnvCutoffRange; label: string }[] = [
   { value: '2h', label: '2 hours' },
@@ -61,6 +65,7 @@ function WeatherContent() {
   const { nodes, totalNodes, fetchNextPage, hasNextPage } = useWeatherNodesSuspense({
     environmentReportedAfter,
     pageSize: 100,
+    weatherUse: ['include', 'unknown'],
   });
 
   const { metricsMap } = useMultiNodeEnvironmentMetricsSuspense(nodes, chartDateRange);
@@ -126,12 +131,14 @@ function WeatherContent() {
           <CardHeader>
             <CardTitle>Weather Node Locations</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Nodes fade to gray based on reading age (24h ago = 100% gray). Nodes with readings &gt;24h ago are hidden.
+              Markers use a sky-blue tone when fresh and fade to gray as the reading ages (linear over 24h). Older
+              readings are hidden.
             </p>
           </CardHeader>
           <CardContent>
+            <WeatherMapAgeLegend fadeHours={WEATHER_MAP_ENV_AGE_HOURS} />
             <div className="h-[600px] w-full">
-              <WeatherNodesMap nodes={nodes} cutoffHours={24} />
+              <WeatherNodesMap nodes={nodes} cutoffHours={WEATHER_MAP_ENV_AGE_HOURS} />
             </div>
           </CardContent>
         </Card>

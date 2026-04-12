@@ -370,6 +370,8 @@ export function useInfrastructureNodesSuspense(options?: UseInfrastructureNodesO
 export interface UseWeatherNodesOptions {
   pageSize?: number;
   environmentReportedAfter?: Date;
+  weatherUse?: string[];
+  environmentExposure?: string[];
 }
 
 /**
@@ -381,15 +383,19 @@ export function useWeatherNodesSuspense(options?: UseWeatherNodesOptions) {
   const environmentReportedAfterKey = options?.environmentReportedAfter
     ? roundToFiveMinutes(options.environmentReportedAfter)
     : null;
+  const weatherUseKey = [...(options?.weatherUse ?? [])].sort().join(',') || 'all';
+  const environmentExposureKey = [...(options?.environmentExposure ?? [])].sort().join(',') || 'all';
 
   const nodesQuery = useSuspenseInfiniteQuery<PaginatedResponse<ObservedNode>, Error>({
     refetchInterval: 1000 * 60, // 1 minute
-    queryKey: ['nodes', 'weather', pageSize, environmentReportedAfterKey],
+    queryKey: ['nodes', 'weather', pageSize, environmentReportedAfterKey, weatherUseKey, environmentExposureKey],
     queryFn: async ({ pageParam = 1 }) =>
       api.getWeatherNodes({
         page: pageParam as number,
         pageSize,
         environmentReportedAfter: options?.environmentReportedAfter,
+        weatherUse: options?.weatherUse,
+        environmentExposure: options?.environmentExposure,
       }),
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) => (lastPage.next ? allPages.length + 1 : undefined),

@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { subHours } from 'date-fns';
 import { ObservedNode } from '@/lib/models';
 import { NodesAndConstellationsMap } from './NodesAndConstellationsMap';
+import { weatherMarkerBackgroundColor, WEATHER_MARKER_STALE_COLOR } from './map-utils';
 import { LatestEnvironmentMetrics } from '@/lib/models';
 
 const MAP_CUTOFF_HOURS = 24;
@@ -41,8 +42,8 @@ export interface WeatherNodesMapProps {
 }
 
 /**
- * Map of weather nodes with temp/pressure/RH labels and age-based grayscale fading.
- * Nodes with env readings > cutoffHours ago are hidden.
+ * Map of weather nodes with temp labels and a fixed sky-blue pill that fades to slate gray
+ * as the env reading ages (linear over cutoffHours). Nodes older than cutoff are hidden.
  */
 export function WeatherNodesMap({ nodes, cutoffHours = MAP_CUTOFF_HOURS }: WeatherNodesMapProps) {
   const cutoff = useMemo(() => subHours(new Date(), cutoffHours), [cutoffHours]);
@@ -58,16 +59,13 @@ export function WeatherNodesMap({ nodes, cutoffHours = MAP_CUTOFF_HOURS }: Weath
 
   const getMarkerLabel = useMemo(() => (node: ObservedNode) => formatWeatherLabel(node.latest_environment_metrics), []);
 
-  const getMarkerGrayscale = useMemo(
+  const getMarkerColor = useMemo(
     () => (node: ObservedNode) => {
       const reported = getEnvironmentReportedTime(node);
-      if (!reported) return 1;
-      const ageMs = Date.now() - reported.getTime();
-      const ageHours = ageMs / (1000 * 60 * 60);
-      if (ageHours >= MAP_CUTOFF_HOURS) return 1;
-      return ageHours / MAP_CUTOFF_HOURS;
+      if (!reported) return WEATHER_MARKER_STALE_COLOR;
+      return weatherMarkerBackgroundColor(reported, cutoffHours);
     },
-    []
+    [cutoffHours]
   );
 
   return (
@@ -80,7 +78,7 @@ export function WeatherNodesMap({ nodes, cutoffHours = MAP_CUTOFF_HOURS }: Weath
       drawPositionUncertainty={false}
       enableBubbles={true}
       getMarkerLabel={getMarkerLabel}
-      getMarkerGrayscale={getMarkerGrayscale}
+      getMarkerColor={getMarkerColor}
     />
   );
 }

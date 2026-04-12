@@ -16,6 +16,12 @@ export interface ObservedNodeClaimEmbedded {
   accepted_at: string | null;
 }
 
+/** API slugs for ObservedNode.environment_exposure */
+export type EnvironmentExposureSlug = 'unknown' | 'indoor' | 'outdoor' | 'sheltered';
+
+/** API slugs for ObservedNode.weather_use */
+export type WeatherUseSlug = 'unknown' | 'include' | 'exclude';
+
 // ObservedNode from Meshflow API v2
 export interface ObservedNode {
   internal_id: number;
@@ -30,6 +36,10 @@ export interface ObservedNode {
   is_licensed?: boolean | null;
   is_unmessagable?: boolean | null;
   inferred_max_hops?: number | null;
+  environment_exposure?: EnvironmentExposureSlug;
+  weather_use?: WeatherUseSlug;
+  /** True when the current user may PATCH environment-settings (staff or claim owner). */
+  environment_settings_editable?: boolean;
   // Additional fields for UI compatibility
   last_heard?: Date | null;
   latest_device_metrics?: DeviceMetrics | null;

@@ -16,6 +16,34 @@ export function getRoleColor(role: number | null | undefined): string {
   return role != null && ROLE_COLORS[role] ? ROLE_COLORS[role] : DEFAULT_ROLE_COLOR;
 }
 
+/** Fresh weather marker fill (sky). Fades toward stale slate over `fadeHours`. */
+export const WEATHER_MARKER_FRESH_HEX = '#0ea5e9';
+export const WEATHER_MARKER_STALE_HEX = '#94a3b8';
+
+const WEATHER_MARKER_FRESH_RGB = { r: 14, g: 165, b: 233 }; // sync with WEATHER_MARKER_FRESH_HEX
+const WEATHER_MARKER_STALE_RGB = { r: 148, g: 163, b: 184 }; // sync with WEATHER_MARKER_STALE_HEX
+
+/** Pill colour when env time is missing (should not appear on map for long). */
+export const WEATHER_MARKER_STALE_COLOR = `rgb(${WEATHER_MARKER_STALE_RGB.r},${WEATHER_MARKER_STALE_RGB.g},${WEATHER_MARKER_STALE_RGB.b})`;
+
+/**
+ * Background color for a weather map pill by env reading age: full sky blue when fresh, slate gray at `fadeHours`.
+ */
+export function weatherMarkerBackgroundColor(
+  reportedTime: Date,
+  fadeHours: number,
+  nowMs: number = Date.now()
+): string {
+  const ageMs = Math.max(0, nowMs - reportedTime.getTime());
+  const t = Math.min(1, ageMs / (fadeHours * 60 * 60 * 1000));
+  const a = WEATHER_MARKER_FRESH_RGB;
+  const b = WEATHER_MARKER_STALE_RGB;
+  const r = Math.round(a.r + (b.r - a.r) * t);
+  const g = Math.round(a.g + (b.g - a.g) * t);
+  const bl = Math.round(a.b + (b.b - a.b) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
 /** Minimal node fields for popup content */
 export interface NodePopupData {
   node_id: number;

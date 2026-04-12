@@ -15,11 +15,13 @@ import { PercentGauge } from '@/components/nodes/PercentGauge';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Clock, Copy } from 'lucide-react';
+import { CheckCircle, Clock, Copy, Settings } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { authService } from '@/lib/auth/authService';
 import { getRoleLabel } from '@/lib/meshtastic';
+import type { EnvironmentExposureSlug, WeatherUseSlug } from '@/lib/models';
+import { NodeEnvironmentSettingsDialog } from '@/components/nodes/NodeEnvironmentSettingsDialog';
 
 interface NodeDetailContentProps {
   nodeId: number;
@@ -111,6 +113,7 @@ function TracerouteLinksSection({ nodeId }: { nodeId: number }) {
 export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContentProps) {
   const node = useNodeSuspense(nodeId);
   const { recentNodes, addRecentNode } = useRecentNodes();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const handleCopyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -177,14 +180,36 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
             </div>
           )}
         </div>
-        {(!node.owner || hasPendingClaim) && (
-          <Link
-            to={`/nodes/${nodeId}/claim`}
-            className="px-4 py-2 bg-teal-600 dark:bg-teal-500 text-white rounded-md hover:bg-teal-700 dark:hover:bg-teal-600 transition-colors text-sm whitespace-nowrap"
-          >
-            {hasPendingClaim ? 'View Claim' : 'Claim Node'}
-          </Link>
-        )}
+        <div className="flex flex-shrink-0 items-start gap-2">
+          {node.environment_settings_editable && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label="Node settings"
+                onClick={() => setSettingsOpen(true)}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+              <NodeEnvironmentSettingsDialog
+                open={settingsOpen}
+                onOpenChange={setSettingsOpen}
+                nodeId={nodeId}
+                initialEnvironmentExposure={(node.environment_exposure ?? 'unknown') as EnvironmentExposureSlug}
+                initialWeatherUse={(node.weather_use ?? 'unknown') as WeatherUseSlug}
+              />
+            </>
+          )}
+          {(!node.owner || hasPendingClaim) && (
+            <Link
+              to={`/nodes/${nodeId}/claim`}
+              className="px-4 py-2 bg-teal-600 dark:bg-teal-500 text-white rounded-md hover:bg-teal-700 dark:hover:bg-teal-600 transition-colors text-sm whitespace-nowrap"
+            >
+              {hasPendingClaim ? 'View Claim' : 'Claim Node'}
+            </Link>
+          )}
+        </div>
       </div>
 
       {!compact && recentNodes.length > 1 && (
@@ -311,22 +336,36 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
           </Card>
         )}
 
-        {node.latest_environment_metrics && (
+        {(node.latest_environment_metrics || node.environment_exposure != null || node.weather_use != null) && (
           <MetricsCard
             title="Environment Metrics"
-            reportedTime={node.latest_environment_metrics.reported_time}
+            reportedTime={node.latest_environment_metrics?.reported_time}
             metrics={[
-              { label: 'Temperature', value: node.latest_environment_metrics.temperature, unit: '°C' },
-              { label: 'Relative Humidity', value: node.latest_environment_metrics.relative_humidity, unit: '%' },
-              { label: 'Barometric Pressure', value: node.latest_environment_metrics.barometric_pressure, unit: 'hPa' },
-              { label: 'Gas Resistance', value: node.latest_environment_metrics.gas_resistance, unit: 'Ω' },
-              { label: 'IAQ', value: node.latest_environment_metrics.iaq },
-              { label: 'Lux', value: node.latest_environment_metrics.lux, unit: 'lx' },
-              { label: 'Wind Direction', value: node.latest_environment_metrics.wind_direction, unit: '°' },
-              { label: 'Wind Speed', value: node.latest_environment_metrics.wind_speed, unit: 'm/s' },
-              { label: 'Radiation', value: node.latest_environment_metrics.radiation },
-              { label: 'Rainfall 1h', value: node.latest_environment_metrics.rainfall_1h, unit: 'mm' },
-              { label: 'Rainfall 24h', value: node.latest_environment_metrics.rainfall_24h, unit: 'mm' },
+              { label: 'Sensor placement', value: node.environment_exposure },
+              { label: 'Use for weather', value: node.weather_use },
+              ...(node.latest_environment_metrics
+                ? [
+                    { label: 'Temperature', value: node.latest_environment_metrics.temperature, unit: '°C' },
+                    {
+                      label: 'Relative Humidity',
+                      value: node.latest_environment_metrics.relative_humidity,
+                      unit: '%',
+                    },
+                    {
+                      label: 'Barometric Pressure',
+                      value: node.latest_environment_metrics.barometric_pressure,
+                      unit: 'hPa',
+                    },
+                    { label: 'Gas Resistance', value: node.latest_environment_metrics.gas_resistance, unit: 'Ω' },
+                    { label: 'IAQ', value: node.latest_environment_metrics.iaq },
+                    { label: 'Lux', value: node.latest_environment_metrics.lux, unit: 'lx' },
+                    { label: 'Wind Direction', value: node.latest_environment_metrics.wind_direction, unit: '°' },
+                    { label: 'Wind Speed', value: node.latest_environment_metrics.wind_speed, unit: 'm/s' },
+                    { label: 'Radiation', value: node.latest_environment_metrics.radiation },
+                    { label: 'Rainfall 1h', value: node.latest_environment_metrics.rainfall_1h, unit: 'mm' },
+                    { label: 'Rainfall 24h', value: node.latest_environment_metrics.rainfall_24h, unit: 'mm' },
+                  ]
+                : []),
             ]}
           />
         )}

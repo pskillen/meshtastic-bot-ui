@@ -123,6 +123,9 @@ export class MeshtasticApi extends BaseApi {
     environmentReportedAfter?: Date;
     page?: number;
     pageSize?: number;
+    /** Repeat query param; typical default for maps: include + unknown */
+    weatherUse?: string[];
+    environmentExposure?: string[];
   }): Promise<PaginatedResponse<ObservedNode>> {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.append('page', params.page.toString());
@@ -130,12 +133,29 @@ export class MeshtasticApi extends BaseApi {
     if (params?.environmentReportedAfter) {
       searchParams.append('environment_reported_after', params.environmentReportedAfter.toISOString());
     }
+    for (const w of params?.weatherUse ?? []) {
+      searchParams.append('weather_use', w);
+    }
+    for (const e of params?.environmentExposure ?? []) {
+      searchParams.append('environment_exposure', e);
+    }
 
     const response = await this.get<PaginatedResponse<ObservedNode>>('/nodes/observed-nodes/weather/', searchParams);
     return {
       ...response,
       results: response.results.map((node) => parseObservedNodeFromAPI(node)),
     };
+  }
+
+  /**
+   * Update environment exposure / weather_use (staff or claim owner only).
+   */
+  async patchObservedNodeEnvironmentSettings(
+    nodeId: number,
+    body: { environment_exposure?: string; weather_use?: string }
+  ): Promise<ObservedNode> {
+    const node = await this.patch<ObservedNode>(`/nodes/observed-nodes/${nodeId}/environment-settings/`, body);
+    return parseObservedNodeFromAPI(node);
   }
 
   /**

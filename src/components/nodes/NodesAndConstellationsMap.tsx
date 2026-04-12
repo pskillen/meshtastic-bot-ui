@@ -59,6 +59,8 @@ export interface NodesAndConstellationsMapProps {
   getMarkerLabel?: (node: ObservedNode) => string;
   /** Optional opacity 0-1 for observed node markers (e.g. age-based fading) */
   getMarkerOpacity?: (node: ObservedNode) => number;
+  /** When set with getMarkerLabel, overrides role colour (e.g. weather age blend) */
+  getMarkerColor?: (node: ObservedNode) => string;
   /** Optional grayscale 0-1 for observed node markers (e.g. 24h = 100% gray) */
   getMarkerGrayscale?: (node: ObservedNode) => number;
 }
@@ -79,6 +81,7 @@ export function NodesAndConstellationsMap({
   selectedNodeId: selectedNodeIdProp,
   getMarkerLabel,
   getMarkerOpacity,
+  getMarkerColor,
   getMarkerGrayscale,
 }: NodesAndConstellationsMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -404,7 +407,9 @@ export function NodesAndConstellationsMap({
         : node.short_name || node.node_id_str?.toString().slice(-4) || '?';
       const opacity = getMarkerOpacity?.(node as ObservedNode);
       const grayscale = getMarkerGrayscale?.(node as ObservedNode);
-      const color = getRoleColor('role' in node ? node.role : undefined);
+      const color = getMarkerColor
+        ? getMarkerColor(node as ObservedNode)
+        : getRoleColor('role' in node ? node.role : undefined);
       const iconFn = getMarkerLabel ? createWeatherNodeIcon : createNodeIcon;
       const marker = L.marker(position, {
         icon: iconFn(label, color, isSelected, hasSelection && !isSelected, opacity, grayscale),
@@ -467,6 +472,7 @@ export function NodesAndConstellationsMap({
     handleMarkerClick,
     getMarkerLabel,
     getMarkerOpacity,
+    getMarkerColor,
     getMarkerGrayscale,
   ]);
 
