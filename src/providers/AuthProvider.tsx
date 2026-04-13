@@ -128,6 +128,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Handle /auth/callback (code+state) and /oauth/callback (token)
       if ((location.pathname === '/auth/callback' || location.pathname === '/oauth/callback') && location.search) {
         const params = new URLSearchParams(location.search);
+        const oauthError = params.get('error');
+        if (oauthError?.startsWith('discord_connect_')) {
+          const discordConnectMessages: Record<string, string> = {
+            discord_connect_account_in_use: 'That Discord account is already linked to another Meshflow user.',
+            discord_connect_invalid_state: 'This Discord link expired or was already used. Try connecting again.',
+            discord_connect_missing_params: 'Discord did not return a complete authorization. Try again.',
+            discord_connect_user_missing: 'Your Meshflow session could not be matched. Sign in again.',
+            discord_connect_disabled: 'Your account cannot link Discord right now.',
+            discord_connect_token_exchange: 'Could not complete Discord authorization. Try again.',
+            discord_connect_no_access_token: 'Could not complete Discord authorization. Try again.',
+            discord_connect_discord_profile: 'Could not read your Discord profile. Try again.',
+          };
+          setError(discordConnectMessages[oauthError] ?? `Discord linking failed (${oauthError}).`);
+          navigate('/user/nodes?tab=notifications', { replace: true });
+          setIsLoading(false);
+          return;
+        }
         const token = params.get('token');
         if (token) {
           try {
@@ -135,7 +152,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
             authService.setAccessTokenOnly(token);
             setIsAuthenticated(authService.isAuthenticated());
             setAuthProvider(authService.getAuthProvider());
-            navigate('/');
+            await queryClient.invalidateQueries({ queryKey: discordNotificationPrefsQueryKey });
+            navigate('/user/nodes?tab=notifications');
           } catch (err) {
             setError(err instanceof Error ? err.message : 'OAuth token handling failed');
           } finally {

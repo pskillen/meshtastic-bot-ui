@@ -32,7 +32,7 @@ import {
   usePatchDiscordNotificationPrefs,
   usePostDiscordNotificationTest,
 } from '@/hooks/api/useDiscordNotifications';
-import { useAuth } from '@/providers/AuthProvider';
+import { authService } from '@/lib/auth/authService';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 // TODO: Add QRCode support for API keys in the future
@@ -47,13 +47,22 @@ function discordPrefsErrorDetail(err: unknown): string {
 }
 
 function DiscordNotificationsPanel() {
-  const { loginWithDiscord } = useAuth();
+  const config = useConfig();
   const { data, isLoading, error, refetch } = useDiscordNotificationPrefs();
   const patchPrefs = usePatchDiscordNotificationPrefs();
   const testDm = usePostDiscordNotificationTest();
 
   const linked = data?.discord_linked ?? false;
   const verified = data?.discord_notify_verified ?? false;
+
+  const handleConnectDiscord = async () => {
+    try {
+      const url = await authService.getDiscordConnectAuthUrl(config.apis.meshBot.baseUrl);
+      window.location.href = url;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not start Discord linking');
+    }
+  };
 
   const handleResync = () => {
     patchPrefs.mutate(undefined, {
@@ -78,11 +87,11 @@ function DiscordNotificationsPanel() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Bell className="h-5 w-5" />
-          Discord notifications
+          Discord
         </CardTitle>
         <CardDescription>
-          Mesh Monitoring can send you a direct message on Discord when a watched node goes offline (once the backend
-          feature is enabled). Link Discord with the same account you use here, then send a test message to confirm.
+          Link your Discord account to Meshflow so we can send you direct messages (e.g. test ping below, or future
+          alerts). After linking, use &quot;Send test notification&quot; to confirm the bot can DM you.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -119,18 +128,17 @@ function DiscordNotificationsPanel() {
             {!linked && (
               <Alert>
                 <Info className="h-4 w-4" />
-                <AlertTitle>Connect Discord</AlertTitle>
+                <AlertTitle>Link Discord</AlertTitle>
                 <AlertDescription className="text-xs leading-relaxed">
-                  Use the same sign-in flow as &quot;Login with Discord&quot;. After you return, we refresh your link
-                  status here. If you use another sign-in method, connecting Discord may sign you in as your Discord
-                  identity—use the account you want for alerts.
+                  You&apos;ll sign in with Discord once to attach that account to your current Meshflow login (Google,
+                  GitHub, password, etc.). The redirect returns you here with your session preserved.
                 </AlertDescription>
               </Alert>
             )}
 
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="default" onClick={() => void loginWithDiscord()}>
-                {linked ? 'Reconnect Discord' : 'Connect Discord'}
+              <Button type="button" variant="default" onClick={() => void handleConnectDiscord()}>
+                {linked ? 'Change linked Discord' : 'Link Discord'}
               </Button>
               <Button type="button" variant="outline" disabled={patchPrefs.isPending} onClick={handleResync}>
                 {patchPrefs.isPending ? 'Refreshing…' : 'Refresh status'}
