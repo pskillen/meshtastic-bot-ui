@@ -6,7 +6,7 @@ import { useConstellationChannels } from '@/hooks/api/useConstellations';
 import { useMyManagedNodesSuspense, useMyClaimedNodesSuspense } from '@/hooks/api/useNodes';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Info, Copy, Radio, HelpCircle, ChevronDown, KeyRound } from 'lucide-react';
+import { Loader2, AlertCircle, Info, Copy, Radio, HelpCircle, ChevronDown, KeyRound, Bell } from 'lucide-react';
 import { useConfig } from '@/providers/ConfigProvider';
 import { BotSetupInstructions } from '@/components/nodes/BotSetupInstructions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -27,8 +27,130 @@ import { ObservedNode, type MessageChannel, type OwnedManagedNode, type NodeApiK
 import { SetupManagedNode } from '@/components/nodes/SetupManagedNode';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMeshtasticApi } from '@/hooks/api/useApi';
+import {
+  useDiscordNotificationPrefs,
+  usePatchDiscordNotificationPrefs,
+  usePostDiscordNotificationTest,
+} from '@/hooks/api/useDiscordNotifications';
+import { useAuth } from '@/providers/AuthProvider';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 // TODO: Add QRCode support for API keys in the future
+
+function discordPrefsErrorDetail(err: unknown): string {
+  if (typeof err === 'object' && err !== null && 'data' in err) {
+    const data = (err as { data?: { detail?: string } }).data;
+    if (data?.detail) return data.detail;
+  }
+  if (err instanceof Error) return err.message;
+  return 'Request failed';
+}
+
+function DiscordNotificationsPanel() {
+  const { loginWithDiscord } = useAuth();
+  const { data, isLoading, error, refetch } = useDiscordNotificationPrefs();
+  const patchPrefs = usePatchDiscordNotificationPrefs();
+  const testDm = usePostDiscordNotificationTest();
+
+  const linked = data?.discord_linked ?? false;
+  const verified = data?.discord_notify_verified ?? false;
+
+  const handleResync = () => {
+    patchPrefs.mutate(undefined, {
+      onSuccess: () => {
+        toast.success('Discord status refreshed');
+      },
+      onError: (e) => toast.error(discordPrefsErrorDetail(e)),
+    });
+  };
+
+  const handleTest = () => {
+    testDm.mutate(undefined, {
+      onSuccess: (res) => {
+        toast.success(res.detail === 'ok' ? 'Test DM sent' : res.detail);
+      },
+      onError: (e) => toast.error(discordPrefsErrorDetail(e)),
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Bell className="h-5 w-5" />
+          Discord notifications
+        </CardTitle>
+        <CardDescription>
+          Mesh Monitoring can send you a direct message on Discord when a watched node goes offline (once the backend
+          feature is enabled). Link Discord with the same account you use here, then send a test message to confirm.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-slate-500 dark:text-slate-400" />
+          </div>
+        ) : error ? (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Could not load settings</AlertTitle>
+            <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <span>{error instanceof Error ? error.message : 'Unknown error'}</span>
+              <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>
+                Retry
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <>
+            <div className="grid gap-2 text-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-muted-foreground">Discord account</span>
+                <Badge variant={linked ? 'default' : 'secondary'}>{linked ? 'Connected' : 'Not connected'}</Badge>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-muted-foreground">Alerts</span>
+                <Badge variant={verified ? 'default' : 'secondary'}>
+                  {verified ? 'Ready for alerts' : 'Not verified'}
+                </Badge>
+              </div>
+            </div>
+
+            {!linked && (
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertTitle>Connect Discord</AlertTitle>
+                <AlertDescription className="text-xs leading-relaxed">
+                  Use the same sign-in flow as &quot;Login with Discord&quot;. After you return, we refresh your link
+                  status here. If you use another sign-in method, connecting Discord may sign you in as your Discord
+                  identity—use the account you want for alerts.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="default" onClick={() => void loginWithDiscord()}>
+                {linked ? 'Reconnect Discord' : 'Connect Discord'}
+              </Button>
+              <Button type="button" variant="outline" disabled={patchPrefs.isPending} onClick={handleResync}>
+                {patchPrefs.isPending ? 'Refreshing…' : 'Refresh status'}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!verified || testDm.isPending}
+                onClick={handleTest}
+                title={verified ? 'Send a test DM via the Meshflow bot' : 'Link and verify Discord first (OAuth sync)'}
+              >
+                {testDm.isPending ? 'Sending…' : 'Send test notification'}
+              </Button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function NodeSettingsContent() {
   const api = useMeshtasticApi();
@@ -47,7 +169,9 @@ function NodeSettingsContent() {
   const cancelClaimMutation = useCancelNodeClaim();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
-  const activeTab = ['nodes', 'pending-claims', 'managed'].includes(tabParam ?? '') ? tabParam! : 'nodes';
+  const activeTab = ['nodes', 'pending-claims', 'managed', 'notifications'].includes(tabParam ?? '')
+    ? tabParam!
+    : 'nodes';
 
   const handleTabChange = (value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -91,10 +215,14 @@ function NodeSettingsContent() {
       )}
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="mb-4">
+        <TabsList className="mb-4 flex flex-wrap gap-1">
           <TabsTrigger value="nodes">My Nodes</TabsTrigger>
           <TabsTrigger value="pending-claims">Pending Claims</TabsTrigger>
           <TabsTrigger value="managed">Managed Nodes</TabsTrigger>
+          <TabsTrigger value="notifications" className="gap-1.5">
+            <Bell className="h-3.5 w-3.5" />
+            Notifications
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="nodes">
@@ -153,6 +281,10 @@ function NodeSettingsContent() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="notifications">
+          <DiscordNotificationsPanel />
         </TabsContent>
 
         <TabsContent value="pending-claims">

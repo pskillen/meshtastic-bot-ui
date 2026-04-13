@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { authService, AuthProvider as AuthProviderType } from '@/lib/auth/authService';
 import { useConfig } from './ConfigProvider';
 import { eventService } from '@/lib/events/eventService';
 import { AuthEventType } from '@/lib/auth/authService';
+import { discordNotificationPrefsQueryKey } from '@/hooks/api/useDiscordNotifications';
 
 // Auth context interface
 interface AuthContextType {
@@ -36,6 +38,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const config = useConfig();
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
 
   // Proactive token refresh: check every 90s, refresh if expired within 5 min
   useEffect(() => {
@@ -273,7 +276,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await authService.loginWithDiscord(config.apis.meshBot.baseUrl, code);
       setIsAuthenticated(authService.isAuthenticated());
       setAuthProvider(authService.getAuthProvider());
-      navigate('/');
+      await queryClient.invalidateQueries({ queryKey: discordNotificationPrefsQueryKey });
+      navigate('/user/nodes?tab=notifications');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Discord login failed');
       setIsAuthenticated(false);
