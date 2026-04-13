@@ -441,6 +441,33 @@ export const authService = {
     return data.authorization_url;
   },
 
+  /**
+   * Authenticated: Discord OAuth URL to link Discord to the current Meshflow account
+   * (separate redirect URI from login). Requires Bearer JWT.
+   */
+  async getDiscordConnectAuthUrl(baseUrl: string): Promise<string> {
+    const accessToken = this.getAccessToken();
+    if (!accessToken) {
+      throw new Error('You must be signed in to link Discord');
+    }
+    const response = await fetch(`${baseUrl}/api/auth/social/discord/connect/`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(errText || 'Failed to get Discord connect authorization URL');
+    }
+
+    const data = await response.json();
+    return data.authorization_url as string;
+  },
+
   // Update API config with current token
   updateApiConfig(config: ApiConfig): ApiConfig {
     const accessToken = this.getAccessToken();

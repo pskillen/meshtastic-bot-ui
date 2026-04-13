@@ -21,6 +21,7 @@ import {
   NodeApiKey,
   CreateNodeApiKey,
   AutoTraceRoute,
+  DiscordNotificationPrefs,
 } from '../models';
 import {
   ApiConfig,
@@ -766,5 +767,22 @@ export class MeshtasticApi extends BaseApi {
       searchParams.append('triggered_at_after', params.triggered_at_after);
     }
     return this.get(`/nodes/observed-nodes/${nodeId}/traceroute-links/`, searchParams);
+  }
+
+  // ===== Discord notification prefs (Mesh Monitoring phase 02) =====
+
+  /** GET /api/auth/discord/notifications/ */
+  async getDiscordNotificationPrefs(): Promise<DiscordNotificationPrefs> {
+    return this.get<DiscordNotificationPrefs>('/auth/discord/notifications/');
+  }
+
+  /** PATCH /api/auth/discord/notifications/ — re-sync from SocialAccount */
+  async patchDiscordNotificationPrefs(): Promise<DiscordNotificationPrefs> {
+    return this.patch<DiscordNotificationPrefs>('/auth/discord/notifications/', {});
+  }
+
+  /** POST /api/auth/discord/notifications/test/ */
+  async postDiscordNotificationTest(): Promise<{ detail: string }> {
+    return this.post<{ detail: string }>('/auth/discord/notifications/test/', {});
   }
 }

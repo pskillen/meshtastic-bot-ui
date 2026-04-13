@@ -415,3 +415,9 @@ export interface CreateNodeApiKey {
   name: string;
   constellation: number;
 }
+
+/** GET/PATCH `/api/auth/discord/notifications/` (Mesh Monitoring phase 02) */
+export interface DiscordNotificationPrefs {
+  discord_linked: boolean;
+  discord_notify_verified: boolean;
+}

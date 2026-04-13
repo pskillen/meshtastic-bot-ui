@@ -91,7 +91,7 @@ function NodeSettingsContent() {
       )}
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="mb-4">
+        <TabsList className="mb-4 flex flex-wrap gap-1">
           <TabsTrigger value="nodes">My Nodes</TabsTrigger>
           <TabsTrigger value="pending-claims">Pending Claims</TabsTrigger>
           <TabsTrigger value="managed">Managed Nodes</TabsTrigger>
