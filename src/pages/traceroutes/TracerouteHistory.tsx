@@ -34,6 +34,9 @@ function getTracerouteErrorMessage(error: unknown): string {
     if (detail.toLowerCase().includes('allow_auto_traceroute')) {
       return "This node doesn't allow traceroutes. Enable it in the node settings.";
     }
+    if (detail.toLowerCase().includes('no recent packet ingestion')) {
+      return 'That source is not reporting packets right now (monitor offline or quiet). Pick another source or wait for the bot to ingest again.';
+    }
     return detail;
   }
   return err.message ?? (error instanceof Error ? error.message : 'Failed to trigger traceroute. Please try again.');
