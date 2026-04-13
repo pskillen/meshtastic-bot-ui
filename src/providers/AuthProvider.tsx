@@ -141,7 +141,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             discord_connect_discord_profile: 'Could not read your Discord profile. Try again.',
           };
           setError(discordConnectMessages[oauthError] ?? `Discord linking failed (${oauthError}).`);
-          navigate('/user/nodes?tab=notifications', { replace: true });
+          navigate('/user', { replace: true });
           setIsLoading(false);
           return;
         }
@@ -153,7 +153,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             setIsAuthenticated(authService.isAuthenticated());
             setAuthProvider(authService.getAuthProvider());
             await queryClient.invalidateQueries({ queryKey: discordNotificationPrefsQueryKey });
-            navigate('/user/nodes?tab=notifications');
+            navigate('/user');
           } catch (err) {
             setError(err instanceof Error ? err.message : 'OAuth token handling failed');
           } finally {
@@ -295,7 +295,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setIsAuthenticated(authService.isAuthenticated());
       setAuthProvider(authService.getAuthProvider());
       await queryClient.invalidateQueries({ queryKey: discordNotificationPrefsQueryKey });
-      navigate('/user/nodes?tab=notifications');
+      navigate('/user');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Discord login failed');
       setIsAuthenticated(false);
