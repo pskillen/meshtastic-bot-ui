@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react';
 import { subHours, subDays } from 'date-fns';
-import { Cell, Legend, Line, LineChart, Pie, PieChart, XAxis, YAxis, Tooltip } from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Cell, Legend, Line, LineChart, Pie, PieChart, XAxis, YAxis, Tooltip as RechartsTooltip } from 'recharts';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { HelpCircle } from 'lucide-react';
 import { useTracerouteStats } from '@/hooks/api/useTraceroutes';
 
 const TR_STATS_TIMEFRAME_OPTIONS = [
@@ -119,7 +122,7 @@ export function TracerouteStatsSection() {
                       <Cell key={idx} fill={entry.fill} />
                     ))}
                   </Pie>
-                  <Tooltip content={<ChartTooltipContent formatter={(v) => [v, '']} />} />
+                  <RechartsTooltip content={<ChartTooltipContent formatter={(v) => [v, '']} />} />
                 </PieChart>
               </ChartContainer>
             ) : (
@@ -154,7 +157,7 @@ export function TracerouteStatsSection() {
                       <Cell key={idx} fill={entry.fill} />
                     ))}
                   </Pie>
-                  <Tooltip content={<ChartTooltipContent formatter={(v) => [v, '']} />} />
+                  <RechartsTooltip content={<ChartTooltipContent formatter={(v) => [v, '']} />} />
                 </PieChart>
               </ChartContainer>
             ) : (
@@ -211,7 +214,7 @@ export function TracerouteStatsSection() {
                     tick={{ fontSize: 10 }}
                   />
                   <YAxis tickLine={false} axisLine={false} width={28} tick={{ fontSize: 10 }} />
-                  <Tooltip
+                  <RechartsTooltip
                     content={
                       <ChartTooltipContent
                         formatter={(v) => [v, '']}
@@ -237,6 +240,84 @@ export function TracerouteStatsSection() {
           </CardContent>
         </Card>
       </div>
+
+      <TooltipProvider>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">By source node</CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
+              Managed nodes that initiated traceroutes in this period. Success rate uses only completed and failed runs;
+              pending and sent count toward Total only.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="min-h-[120px] flex items-center justify-center text-muted-foreground text-sm">
+                Loading…
+              </div>
+            ) : data?.by_source?.length ? (
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Source</TableHead>
+                      <TableHead className="text-right tabular-nums">Total</TableHead>
+                      <TableHead className="text-right tabular-nums">Completed</TableHead>
+                      <TableHead className="text-right tabular-nums">Failed</TableHead>
+                      <TableHead className="text-right">
+                        <span className="inline-flex items-center justify-end gap-1">
+                          Success rate
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                className="text-muted-foreground hover:text-foreground inline-flex"
+                                aria-label="Success rate definition"
+                              >
+                                <HelpCircle className="h-3.5 w-3.5" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs text-left" side="top">
+                              Completed ÷ (completed + failed) for this period. If there are no finished runs, rate is
+                              shown as —.
+                            </TooltipContent>
+                          </Tooltip>
+                        </span>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.by_source.map((row) => (
+                      <TableRow key={row.managed_node_id}>
+                        <TableCell>
+                          <div className="flex flex-col gap-0.5 min-w-0">
+                            <span className="font-medium truncate" title={row.short_name}>
+                              {row.short_name}
+                            </span>
+                            <span className="text-xs text-muted-foreground font-mono truncate" title={row.node_id_str}>
+                              {row.node_id_str}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{row.total}</TableCell>
+                        <TableCell className="text-right tabular-nums">{row.completed}</TableCell>
+                        <TableCell className="text-right tabular-nums">{row.failed}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {row.success_rate != null ? `${(row.success_rate * 100).toFixed(0)}%` : '—'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="min-h-[120px] flex items-center justify-center text-muted-foreground text-sm">
+                No data
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </TooltipProvider>
     </div>
   );
 }

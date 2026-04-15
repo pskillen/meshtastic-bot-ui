@@ -666,12 +666,23 @@ export class MeshtasticApi extends BaseApi {
   }
 
   /**
-   * Get traceroute statistics (sources, success/failure, top routers, success over time)
+   * Get traceroute statistics (sources, success/failure, top routers, by source, success over time)
    */
   async getTracerouteStats(params?: { triggered_at_after?: string }): Promise<{
     sources: Array<{ trigger_type: string; count: number }>;
     success_failure: Array<{ status: string; count: number }>;
     top_routers: Array<{ node_id: number; node_id_str: string; short_name: string; count: number }>;
+    by_source: Array<{
+      managed_node_id: string;
+      node_id: number;
+      node_id_str: string;
+      name: string;
+      short_name: string;
+      total: number;
+      completed: number;
+      failed: number;
+      success_rate: number | null;
+    }>;
     success_over_time: Array<{ date: string; completed: number; failed: number }>;
   }> {
     const searchParams = new URLSearchParams();
