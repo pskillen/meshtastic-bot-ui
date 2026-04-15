@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { DeviceMetrics, ObservedNode } from '@/lib/models';
+import { DeviceMetrics, ObservedNode, NodeWatch, PaginatedResponse } from '@/lib/models';
+import { MeshWatchControls } from '@/components/nodes/MeshWatchControls';
+import type { UseQueryResult } from '@tanstack/react-query';
 import { getRoleLabel } from '@/lib/meshtastic';
 import { Badge } from '@/components/ui/badge';
 import { NodeMiniChart } from '@/components/nodes/NodeMiniChart';
@@ -16,9 +18,20 @@ interface InfrastructureNodeCardProps {
   compareSelected?: boolean;
   /** Called when the compare checkbox is toggled. Receives (nodeId, newState). */
   onCompareToggle?: (nodeId: number, newState: boolean) => void;
+  /** Current user's watch for this node, if any */
+  watch?: NodeWatch;
+  /** From useNodeWatches — loading/error for watch list */
+  watchesQuery?: Pick<UseQueryResult<PaginatedResponse<NodeWatch>>, 'isLoading' | 'isError'>;
 }
 
-function InfrastructureNodeCardInner({ node, metrics, dateRange, onCompareToggle }: InfrastructureNodeCardProps) {
+function InfrastructureNodeCardInner({
+  node,
+  metrics,
+  dateRange,
+  onCompareToggle,
+  watch,
+  watchesQuery,
+}: InfrastructureNodeCardProps) {
   const roleLabel = getRoleLabel(node.role);
   const [compareSelected, setCompareSelected] = useState(false);
 
@@ -91,6 +104,18 @@ function InfrastructureNodeCardInner({ node, metrics, dateRange, onCompareToggle
         {metrics != null && metrics.length > 0 && dateRange && (
           <div className="mt-3 -mx-2">
             <NodeMiniChart metrics={metrics} dateRange={dateRange} />
+          </div>
+        )}
+        {watchesQuery != null && (
+          <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-600">
+            <p className="text-xs font-medium text-muted-foreground mb-2">Mesh monitoring</p>
+            <MeshWatchControls
+              node={node}
+              watch={watch}
+              watchesQuery={watchesQuery}
+              idPrefix={`infra-card-${node.node_id}`}
+              compact
+            />
           </div>
         )}
       </div>

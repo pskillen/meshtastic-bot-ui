@@ -1,13 +1,15 @@
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useMyClaimedNodesSuspense, useMyManagedNodesSuspense } from '@/hooks/api/useNodes';
+import { useNodeWatches } from '@/hooks/api/useNodeWatches';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, AlertCircle, Radio, Settings, CheckCircle2 } from 'lucide-react';
 import { useConfig } from '@/providers/ConfigProvider';
 import { BotSetupInstructions, type BotDefaults } from '@/components/nodes/BotSetupInstructions';
-import { ObservedNode } from '@/lib/models';
+import { ObservedNode, type NodeWatch } from '@/lib/models';
+import { MeshWatchControls } from '@/components/nodes/MeshWatchControls';
 import type { NodeApiKeyConstellation } from '@/lib/models';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -40,6 +42,15 @@ function MyNodesContent() {
     queryKey: ['api-keys'],
     queryFn: () => api.getApiKeys(),
   });
+
+  const watchesQuery = useNodeWatches();
+  const watchesByNodeIdStr = useMemo(() => {
+    const m = new Map<string, NodeWatch>();
+    for (const w of watchesQuery.data?.results ?? []) {
+      m.set(w.observed_node.node_id_str, w);
+    }
+    return m;
+  }, [watchesQuery.data]);
 
   // Create a Set of managed node IDs for quick lookup
   const managedNodeIds = new Set(myManagedNodes.map((n) => n.node_id));
@@ -84,6 +95,7 @@ function MyNodesContent() {
                 <TableHead>Last Heard</TableHead>
                 <TableHead>Battery</TableHead>
                 <TableHead>Position</TableHead>
+                <TableHead>Mesh watch</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
@@ -91,6 +103,7 @@ function MyNodesContent() {
               {allNodes.map((node) => {
                 const isManaged = managedNodeIds.has(node.node_id);
                 const isClaimed = node.owner?.id !== undefined;
+                const watch = watchesByNodeIdStr.get(node.node_id_str);
 
                 return (
                   <TableRow key={node.node_id}>
@@ -144,6 +157,14 @@ function MyNodesContent() {
                       ) : (
                         '-'
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <MeshWatchControls
+                        node={node}
+                        watch={watch}
+                        watchesQuery={watchesQuery}
+                        idPrefix={`my-nodes-${node.node_id}`}
+                      />
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">

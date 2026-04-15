@@ -421,3 +421,22 @@ export interface DiscordNotificationPrefs {
   discord_linked: boolean;
   discord_notify_verified: boolean;
 }
+
+/** Subset of observed node on mesh monitoring watch responses (API `ObservedNodeWatchSummary`). */
+export interface ObservedNodeWatchSummary {
+  internal_id: string;
+  node_id_str: string;
+  long_name: string | null;
+  last_heard: string | null;
+  monitoring_verification_started_at?: string | null;
+  monitoring_offline_confirmed_at?: string | null;
+}
+
+/** User watch on an observed node (`GET/POST /monitoring/watches/`). */
+export interface NodeWatch {
+  id: number;
+  observed_node: ObservedNodeWatchSummary;
+  offline_after: number;
+  enabled: boolean;
+  created_at: string;
+}

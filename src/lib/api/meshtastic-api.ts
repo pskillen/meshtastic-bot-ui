@@ -22,6 +22,7 @@ import {
   CreateNodeApiKey,
   AutoTraceRoute,
   DiscordNotificationPrefs,
+  NodeWatch,
 } from '../models';
 import {
   ApiConfig,
@@ -795,5 +796,30 @@ export class MeshtasticApi extends BaseApi {
   /** POST /api/auth/discord/notifications/test/ */
   async postDiscordNotificationTest(): Promise<{ detail: string }> {
     return this.post<{ detail: string }>('/auth/discord/notifications/test/', {});
+  }
+
+  // ===== Mesh monitoring watches (Phase 04) =====
+
+  async getNodeWatches(params?: PaginationParams): Promise<PaginatedResponse<NodeWatch>> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    return this.get<PaginatedResponse<NodeWatch>>('/monitoring/watches/', searchParams);
+  }
+
+  async createNodeWatch(body: {
+    observed_node_id: string;
+    offline_after?: number;
+    enabled?: boolean;
+  }): Promise<NodeWatch> {
+    return this.post<NodeWatch>('/monitoring/watches/', body);
+  }
+
+  async patchNodeWatch(id: number, body: { offline_after?: number; enabled?: boolean }): Promise<NodeWatch> {
+    return this.patch<NodeWatch>(`/monitoring/watches/${id}/`, body);
+  }
+
+  async deleteNodeWatch(id: number): Promise<void> {
+    await this.delete<unknown>(`/monitoring/watches/${id}/`);
   }
 }
