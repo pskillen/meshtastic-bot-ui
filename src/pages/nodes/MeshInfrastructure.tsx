@@ -2,6 +2,7 @@ import { useMemo, useState, useCallback, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { subDays, subHours, format, formatDistanceToNow } from 'date-fns';
 import { useInfrastructureNodesSuspense, useManagedNodesSuspense } from '@/hooks/api/useNodes';
+import { useNodeWatches } from '@/hooks/api/useNodeWatches';
 import { useMultiNodeMetricsSuspense } from '@/hooks/api/useMultiNodeMetrics';
 import { InfrastructureNodeCard } from '@/components/nodes/InfrastructureNodeCard';
 import { NodesAndConstellationsMap } from '@/components/nodes/NodesAndConstellationsMap';
@@ -15,7 +16,8 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ObservedNode } from '@/lib/models';
+import { ObservedNode, type NodeWatch } from '@/lib/models';
+import { MeshWatchControls } from '@/components/nodes/MeshWatchControls';
 import { MapPinOff } from 'lucide-react';
 
 const CHART_TIME_RANGE_OPTIONS = [
@@ -96,6 +98,15 @@ function MeshInfrastructureContent() {
     pageSize: 100,
     includeClientBase,
   });
+
+  const watchesQuery = useNodeWatches();
+  const watchesByNodeIdStr = useMemo(() => {
+    const m = new Map<string, NodeWatch>();
+    for (const w of watchesQuery.data?.results ?? []) {
+      m.set(w.observed_node.node_id_str, w);
+    }
+    return m;
+  }, [watchesQuery.data]);
 
   const { managedNodes } = useManagedNodesSuspense(500);
 
@@ -220,6 +231,7 @@ function MeshInfrastructureContent() {
                   <TableHead>Last heard</TableHead>
                   <TableHead>Last GPS position reported</TableHead>
                   <TableHead>Owner</TableHead>
+                  <TableHead>Mesh watch</TableHead>
                   <TableHead className="w-0"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -230,6 +242,7 @@ function MeshInfrastructureContent() {
                   const isOffline =
                     !node.last_heard ||
                     (node.last_heard instanceof Date ? node.last_heard : new Date(node.last_heard)) < cutoff;
+                  const watch = watchesByNodeIdStr.get(node.node_id_str);
                   return (
                     <TableRow key={node.internal_id}>
                       <TableCell>
@@ -288,6 +301,14 @@ function MeshInfrastructureContent() {
                       </TableCell>
                       <TableCell>{node.owner?.username ?? '—'}</TableCell>
                       <TableCell>
+                        <MeshWatchControls
+                          node={node}
+                          watch={watch}
+                          watchesQuery={watchesQuery}
+                          idPrefix={`infra-no-loc-${node.node_id}`}
+                        />
+                      </TableCell>
+                      <TableCell>
                         <Link to={`/nodes/${node.node_id}`} className="text-primary text-sm hover:underline">
                           View details
                         </Link>
@@ -316,6 +337,8 @@ function MeshInfrastructureContent() {
               metrics={metricsMap[node.node_id] ?? []}
               dateRange={chartDateRange}
               onCompareToggle={handleCompareToggle}
+              watch={watchesByNodeIdStr.get(node.node_id_str)}
+              watchesQuery={watchesQuery}
             />
           ))}
         </div>
