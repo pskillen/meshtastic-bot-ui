@@ -1,3 +1,4 @@
+import { Loader2 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -84,7 +85,14 @@ export function MeshWatchControls({ node, watch, watchesQuery, idPrefix, compact
             })
           }
         >
-          Remove watch
+          {deleteWatch.isPending ? (
+            <>
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden />
+              Removing…
+            </>
+          ) : (
+            'Remove watch'
+          )}
         </Button>
       </div>
     );
@@ -106,7 +114,14 @@ export function MeshWatchControls({ node, watch, watchesQuery, idPrefix, compact
         )
       }
     >
-      Add watch
+      {createWatch.isPending ? (
+        <>
+          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden />
+          Adding…
+        </>
+      ) : (
+        'Add watch'
+      )}
     </Button>
   );
 }
