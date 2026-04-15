@@ -9,7 +9,6 @@ const DEFAULT_CENTER: L.LatLngExpression = [55.8642, -4.2518];
 const SOURCE_COLOR = '#2563eb';
 const TARGET_COLOR = '#16a34a';
 const INTERMEDIATE_COLOR = '#64748b';
-const PENDING_LINE_COLOR = '#94a3b8';
 const FAILED_LINE_COLOR = '#dc2626';
 const UNKNOWN_NODE_ID = 0xffffffff;
 
@@ -174,25 +173,41 @@ export function TracerouteMap({ traceroute }: { traceroute: AutoTraceRoute }) {
       bounds.extend(targetPos);
     }
 
-    // Pending/sent/failed: show dashed direct line between source and target
     const statusLower = traceroute.status?.toLowerCase();
+    // Pending/sent: solid blue (same weight/style as completed outbound). Failed: dashed red.
     const needsDirectLine = statusLower === 'pending' || statusLower === 'sent' || statusLower === 'failed';
     if (needsDirectLine && sourcePos && targetPos) {
-      const lineColor = statusLower === 'failed' ? FAILED_LINE_COLOR : PENDING_LINE_COLOR;
+      const isFailed = statusLower === 'failed';
       const directLine = L.polyline([sourcePos, targetPos], {
-        color: lineColor,
-        weight: 3,
-        dashArray: '10, 10',
-        className: statusLower === 'failed' ? 'traceroute-failed' : 'traceroute-pending',
+        color: isFailed ? FAILED_LINE_COLOR : SOURCE_COLOR,
+        weight: 4,
+        ...(isFailed ? { dashArray: '10, 8' as const } : {}),
+        className: isFailed ? 'traceroute-failed' : 'traceroute-pending',
       }).addTo(map);
       layersRef.current.push(directLine);
     }
 
     // Route segments only when completed
     const isCompleted = statusLower === 'completed';
+    const isDirectPathCompleted =
+      isCompleted && sourcePos && targetPos && routeNodes.length === 0 && routeBackNodes.length === 0;
+
     if (isCompleted) {
-      const outboundSegments = sourcePos && targetPos ? buildSegments(sourcePos, routeNodes, targetPos) : [];
-      const returnSegments = sourcePos && targetPos ? buildSegments(targetPos, routeBackNodes, sourcePos) : [];
+      if (isDirectPathCompleted) {
+        const directCompleted = L.polyline([sourcePos, targetPos], {
+          color: SOURCE_COLOR,
+          weight: 4,
+          className: 'traceroute-direct-completed',
+        }).addTo(map);
+        layersRef.current.push(directCompleted);
+        bounds.extend(sourcePos);
+        bounds.extend(targetPos);
+      }
+
+      const outboundSegments =
+        !isDirectPathCompleted && sourcePos && targetPos ? buildSegments(sourcePos, routeNodes, targetPos) : [];
+      const returnSegments =
+        !isDirectPathCompleted && sourcePos && targetPos ? buildSegments(targetPos, routeBackNodes, sourcePos) : [];
 
       outboundSegments.forEach((seg) => {
         const poly = L.polyline(seg.latlngs, {
