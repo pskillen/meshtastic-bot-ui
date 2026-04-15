@@ -1,13 +1,21 @@
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useMyClaimedNodesSuspense, useMyManagedNodesSuspense } from '@/hooks/api/useNodes';
+import {
+  useNodeWatches,
+  useCreateNodeWatchMutation,
+  usePatchNodeWatchMutation,
+  useDeleteNodeWatchMutation,
+} from '@/hooks/api/useNodeWatches';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, AlertCircle, Radio, Settings, CheckCircle2 } from 'lucide-react';
 import { useConfig } from '@/providers/ConfigProvider';
 import { BotSetupInstructions, type BotDefaults } from '@/components/nodes/BotSetupInstructions';
-import { ObservedNode } from '@/lib/models';
+import { ObservedNode, type NodeWatch } from '@/lib/models';
+import { Checkbox } from '@/components/ui/checkbox';
+import { toast } from 'sonner';
 import type { NodeApiKeyConstellation } from '@/lib/models';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -40,6 +48,19 @@ function MyNodesContent() {
     queryKey: ['api-keys'],
     queryFn: () => api.getApiKeys(),
   });
+
+  const watchesQuery = useNodeWatches();
+  const createWatch = useCreateNodeWatchMutation();
+  const patchWatch = usePatchNodeWatchMutation();
+  const deleteWatch = useDeleteNodeWatchMutation();
+
+  const watchesByNodeIdStr = useMemo(() => {
+    const m = new Map<string, NodeWatch>();
+    for (const w of watchesQuery.data?.results ?? []) {
+      m.set(w.observed_node.node_id_str, w);
+    }
+    return m;
+  }, [watchesQuery.data]);
 
   // Create a Set of managed node IDs for quick lookup
   const managedNodeIds = new Set(myManagedNodes.map((n) => n.node_id));
@@ -84,6 +105,7 @@ function MyNodesContent() {
                 <TableHead>Last Heard</TableHead>
                 <TableHead>Battery</TableHead>
                 <TableHead>Position</TableHead>
+                <TableHead>Mesh watch</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
@@ -91,6 +113,7 @@ function MyNodesContent() {
               {allNodes.map((node) => {
                 const isManaged = managedNodeIds.has(node.node_id);
                 const isClaimed = node.owner?.id !== undefined;
+                const watch = watchesByNodeIdStr.get(node.node_id_str);
 
                 return (
                   <TableRow key={node.node_id}>
@@ -143,6 +166,80 @@ function MyNodesContent() {
                         </div>
                       ) : (
                         '-'
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {watchesQuery.isLoading ? (
+                        <span className="text-muted-foreground text-sm">…</span>
+                      ) : watchesQuery.isError ? (
+                        <span className="text-muted-foreground text-sm">—</span>
+                      ) : watch ? (
+                        <div className="flex flex-col gap-2 max-w-[200px]">
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id={`watch-enabled-${watch.id}`}
+                              checked={watch.enabled}
+                              disabled={patchWatch.isPending}
+                              onCheckedChange={(checked) => {
+                                if (checked === 'indeterminate') return;
+                                patchWatch.mutate(
+                                  { id: watch.id, enabled: Boolean(checked) },
+                                  {
+                                    onError: (e) =>
+                                      toast.error(e instanceof Error ? e.message : 'Could not update watch'),
+                                  }
+                                );
+                              }}
+                            />
+                            <label htmlFor={`watch-enabled-${watch.id}`} className="text-sm cursor-pointer">
+                              Alerts on
+                            </label>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {watch.observed_node.monitoring_verification_started_at && (
+                              <Badge variant="secondary" className="text-xs">
+                                Verifying
+                              </Badge>
+                            )}
+                            {watch.observed_node.monitoring_offline_confirmed_at && (
+                              <Badge variant="destructive" className="text-xs">
+                                Offline
+                              </Badge>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-muted-foreground"
+                            disabled={deleteWatch.isPending}
+                            onClick={() =>
+                              deleteWatch.mutate(watch.id, {
+                                onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not remove watch'),
+                              })
+                            }
+                          >
+                            Remove watch
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="text-xs"
+                          disabled={createWatch.isPending}
+                          onClick={() =>
+                            createWatch.mutate(
+                              { observed_node_id: String(node.internal_id), offline_after: 7200, enabled: true },
+                              {
+                                onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not add watch'),
+                              }
+                            )
+                          }
+                        >
+                          Add watch
+                        </Button>
                       )}
                     </TableCell>
                     <TableCell>
