@@ -48,7 +48,19 @@ export function TracerouteFlowDiagram({ traceroute }: { traceroute: AutoTraceRou
   const targetLabel = traceroute.target_node?.short_name ?? traceroute.target_node?.node_id_str ?? 'Target';
 
   if (routeNodes.length === 0 && routeBackNodes.length === 0) {
-    return null;
+    if (traceroute.status !== 'completed') {
+      return null;
+    }
+    return (
+      <div className="space-y-2 rounded-md border border-blue-500/25 bg-blue-500/5 px-3 py-3 dark:border-blue-400/30 dark:bg-blue-950/40">
+        <p className="text-sm text-muted-foreground">No intermediate relays — direct RF path.</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge className="bg-blue-500/20 text-blue-700 dark:text-blue-300">{sourceLabel}</Badge>
+          <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <Badge className="bg-green-500/20 text-green-700 dark:text-green-300">{targetLabel}</Badge>
+        </div>
+      </div>
+    );
   }
 
   return (

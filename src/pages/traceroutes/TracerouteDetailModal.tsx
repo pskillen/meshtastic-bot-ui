@@ -18,10 +18,15 @@ interface TracerouteDetailModalProps {
 export function TracerouteDetailModal({ tracerouteId, open, onOpenChange }: TracerouteDetailModalProps) {
   const { data: traceroute, isLoading, error } = useTraceroute(open ? tracerouteId : null);
 
+  const isEmptyRouteArrays =
+    traceroute &&
+    (!traceroute.route || traceroute.route.length === 0) &&
+    (!traceroute.route_back || traceroute.route_back.length === 0);
   const hasRouteData =
     traceroute &&
     ((traceroute.route_nodes && traceroute.route_nodes.length > 0) ||
-      (traceroute.route_back_nodes && traceroute.route_back_nodes.length > 0));
+      (traceroute.route_back_nodes && traceroute.route_back_nodes.length > 0) ||
+      (traceroute.status === 'completed' && isEmptyRouteArrays));
 
   const hasSourceOrTargetPosition =
     traceroute &&

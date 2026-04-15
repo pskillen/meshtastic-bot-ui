@@ -45,9 +45,13 @@ function getTracerouteErrorMessage(error: unknown): string {
 function routeSummary(tr: AutoTraceRoute): string {
   const route = tr.route;
   const routeBack = tr.route_back;
-  if ((!route || route.length === 0) && (!routeBack || routeBack.length === 0)) return '—';
-  const outStr = !route || route.length === 0 ? 'direct' : `${route.length} hops`;
-  const backStr = !routeBack || routeBack.length === 0 ? 'direct' : `${routeBack.length} hops`;
+  const outEmpty = !route || route.length === 0;
+  const backEmpty = !routeBack || routeBack.length === 0;
+  if (outEmpty && backEmpty) {
+    return tr.status === 'completed' ? 'Direct' : '—';
+  }
+  const outStr = outEmpty ? 'Direct' : `${route.length} hops`;
+  const backStr = backEmpty ? 'Direct' : `${routeBack.length} hops`;
   return `${outStr} out, ${backStr} back`;
 }
 
