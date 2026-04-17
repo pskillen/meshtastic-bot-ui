@@ -33,7 +33,7 @@ function makeManagedNode(overrides: Partial<ManagedNode> = {}): ManagedNode {
 }
 
 describe('TriggerTracerouteModal with fixedTargetNode', () => {
-  it('renders a read-only target row instead of the search/map pickers', () => {
+  it('renders a read-only target row and source-selection map (no NodeSearch) when fixedTargetNode is set', () => {
     const fixed = makeObservedNode();
     render(
       <TriggerTracerouteModal
@@ -51,6 +51,9 @@ describe('TriggerTracerouteModal with fixedTargetNode', () => {
     const readOnly = screen.getByTestId('trigger-traceroute-fixed-target');
     expect(readOnly).toHaveTextContent('FIX (!0000002a)');
     expect(screen.queryByPlaceholderText(/search.*node/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/pick a source on the map/i)).toBeInTheDocument();
+    // Dialog renders via a Radix portal, so query the whole document.
+    expect(document.querySelector('.leaflet-container')).not.toBeNull();
   });
 
   it('uses the fixed-target variant of the description and shows a Trigger button', () => {

@@ -80,6 +80,16 @@ export function TriggerTracerouteModal({
     return true;
   };
 
+  // In the fixed-target variant, clicking a managed marker picks it as source.
+  // Clicking anything else (e.g. the fixed target itself) is a no-op.
+  const handleFixedTargetMapNodeSelect = (node: MapNode | null) => {
+    if (!node) return false;
+    const isManaged = managedNodes.some((m) => m.node_id === node.node_id);
+    if (!isManaged) return false;
+    setManagedNodeId(node.node_id);
+    return true;
+  };
+
   const dialogDescription =
     mode === 'auto'
       ? 'Select the source node. The target will be auto-selected (most recently heard).'
@@ -89,7 +99,7 @@ export function TriggerTracerouteModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={mode === 'user' && !hasFixedTarget ? 'max-w-4xl' : undefined}>
+      <DialogContent className={mode === 'user' ? 'max-w-4xl' : undefined}>
         <DialogHeader>
           <DialogTitle>{mode === 'user' ? 'Trigger Traceroute (target)' : 'Trigger Traceroute (auto)'}</DialogTitle>
           <DialogDescription>{dialogDescription}</DialogDescription>
@@ -116,15 +126,35 @@ export function TriggerTracerouteModal({
           </div>
 
           {mode === 'user' && hasFixedTarget && fixedTargetNode && (
-            <div className="grid gap-2">
-              <Label>Target node</Label>
-              <div
-                className="rounded-md border bg-muted/40 px-3 py-2 text-sm"
-                data-testid="trigger-traceroute-fixed-target"
-              >
-                {formatNodeLabel(fixedTargetNode)}
+            <>
+              <div className="grid gap-2">
+                <Label>Target node</Label>
+                <div
+                  className="rounded-md border bg-muted/40 px-3 py-2 text-sm"
+                  data-testid="trigger-traceroute-fixed-target"
+                >
+                  {formatNodeLabel(fixedTargetNode)}
+                </div>
               </div>
-            </div>
+              <div className="grid gap-2">
+                <Label>Pick a source on the map</Label>
+                <p className="text-xs text-muted-foreground">
+                  Target is highlighted. Click an available source to select it.
+                </p>
+                <div className="h-[300px] rounded-md border overflow-hidden">
+                  <NodesAndConstellationsMap
+                    managedNodes={managedNodes}
+                    observedNodes={[fixedTargetNode]}
+                    showConstellation={true}
+                    showUnmanagedNodes={true}
+                    drawBoundingBox={false}
+                    enableBubbles={false}
+                    selectedNodeId={managedNodeId ?? fixedTargetNode.node_id}
+                    onNodeSelect={handleFixedTargetMapNodeSelect}
+                  />
+                </div>
+              </div>
+            </>
           )}
 
           {mode === 'user' && !hasFixedTarget && (
