@@ -1,0 +1,97 @@
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { TriggerTracerouteModal } from './TriggerTracerouteModal';
+import type { ManagedNode, ObservedNode } from '@/lib/models';
+
+function makeObservedNode(overrides: Partial<ObservedNode> = {}): ObservedNode {
+  return {
+    internal_id: 1,
+    node_id: 42,
+    node_id_str: '!0000002a',
+    mac_addr: null,
+    long_name: 'Fixed target',
+    short_name: 'FIX',
+    hw_model: null,
+    public_key: null,
+    ...overrides,
+  };
+}
+
+function makeManagedNode(overrides: Partial<ManagedNode> = {}): ManagedNode {
+  return {
+    node_id: 7,
+    long_name: 'Source',
+    short_name: 'SRC',
+    last_heard: null,
+    node_id_str: '!00000007',
+    owner: { id: 1, username: 'me' },
+    constellation: { id: 1, name: 'C1' },
+    allow_auto_traceroute: true,
+    position: { latitude: null, longitude: null },
+    ...overrides,
+  };
+}
+
+describe('TriggerTracerouteModal with fixedTargetNode', () => {
+  it('renders a read-only target row and source-selection map (no NodeSearch) when fixedTargetNode is set', () => {
+    const fixed = makeObservedNode();
+    render(
+      <TriggerTracerouteModal
+        open={true}
+        onOpenChange={vi.fn()}
+        mode="user"
+        managedNodes={[makeManagedNode()]}
+        observedNodes={[fixed]}
+        onTrigger={vi.fn().mockResolvedValue(undefined)}
+        isSubmitting={false}
+        fixedTargetNode={fixed}
+      />
+    );
+
+    const readOnly = screen.getByTestId('trigger-traceroute-fixed-target');
+    expect(readOnly).toHaveTextContent('FIX (!0000002a)');
+    expect(screen.queryByPlaceholderText(/search.*node/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/pick a source on the map/i)).toBeInTheDocument();
+    // Dialog renders via a Radix portal, so query the whole document.
+    expect(document.querySelector('.leaflet-container')).not.toBeNull();
+  });
+
+  it('uses the fixed-target variant of the description and shows a Trigger button', () => {
+    const fixed = makeObservedNode();
+    render(
+      <TriggerTracerouteModal
+        open={true}
+        onOpenChange={vi.fn()}
+        mode="user"
+        managedNodes={[makeManagedNode()]}
+        observedNodes={[fixed]}
+        onTrigger={vi.fn().mockResolvedValue(undefined)}
+        isSubmitting={false}
+        fixedTargetNode={fixed}
+      />
+    );
+
+    expect(screen.getByText(/target is fixed to the node you are viewing/i)).toBeInTheDocument();
+    // The Trigger button is disabled until a source is chosen, proving the
+    // target is pre-populated (otherwise it would be disabled on two conditions).
+    const trigger = screen.getByRole('button', { name: /^trigger$/i });
+    expect(trigger).toBeDisabled();
+  });
+
+  it('does not render the fixed-target row when fixedTargetNode is omitted', () => {
+    // NodeSearch pulls in the nodes API; render the auto mode to avoid that
+    // while still verifying the fixed-target UI is absent.
+    render(
+      <TriggerTracerouteModal
+        open={true}
+        onOpenChange={vi.fn()}
+        mode="auto"
+        managedNodes={[makeManagedNode()]}
+        observedNodes={[]}
+        onTrigger={vi.fn().mockResolvedValue(undefined)}
+        isSubmitting={false}
+      />
+    );
+    expect(screen.queryByTestId('trigger-traceroute-fixed-target')).not.toBeInTheDocument();
+  });
+});

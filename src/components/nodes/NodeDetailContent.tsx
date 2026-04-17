@@ -13,7 +13,7 @@ import { BatteryGauge } from '@/components/nodes/BatteryGauge';
 import { MetricsCard } from '@/components/nodes/MetricsCard';
 import { PercentGauge } from '@/components/nodes/PercentGauge';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { useState, useEffect, useMemo } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Clock, Copy, Settings } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,7 @@ import { getRoleLabel } from '@/lib/meshtastic';
 import type { EnvironmentExposureSlug, LatestEnvironmentMetrics, WeatherUseSlug } from '@/lib/models';
 import { NodeEnvironmentSettingsDialog } from '@/components/nodes/NodeEnvironmentSettingsDialog';
 import { NodeMeshMonitoringSection } from '@/components/nodes/NodeMeshMonitoringSection';
+import { NodeTracerouteHistorySection } from '@/components/nodes/NodeTracerouteHistorySection';
 
 interface NodeDetailContentProps {
   nodeId: number;
@@ -481,6 +482,15 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
         <>
           <NodeMeshMonitoringSection node={node} />
           <TracerouteLinksSection nodeId={nodeId} />
+          <Suspense
+            fallback={
+              <div className="mb-6 flex min-h-[120px] items-center justify-center text-muted-foreground">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500" />
+              </div>
+            }
+          >
+            <NodeTracerouteHistorySection nodeId={nodeId} observedNode={node} />
+          </Suspense>
           <NodeStatsSection nodeId={nodeId} node={node} isManagedNode={isManagedNode} />
         </>
       )}
