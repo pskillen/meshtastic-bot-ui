@@ -107,7 +107,7 @@ export function MeshWatchControls({ node, watch, watchesQuery, idPrefix, compact
       disabled={createWatch.isPending}
       onClick={() =>
         createWatch.mutate(
-          { observed_node_id: String(node.internal_id), offline_after: 7200, enabled: true },
+          { observed_node_id: String(node.internal_id), enabled: true },
           {
             onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not add watch'),
           }

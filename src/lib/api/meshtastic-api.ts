@@ -23,6 +23,7 @@ import {
   AutoTraceRoute,
   DiscordNotificationPrefs,
   NodeWatch,
+  MonitoringOfflineAfterResponse,
 } from '../models';
 import {
   ApiConfig,
@@ -807,19 +808,26 @@ export class MeshtasticApi extends BaseApi {
     return this.get<PaginatedResponse<NodeWatch>>('/monitoring/watches/', searchParams);
   }
 
-  async createNodeWatch(body: {
-    observed_node_id: string;
-    offline_after?: number;
-    enabled?: boolean;
-  }): Promise<NodeWatch> {
+  async createNodeWatch(body: { observed_node_id: string; enabled?: boolean }): Promise<NodeWatch> {
     return this.post<NodeWatch>('/monitoring/watches/', body);
   }
 
-  async patchNodeWatch(id: number, body: { offline_after?: number; enabled?: boolean }): Promise<NodeWatch> {
+  async patchNodeWatch(id: number, body: { enabled?: boolean }): Promise<NodeWatch> {
     return this.patch<NodeWatch>(`/monitoring/watches/${id}/`, body);
   }
 
   async deleteNodeWatch(id: number): Promise<void> {
     await this.delete<unknown>(`/monitoring/watches/${id}/`);
+  }
+
+  async getMonitoringOfflineAfter(observedNodeId: string): Promise<MonitoringOfflineAfterResponse> {
+    return this.get<MonitoringOfflineAfterResponse>(`/monitoring/nodes/${observedNodeId}/offline-after/`);
+  }
+
+  async patchMonitoringOfflineAfter(
+    observedNodeId: string,
+    body: { offline_after: number }
+  ): Promise<MonitoringOfflineAfterResponse> {
+    return this.patch<MonitoringOfflineAfterResponse>(`/monitoring/nodes/${observedNodeId}/offline-after/`, body);
   }
 }

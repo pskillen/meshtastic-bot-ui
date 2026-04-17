@@ -22,6 +22,7 @@ import { authService } from '@/lib/auth/authService';
 import { getRoleLabel } from '@/lib/meshtastic';
 import type { EnvironmentExposureSlug, WeatherUseSlug } from '@/lib/models';
 import { NodeEnvironmentSettingsDialog } from '@/components/nodes/NodeEnvironmentSettingsDialog';
+import { NodeMeshMonitoringSection } from '@/components/nodes/NodeMeshMonitoringSection';
 
 interface NodeDetailContentProps {
   nodeId: number;
@@ -452,6 +453,7 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
 
       {!compact && (
         <>
+          <NodeMeshMonitoringSection node={node} />
           <TracerouteLinksSection nodeId={nodeId} />
           <NodeStatsSection nodeId={nodeId} node={node} isManagedNode={isManagedNode} />
         </>
