@@ -32,7 +32,7 @@ import {
   PaginationParams,
   StatsSnapshotsParams,
 } from '@/lib/types';
-import { parseObservedNodeFromAPI } from './api-utils';
+import { parseNodeWatchFromAPI, parseObservedNodeFromAPI } from './api-utils';
 
 export class MeshtasticApi extends BaseApi {
   constructor(config: ApiConfig) {
@@ -805,15 +805,21 @@ export class MeshtasticApi extends BaseApi {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.append('page', params.page.toString());
     if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    return this.get<PaginatedResponse<NodeWatch>>('/monitoring/watches/', searchParams);
+    const response = await this.get<PaginatedResponse<NodeWatch>>('/monitoring/watches/', searchParams);
+    return {
+      ...response,
+      results: response.results.map((w) => parseNodeWatchFromAPI(w)),
+    };
   }
 
   async createNodeWatch(body: { observed_node_id: string; enabled?: boolean }): Promise<NodeWatch> {
-    return this.post<NodeWatch>('/monitoring/watches/', body);
+    const watch = await this.post<NodeWatch>('/monitoring/watches/', body);
+    return parseNodeWatchFromAPI(watch);
   }
 
   async patchNodeWatch(id: number, body: { enabled?: boolean }): Promise<NodeWatch> {
-    return this.patch<NodeWatch>(`/monitoring/watches/${id}/`, body);
+    const watch = await this.patch<NodeWatch>(`/monitoring/watches/${id}/`, body);
+    return parseNodeWatchFromAPI(watch);
   }
 
   async deleteNodeWatch(id: number): Promise<void> {

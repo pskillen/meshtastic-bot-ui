@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
 import { MAP_TILE_SOURCES } from '@/lib/map-tiles';
 import { getMapTileSource, setMapTileSource, type MapTileSourceId } from '@/lib/settings';
-import { useMonitoredNodes } from '@/hooks/useMonitoredNodes';
+import { useNodeWatches } from '@/hooks/api/useNodeWatches';
 import { useState } from 'react';
 
 function themeCompatibilityBadge(compat: 'light' | 'dark' | 'both') {
@@ -36,7 +36,8 @@ function themeCompatibilityBadge(compat: 'light' | 'dark' | 'both') {
 
 export function SettingsPage() {
   const { theme, setTheme } = useTheme();
-  const { monitoredNodeIds } = useMonitoredNodes();
+  const watchesQuery = useNodeWatches();
+  const watchCount = watchesQuery.data?.count ?? watchesQuery.data?.results?.length ?? 0;
   const [mapTileSource, setMapTileSourceState] = useState<MapTileSourceId>(getMapTileSource);
 
   const handleMapTileSourceChange = (value: string) => {
@@ -124,18 +125,23 @@ export function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Monitored Nodes</CardTitle>
+          <CardTitle>Mesh watches</CardTitle>
           <CardDescription>
-            Your custom list of nodes to monitor (stored in this browser). Manage from the Monitor page.
+            Nodes you follow for mesh monitoring alerts (stored with your account). Open the watches dashboard to review
+            status and traceroutes.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">
-              {monitoredNodeIds.length} node{monitoredNodeIds.length !== 1 ? 's' : ''} in your list
+              {watchesQuery.isLoading
+                ? 'Loading…'
+                : watchesQuery.isError
+                  ? 'Could not load count'
+                  : `${watchCount} watch${watchCount !== 1 ? 'es' : ''}`}
             </span>
             <Link to="/nodes/monitor" className="text-teal-600 dark:text-teal-400 hover:underline text-sm font-medium">
-              Manage →
+              Dashboard →
             </Link>
           </div>
         </CardContent>

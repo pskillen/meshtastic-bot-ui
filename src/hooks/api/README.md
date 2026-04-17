@@ -20,7 +20,7 @@ This directory contains React hooks for interacting with the Meshtastic API. The
 
 ### Node Management Hooks
 
-- `useMonitoredNodes`: Manages a list of monitored node IDs in localStorage.
+- `useNodeWatches` / `useCreateNodeWatchMutation` / etc.: Mesh monitoring watches (`GET /api/monitoring/watches/`).
 - `useRecentNodes`: Manages a list of recently viewed nodes in localStorage.
 - `useNodeClaimStatus`: Fetches the claim status of a node.
 - `useClaimNode`: Provides a mutation for claiming a node.
@@ -87,20 +87,15 @@ function NodeDetail({ nodeId }) {
 }
 ```
 
-### Monitoring Nodes
+### Mesh monitoring watches
 
 ```tsx
-import { useMonitoredNodes } from '@/hooks/api';
+import { useNodeWatches } from '@/hooks/api/useNodeWatches';
 
-function NodeMonitoring({ nodeId }) {
-  const { monitoredNodeIds, addNode, removeNode } = useMonitoredNodes();
-  const isMonitored = monitoredNodeIds.includes(nodeId);
-
-  return (
-    <button onClick={() => (isMonitored ? removeNode(nodeId) : addNode(nodeId))}>
-      {isMonitored ? 'Stop Monitoring' : 'Start Monitoring'}
-    </button>
-  );
+function WatchSummary() {
+  const { data, isLoading } = useNodeWatches();
+  if (isLoading) return <div>Loading…</div>;
+  return <p>{data?.count ?? 0} watches</p>;
 }
 ```
 
