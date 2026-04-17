@@ -10,6 +10,8 @@ import {
   useDeleteNodeWatchMutation,
 } from '@/hooks/api/useNodeWatches';
 import type { UseQueryResult } from '@tanstack/react-query';
+import { authService } from '@/lib/auth/authService';
+import { userCanMeshWatchNode } from '@/lib/meshtastic';
 
 export interface MeshWatchControlsProps {
   node: ObservedNode;
@@ -37,6 +39,18 @@ export function MeshWatchControls({ node, watch, watchesQuery, idPrefix, compact
   }
   if (watchesQuery.isError) {
     return <span className="text-muted-foreground text-sm">—</span>;
+  }
+
+  const currentUser = authService.getCurrentUser();
+  const canAddWatch = userCanMeshWatchNode(node, currentUser?.id);
+
+  if (!watch && !canAddWatch) {
+    return (
+      <p className="text-sm text-muted-foreground max-w-md">
+        Watches are only available for nodes you have claimed or for shared infrastructure roles (router, repeater,
+        etc.).
+      </p>
+    );
   }
 
   if (watch) {

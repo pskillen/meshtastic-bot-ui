@@ -7,12 +7,7 @@ import { authService } from '@/lib/auth/authService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, Settings } from 'lucide-react';
-
-function formatSilenceSummary(seconds: number): string {
-  if (seconds % 3600 === 0) return `${seconds / 3600} hour${seconds === 3600 ? '' : 's'}`;
-  if (seconds % 60 === 0) return `${seconds / 60} minutes`;
-  return `${seconds.toLocaleString()} seconds`;
-}
+import { formatUptimeSeconds } from '@/lib/utils';
 
 export function NodeMeshMonitoringSection({ node }: { node: ObservedNode }) {
   const currentUser = authService.getCurrentUser();
@@ -80,9 +75,8 @@ export function NodeMeshMonitoringSection({ node }: { node: ObservedNode }) {
             )}
             {!offlineAfterQuery.isLoading && !offlineAfterQuery.isError && currentSeconds != null && (
               <p className="text-sm text-muted-foreground">
-                Current threshold:{' '}
-                <span className="text-foreground font-medium">{formatSilenceSummary(currentSeconds)}</span> (
-                {currentSeconds.toLocaleString()}s).
+                Current silence before verification:{' '}
+                <span className="text-foreground font-medium">{formatUptimeSeconds(currentSeconds)}</span>.
                 {canEditThreshold ? ' Use the settings button above to change it.' : ''}
               </p>
             )}

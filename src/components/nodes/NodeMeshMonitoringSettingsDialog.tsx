@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useMonitoringOfflineAfter, usePatchMonitoringOfflineAfterMutation } from '@/hooks/api/useNodeWatches';
+import { formatUptimeSeconds } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 
 const SILENCE_PRESETS: { label: string; seconds: number }[] = [
@@ -103,11 +104,11 @@ export function NodeMeshMonitoringSettingsDialog({
                 <SelectContent>
                   {SILENCE_PRESETS.map((p) => (
                     <SelectItem key={p.seconds} value={String(p.seconds)}>
-                      {p.label} ({p.seconds.toLocaleString()}s)
+                      {p.label}
                     </SelectItem>
                   ))}
                   {!presetValues.has(seconds) && (
-                    <SelectItem value={`custom:${seconds}`}>Current: {seconds.toLocaleString()}s</SelectItem>
+                    <SelectItem value={`custom:${seconds}`}>Current: {formatUptimeSeconds(seconds)}</SelectItem>
                   )}
                 </SelectContent>
               </Select>

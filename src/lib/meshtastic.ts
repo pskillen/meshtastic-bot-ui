@@ -2,6 +2,23 @@
  * Meshtastic role IDs and labels.
  * @see https://meshtastic.org/docs/development/protobufs/api/#radioconfig-userpreferences
  */
+/**
+ * Integer role values that may be watched by any authenticated user (shared infrastructure).
+ * Keep in sync with meshflow-api `nodes.constants.INFRASTRUCTURE_ROLES` / `RoleSource`.
+ */
+export const INFRASTRUCTURE_ROLE_IDS: ReadonlySet<number> = new Set([2, 3, 4, 11]); // ROUTER, ROUTER_CLIENT, REPEATER, ROUTER_LATE
+
+/** Matches mesh monitoring `user_can_watch` for UI gating (claim owner or infra role). */
+export function userCanMeshWatchNode(
+  node: { role?: number | null; owner?: { id: number } | null },
+  currentUserId: number | null | undefined
+): boolean {
+  if (currentUserId == null) return false;
+  if (node.owner?.id === currentUserId) return true;
+  if (node.role != null && INFRASTRUCTURE_ROLE_IDS.has(node.role)) return true;
+  return false;
+}
+
 export const ROLE_LABELS: Record<number, string> = {
   0: 'CLIENT',
   1: 'CLIENT_MUTE',
