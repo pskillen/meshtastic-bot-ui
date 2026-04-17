@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { subDays } from 'date-fns';
-import { AxiosError } from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -13,34 +12,10 @@ import { useTracerouteTriggerableNodesSuspense, useTriggerTraceroute } from '@/h
 import { useNodesSuspense } from '@/hooks/api/useNodes';
 import { TriggerTracerouteModal } from './TriggerTracerouteModal';
 import { TracerouteDetailModal } from './TracerouteDetailModal';
+import { getTracerouteErrorMessage } from './tracerouteErrors';
 import { TracerouteStatsSection } from '@/components/traceroutes/TracerouteStatsSection';
 import { AutoTraceRoute } from '@/lib/models';
 import { RouteIcon, RotateCw } from 'lucide-react';
-
-function getTracerouteErrorMessage(error: unknown): string {
-  // API client transforms errors: throws { message, status, data } with data = response body
-  const err = error as { status?: number; data?: { detail?: string }; message?: string };
-  const detail =
-    err.data?.detail ??
-    (error instanceof AxiosError ? (error.response?.data as { detail?: string })?.detail : undefined);
-  const status = err.status ?? (error instanceof AxiosError ? error.response?.status : undefined);
-
-  if (typeof detail === 'string') {
-    if (status === 429 || detail.toLowerCase().includes('rate limited')) {
-      return detail.includes('Try again in')
-        ? detail
-        : 'Traceroute rate limited. The radio needs at least 30 seconds between traceroutes. Please try again shortly.';
-    }
-    if (detail.toLowerCase().includes('allow_auto_traceroute')) {
-      return "This node doesn't allow traceroutes. Enable it in the node settings.";
-    }
-    if (detail.toLowerCase().includes('no recent packet ingestion')) {
-      return 'That source is not reporting packets right now (monitor offline or quiet). Pick another source or wait for the bot to ingest again.';
-    }
-    return detail;
-  }
-  return err.message ?? (error instanceof Error ? error.message : 'Failed to trigger traceroute. Please try again.');
-}
 
 function routeSummary(tr: AutoTraceRoute): string {
   const route = tr.route;

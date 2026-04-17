@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,16 @@ interface TriggerTracerouteModalProps {
   observedNodes: ObservedNode[];
   onTrigger: (managedNodeId: number, targetNodeId?: number) => Promise<void>;
   isSubmitting: boolean;
+  /**
+   * When set in `user` mode, the target is locked to this ObservedNode: the
+   * target picker/map is hidden and a read-only row is shown instead. Ignored
+   * in `auto` mode.
+   */
+  fixedTargetNode?: ObservedNode;
+}
+
+function formatNodeLabel(node: { short_name: string | null; node_id_str: string }): string {
+  return `${node.short_name ?? node.node_id_str} (${node.node_id_str})`;
 }
 
 export function TriggerTracerouteModal({
@@ -32,18 +42,29 @@ export function TriggerTracerouteModal({
   observedNodes,
   onTrigger,
   isSubmitting,
+  fixedTargetNode,
 }: TriggerTracerouteModalProps) {
   const [managedNodeId, setManagedNodeId] = useState<number | null>(null);
   const [targetNodeId, setTargetNodeId] = useState<number | null>(null);
   const [targetNodeLabel, setTargetNodeLabel] = useState<string | null>(null);
+
+  const hasFixedTarget = mode === 'user' && fixedTargetNode != null;
+
+  useEffect(() => {
+    if (!hasFixedTarget || !fixedTargetNode) return;
+    setTargetNodeId(fixedTargetNode.node_id);
+    setTargetNodeLabel(formatNodeLabel(fixedTargetNode));
+  }, [hasFixedTarget, fixedTargetNode]);
 
   const handleSubmit = async () => {
     if (!managedNodeId) return;
     if (mode === 'user' && !targetNodeId) return;
     await onTrigger(managedNodeId, mode === 'user' ? (targetNodeId ?? undefined) : undefined);
     setManagedNodeId(null);
-    setTargetNodeId(null);
-    setTargetNodeLabel(null);
+    if (!hasFixedTarget) {
+      setTargetNodeId(null);
+      setTargetNodeLabel(null);
+    }
   };
 
   const canSubmit = managedNodeId != null && (mode === 'auto' || targetNodeId != null);
@@ -59,16 +80,19 @@ export function TriggerTracerouteModal({
     return true;
   };
 
+  const dialogDescription =
+    mode === 'auto'
+      ? 'Select the source node. The target will be auto-selected (most recently heard).'
+      : hasFixedTarget
+        ? 'Select the source node. The target is fixed to the node you are viewing.'
+        : 'Select the source node and target node for the traceroute.';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={mode === 'user' ? 'max-w-4xl' : undefined}>
+      <DialogContent className={mode === 'user' && !hasFixedTarget ? 'max-w-4xl' : undefined}>
         <DialogHeader>
           <DialogTitle>{mode === 'user' ? 'Trigger Traceroute (target)' : 'Trigger Traceroute (auto)'}</DialogTitle>
-          <DialogDescription>
-            {mode === 'user'
-              ? 'Select the source node and target node for the traceroute.'
-              : 'Select the source node. The target will be auto-selected (most recently heard).'}
-          </DialogDescription>
+          <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
@@ -91,7 +115,19 @@ export function TriggerTracerouteModal({
             </Select>
           </div>
 
-          {mode === 'user' && (
+          {mode === 'user' && hasFixedTarget && fixedTargetNode && (
+            <div className="grid gap-2">
+              <Label>Target node</Label>
+              <div
+                className="rounded-md border bg-muted/40 px-3 py-2 text-sm"
+                data-testid="trigger-traceroute-fixed-target"
+              >
+                {formatNodeLabel(fixedTargetNode)}
+              </div>
+            </div>
+          )}
+
+          {mode === 'user' && !hasFixedTarget && (
             <>
               <div className="grid gap-2">
                 <Label htmlFor="target-node">Target node</Label>
