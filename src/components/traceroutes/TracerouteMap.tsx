@@ -174,14 +174,17 @@ export function TracerouteMap({ traceroute }: { traceroute: AutoTraceRoute }) {
     }
 
     const statusLower = traceroute.status?.toLowerCase();
-    // Pending/sent: solid blue (same weight/style as completed outbound). Failed: dashed red.
+    // Pending/sent: dashed blue (in-flight, path unknown). Failed: dashed red.
+    // Keeping them both dashed distinguishes them from completed TRs, where solid
+    // blue specifically means "completed direct (0-hop)" (see isDirectPathCompleted
+    // branch below). Different dash patterns distinguish pending from failed.
     const needsDirectLine = statusLower === 'pending' || statusLower === 'sent' || statusLower === 'failed';
     if (needsDirectLine && sourcePos && targetPos) {
       const isFailed = statusLower === 'failed';
       const directLine = L.polyline([sourcePos, targetPos], {
         color: isFailed ? FAILED_LINE_COLOR : SOURCE_COLOR,
         weight: 4,
-        ...(isFailed ? { dashArray: '10, 8' as const } : {}),
+        dashArray: isFailed ? '10, 8' : '4, 8',
         className: isFailed ? 'traceroute-failed' : 'traceroute-pending',
       }).addTo(map);
       layersRef.current.push(directLine);
