@@ -1,8 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMeshtasticApi } from './useApi';
-import type { NodeWatch, PaginatedResponse } from '@/lib/models';
+import type { MonitoringOfflineAfterResponse, NodeWatch, PaginatedResponse } from '@/lib/models';
 
 const watchesKey = ['monitoring', 'watches'] as const;
+
+export const monitoringOfflineAfterQueryKey = (observedNodeId: string) =>
+  ['monitoring', 'offline-after', observedNodeId] as const;
 
 function mergeWatchIntoWatchesCache(
   old: PaginatedResponse<NodeWatch> | undefined,
@@ -44,12 +47,43 @@ export function useNodeWatches(pageSize = 500) {
   });
 }
 
+export function useMonitoringOfflineAfter(observedNodeId: string | undefined, enabled = true) {
+  const api = useMeshtasticApi();
+  return useQuery<MonitoringOfflineAfterResponse>({
+    queryKey: monitoringOfflineAfterQueryKey(observedNodeId ?? ''),
+    queryFn: () => api.getMonitoringOfflineAfter(observedNodeId!),
+    enabled: Boolean(enabled && observedNodeId),
+  });
+}
+
+export function usePatchMonitoringOfflineAfterMutation() {
+  const api = useMeshtasticApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      observedNodeId,
+      offline_after,
+    }: {
+      observedNodeId: string;
+      offline_after: number;
+      /** When set, invalidates single-node detail cache after threshold change. */
+      nodeId?: number;
+    }) => api.patchMonitoringOfflineAfter(observedNodeId, { offline_after }),
+    onSuccess: (data, variables) => {
+      queryClient.setQueryData(monitoringOfflineAfterQueryKey(variables.observedNodeId), data);
+      queryClient.invalidateQueries({ queryKey: watchesKey });
+      if (variables.nodeId != null) {
+        queryClient.invalidateQueries({ queryKey: ['nodes', variables.nodeId] });
+      }
+    },
+  });
+}
+
 export function useCreateNodeWatchMutation() {
   const api = useMeshtasticApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: { observed_node_id: string; offline_after?: number; enabled?: boolean }) =>
-      api.createNodeWatch(body),
+    mutationFn: (body: { observed_node_id: string; enabled?: boolean }) => api.createNodeWatch(body),
     onSuccess: (newWatch) => {
       queryClient.setQueriesData<PaginatedResponse<NodeWatch>>({ queryKey: watchesKey }, (old) =>
         mergeWatchIntoWatchesCache(old, newWatch)
@@ -64,8 +98,7 @@ export function usePatchNodeWatchMutation() {
   const api = useMeshtasticApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: number; offline_after?: number; enabled?: boolean }) =>
-      api.patchNodeWatch(id, body),
+    mutationFn: ({ id, ...body }: { id: number; enabled?: boolean }) => api.patchNodeWatch(id, body),
     onSuccess: (updated) => {
       queryClient.setQueriesData<PaginatedResponse<NodeWatch>>({ queryKey: watchesKey }, (old) =>
         mergeWatchIntoWatchesCache(old, updated)

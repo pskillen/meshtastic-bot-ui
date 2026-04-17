@@ -20,8 +20,9 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { authService } from '@/lib/auth/authService';
 import { getRoleLabel } from '@/lib/meshtastic';
-import type { EnvironmentExposureSlug, WeatherUseSlug } from '@/lib/models';
+import type { EnvironmentExposureSlug, LatestEnvironmentMetrics, WeatherUseSlug } from '@/lib/models';
 import { NodeEnvironmentSettingsDialog } from '@/components/nodes/NodeEnvironmentSettingsDialog';
+import { NodeMeshMonitoringSection } from '@/components/nodes/NodeMeshMonitoringSection';
 
 interface NodeDetailContentProps {
   nodeId: number;
@@ -30,6 +31,28 @@ interface NodeDetailContentProps {
 }
 
 type TracerouteTimeRange = '24h' | '7d' | '30d';
+
+/** True when the node has at least one environment *sensor* reading (not placement/weather alone). */
+function hasEnvironmentSensorMetrics(env: LatestEnvironmentMetrics | null | undefined): boolean {
+  if (!env) return false;
+  const keys: (keyof LatestEnvironmentMetrics)[] = [
+    'temperature',
+    'relative_humidity',
+    'barometric_pressure',
+    'gas_resistance',
+    'iaq',
+    'lux',
+    'wind_direction',
+    'wind_speed',
+    'radiation',
+    'rainfall_1h',
+    'rainfall_24h',
+  ];
+  return keys.some((k) => {
+    const v = env[k];
+    return v != null;
+  });
+}
 
 function TracerouteLinksSection({ nodeId }: { nodeId: number }) {
   const [timeRange, setTimeRange] = useState<TracerouteTimeRange>('7d');
@@ -181,26 +204,6 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
           )}
         </div>
         <div className="flex flex-shrink-0 items-start gap-2">
-          {node.environment_settings_editable && (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                aria-label="Node settings"
-                onClick={() => setSettingsOpen(true)}
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-              <NodeEnvironmentSettingsDialog
-                open={settingsOpen}
-                onOpenChange={setSettingsOpen}
-                nodeId={nodeId}
-                initialEnvironmentExposure={(node.environment_exposure ?? 'unknown') as EnvironmentExposureSlug}
-                initialWeatherUse={(node.weather_use ?? 'unknown') as WeatherUseSlug}
-              />
-            </>
-          )}
           {(!node.owner || hasPendingClaim) && (
             <Link
               to={`/nodes/${nodeId}/claim`}
@@ -336,38 +339,62 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
           </Card>
         )}
 
-        {(node.latest_environment_metrics || node.environment_exposure != null || node.weather_use != null) && (
-          <MetricsCard
-            title="Environment Metrics"
-            reportedTime={node.latest_environment_metrics?.reported_time}
-            metrics={[
-              { label: 'Sensor placement', value: node.environment_exposure },
-              { label: 'Use for weather', value: node.weather_use },
-              ...(node.latest_environment_metrics
-                ? [
-                    { label: 'Temperature', value: node.latest_environment_metrics.temperature, unit: '°C' },
-                    {
-                      label: 'Relative Humidity',
-                      value: node.latest_environment_metrics.relative_humidity,
-                      unit: '%',
-                    },
-                    {
-                      label: 'Barometric Pressure',
-                      value: node.latest_environment_metrics.barometric_pressure,
-                      unit: 'hPa',
-                    },
-                    { label: 'Gas Resistance', value: node.latest_environment_metrics.gas_resistance, unit: 'Ω' },
-                    { label: 'IAQ', value: node.latest_environment_metrics.iaq },
-                    { label: 'Lux', value: node.latest_environment_metrics.lux, unit: 'lx' },
-                    { label: 'Wind Direction', value: node.latest_environment_metrics.wind_direction, unit: '°' },
-                    { label: 'Wind Speed', value: node.latest_environment_metrics.wind_speed, unit: 'm/s' },
-                    { label: 'Radiation', value: node.latest_environment_metrics.radiation },
-                    { label: 'Rainfall 1h', value: node.latest_environment_metrics.rainfall_1h, unit: 'mm' },
-                    { label: 'Rainfall 24h', value: node.latest_environment_metrics.rainfall_24h, unit: 'mm' },
-                  ]
-                : []),
-            ]}
-          />
+        {hasEnvironmentSensorMetrics(node.latest_environment_metrics) && (
+          <>
+            <MetricsCard
+              title="Environment Metrics"
+              reportedTime={node.latest_environment_metrics?.reported_time}
+              headerActions={
+                node.environment_settings_editable ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label="Environment metrics settings"
+                    onClick={() => setSettingsOpen(true)}
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                ) : undefined
+              }
+              metrics={[
+                { label: 'Sensor placement', value: node.environment_exposure },
+                { label: 'Use for weather', value: node.weather_use },
+                ...(node.latest_environment_metrics
+                  ? [
+                      { label: 'Temperature', value: node.latest_environment_metrics.temperature, unit: '°C' },
+                      {
+                        label: 'Relative Humidity',
+                        value: node.latest_environment_metrics.relative_humidity,
+                        unit: '%',
+                      },
+                      {
+                        label: 'Barometric Pressure',
+                        value: node.latest_environment_metrics.barometric_pressure,
+                        unit: 'hPa',
+                      },
+                      { label: 'Gas Resistance', value: node.latest_environment_metrics.gas_resistance, unit: 'Ω' },
+                      { label: 'IAQ', value: node.latest_environment_metrics.iaq },
+                      { label: 'Lux', value: node.latest_environment_metrics.lux, unit: 'lx' },
+                      { label: 'Wind Direction', value: node.latest_environment_metrics.wind_direction, unit: '°' },
+                      { label: 'Wind Speed', value: node.latest_environment_metrics.wind_speed, unit: 'm/s' },
+                      { label: 'Radiation', value: node.latest_environment_metrics.radiation },
+                      { label: 'Rainfall 1h', value: node.latest_environment_metrics.rainfall_1h, unit: 'mm' },
+                      { label: 'Rainfall 24h', value: node.latest_environment_metrics.rainfall_24h, unit: 'mm' },
+                    ]
+                  : []),
+              ]}
+            />
+            {node.environment_settings_editable && (
+              <NodeEnvironmentSettingsDialog
+                open={settingsOpen}
+                onOpenChange={setSettingsOpen}
+                nodeId={nodeId}
+                initialEnvironmentExposure={(node.environment_exposure ?? 'unknown') as EnvironmentExposureSlug}
+                initialWeatherUse={(node.weather_use ?? 'unknown') as WeatherUseSlug}
+              />
+            )}
+          </>
         )}
 
         {node.latest_power_metrics &&
@@ -452,6 +479,7 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
 
       {!compact && (
         <>
+          <NodeMeshMonitoringSection node={node} />
           <TracerouteLinksSection nodeId={nodeId} />
           <NodeStatsSection nodeId={nodeId} node={node} isManagedNode={isManagedNode} />
         </>

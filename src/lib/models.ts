@@ -428,8 +428,16 @@ export interface ObservedNodeWatchSummary {
   node_id_str: string;
   long_name: string | null;
   last_heard: string | null;
+  /** Node-level silence threshold (seconds); same as NodeWatch.offline_after on responses. */
+  offline_after?: number;
   monitoring_verification_started_at?: string | null;
   monitoring_offline_confirmed_at?: string | null;
+}
+
+/** GET/PATCH `/api/monitoring/nodes/{internal_id}/offline-after/` */
+export interface MonitoringOfflineAfterResponse {
+  offline_after: number;
+  editable: boolean;
 }
 
 /** User watch on an observed node (`GET/POST /monitoring/watches/`). */
