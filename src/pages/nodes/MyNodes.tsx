@@ -5,17 +5,15 @@ import { useNodeWatches } from '@/hooks/api/useNodeWatches';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, AlertCircle, Radio, Settings, CheckCircle2 } from 'lucide-react';
+import { Loader2, AlertCircle, Settings, CheckCircle2 } from 'lucide-react';
 import { useConfig } from '@/providers/ConfigProvider';
 import { BotSetupInstructions, type BotDefaults } from '@/components/nodes/BotSetupInstructions';
 import { ObservedNode, type NodeWatch } from '@/lib/models';
-import { MeshWatchControls } from '@/components/nodes/MeshWatchControls';
 import type { NodeApiKeyConstellation } from '@/lib/models';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SetupManagedNode } from '@/components/nodes/SetupManagedNode';
 import { NodesAndConstellationsMap } from '@/components/nodes/NodesAndConstellationsMap';
 import { MonitoredNodesBatteryChart } from '@/components/nodes/MonitoredNodesBatteryChart';
+import { MyNodeCard } from '@/components/nodes/MyNodeCard';
 import { useQuery } from '@tanstack/react-query';
 import { useMeshtasticApi } from '@/hooks/api/useApi';
 import {
@@ -52,7 +50,6 @@ function MyNodesContent() {
     return m;
   }, [watchesQuery.data]);
 
-  // Create a Set of managed node IDs for quick lookup
   const managedNodeIds = new Set(myManagedNodes.map((n) => n.node_id));
 
   const handleRunAsManagedNode = (node: ObservedNode) => {
@@ -65,154 +62,14 @@ function MyNodesContent() {
     setSelectedNode(null);
   };
 
-  // Combine claimed and managed nodes into a unified list
   const allNodes = [...myClaimedNodes];
 
-  // Add managed nodes that aren't already in the claimed nodes list
   myManagedNodes.forEach((managedNode) => {
     if (!allNodes.some((node) => node.node_id === managedNode.node_id)) {
       allNodes.push(managedNode as unknown as ObservedNode);
     }
   });
 
-  // Custom table component that extends MonitoredNodesTable to include claim/manage status
-  const MyNodesTable = () => {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>My Nodes</CardTitle>
-          <CardDescription>
-            These are your observed and managed nodes. You can view details and manage them from here.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Short Name</TableHead>
-                <TableHead>Long Name</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Last Heard</TableHead>
-                <TableHead>Battery</TableHead>
-                <TableHead>Position</TableHead>
-                <TableHead>Mesh watch</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {allNodes.map((node) => {
-                const isManaged = managedNodeIds.has(node.node_id);
-                const isClaimed = node.owner?.id !== undefined;
-                const watch = watchesByNodeIdStr.get(node.node_id_str);
-
-                return (
-                  <TableRow key={node.node_id}>
-                    <TableCell>
-                      <div>
-                        {node.short_name || node.node_id_str}
-                        <div className="text-xs text-muted-foreground">{node.node_id_str}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{node.long_name || '-'}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-2">
-                        {isManaged && <Badge variant="outline">Managed</Badge>}
-                        {isClaimed && <Badge variant="outline">Claimed</Badge>}
-                      </div>
-                    </TableCell>
-                    <TableCell>{node.last_heard ? new Date(node.last_heard).toLocaleString() : 'Never'}</TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div>
-                          {node.latest_device_metrics?.battery_level
-                            ? `${node.latest_device_metrics.battery_level}%`
-                            : '-'}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {node.latest_device_metrics?.voltage
-                            ? `${node.latest_device_metrics.voltage.toFixed(2)}V`
-                            : '-'}
-                        </div>
-                        {node.latest_device_metrics?.reported_time && (
-                          <div className="text-xs text-muted-foreground">
-                            Updated: {new Date(node.latest_device_metrics.reported_time).toLocaleString()}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {node.latest_position &&
-                      typeof node.latest_position.latitude === 'number' &&
-                      typeof node.latest_position.longitude === 'number' ? (
-                        <div className="space-y-1">
-                          <div>
-                            {node.latest_position.latitude.toFixed(6)}, {node.latest_position.longitude.toFixed(6)}
-                          </div>
-                          {node.latest_position.reported_time && (
-                            <div className="text-xs text-muted-foreground">
-                              Updated: {new Date(node.latest_position.reported_time).toLocaleString()}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        '-'
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <MeshWatchControls
-                        node={node}
-                        watch={watch}
-                        watchesQuery={watchesQuery}
-                        idPrefix={`my-nodes-${node.node_id}`}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        {!isManaged && (
-                          <Button
-                            onClick={() => handleRunAsManagedNode(node)}
-                            size="sm"
-                            variant="outline"
-                            className="flex items-center text-xs"
-                          >
-                            <Radio className="mr-1 h-3 w-3" />
-                            Convert
-                          </Button>
-                        )}
-                        <Button
-                          onClick={() => navigate(`/nodes/${node.node_id}`)}
-                          size="sm"
-                          variant="outline"
-                          className="flex items-center"
-                        >
-                          <Settings className="mr-2 h-4 w-4" />
-                          Details
-                        </Button>
-                        {isManaged && (
-                          <Button
-                            size="sm"
-                            variant="default"
-                            onClick={() => {
-                              setShowInstructionsNode(node);
-                              setInstructionsModalOpen(true);
-                            }}
-                          >
-                            Show Setup Instructions
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    );
-  };
-
-  // Setup Instructions Modal
   const renderInstructionsModal = () => {
     if (!showInstructionsNode) return null;
     const nodeApiKeys = apiKeys?.filter((key) => key.nodes.includes(showInstructionsNode.node_id)) || [];
@@ -286,7 +143,7 @@ function MyNodesContent() {
 
   return (
     <div className="container mx-auto p-4 space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center gap-4 flex-wrap">
         <h1 className="text-2xl font-bold">My Nodes</h1>
         <Button variant="outline" onClick={() => navigate('/user/nodes')} className="flex items-center">
           <Settings className="mr-2 h-4 w-4" />
@@ -310,11 +167,45 @@ function MyNodesContent() {
 
       {allNodes.length > 0 ? (
         <>
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-2">Nodes and Constellations</h2>
-            {/* Collapsible map section */}
-            <CollapsibleSection title="Nodes and Constellations" defaultOpen>
-              <div className="h-[600px] bg-background rounded-lg border">
+          <Card>
+            <CardHeader>
+              <CardTitle>Your nodes</CardTitle>
+              <CardDescription>
+                Claimed and managed radios in a compact layout. Open a node for full telemetry, position, and settings.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                {allNodes.map((node) => {
+                  const isManaged = managedNodeIds.has(node.node_id);
+                  const isClaimed = node.owner?.id !== undefined;
+                  const watch = watchesByNodeIdStr.get(node.node_id_str);
+                  return (
+                    <MyNodeCard
+                      key={node.node_id}
+                      node={node}
+                      isManaged={isManaged}
+                      isClaimed={isClaimed}
+                      watch={watch}
+                      watchesQuery={watchesQuery}
+                      onConvert={() => handleRunAsManagedNode(node)}
+                      onShowSetupInstructions={() => {
+                        setShowInstructionsNode(node);
+                        setInstructionsModalOpen(true);
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          <section className="space-y-2" aria-labelledby="my-nodes-map-heading">
+            <h2 id="my-nodes-map-heading" className="text-lg font-semibold">
+              Constellation map
+            </h2>
+            <CollapsibleSection title="Map" defaultOpen={false}>
+              <div className="h-[min(600px,70vh)] min-h-[320px] bg-background rounded-lg border">
                 <NodesAndConstellationsMap
                   managedNodes={myManagedNodes}
                   observedNodes={myClaimedNodes}
@@ -323,19 +214,18 @@ function MyNodesContent() {
                 />
               </div>
             </CollapsibleSection>
-          </div>
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-2">Battery Levels</h2>
-            {/* Collapsible battery chart section */}
-            <CollapsibleSection title="Battery Levels" defaultOpen>
+          </section>
+
+          <section className="space-y-2" aria-labelledby="my-nodes-battery-heading">
+            <h2 id="my-nodes-battery-heading" className="text-lg font-semibold">
+              Battery trend
+            </h2>
+            <CollapsibleSection title="Battery chart" defaultOpen={false}>
               <div className="bg-background rounded-lg border">
                 <MonitoredNodesBatteryChart nodes={allNodes} />
               </div>
             </CollapsibleSection>
-          </div>
-          <div className="bg-background rounded-lg border">
-            <MyNodesTable />
-          </div>
+          </section>
         </>
       ) : (
         <Alert>
@@ -368,7 +258,6 @@ export function MyNodes() {
   );
 }
 
-// CollapsibleSection component (add at the bottom of the file)
 function CollapsibleSection({
   title,
   defaultOpen = false,
@@ -381,7 +270,7 @@ function CollapsibleSection({
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div>
-      <Button variant="ghost" size="sm" onClick={() => setOpen((v) => !v)} className="mb-2">
+      <Button variant="ghost" size="sm" onClick={() => setOpen((v) => !v)} className="mb-2" aria-expanded={open}>
         {open ? 'Hide' : 'Show'} {title}
       </Button>
       {open && children}
