@@ -21,7 +21,7 @@ function getBreadcrumbSegments(pathname: string): { path: string; label: string 
     } else if (parts[1] === 'my-nodes') {
       segments.push({ path: '/nodes/my-nodes', label: 'My Nodes' });
     } else if (parts[1] === 'monitor') {
-      segments.push({ path: '/nodes/monitor', label: 'Monitor' });
+      segments.push({ path: '/nodes/monitor', label: 'Watches' });
     } else if (parts[1] && /^\d+$/.test(parts[1])) {
       segments.push({ path: `/nodes/${parts[1]}`, label: parts[1] });
       if (parts[2] === 'claim') {

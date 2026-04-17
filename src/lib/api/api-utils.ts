@@ -1,4 +1,4 @@
-import { ObservedNode } from '../models';
+import { NodeWatch, ObservedNode } from '../models';
 
 // Helper method to convert ObservedNode to NodeData for backward compatibility
 export function parseObservedNodeFromAPI(node: ObservedNode): ObservedNode {
@@ -37,5 +37,15 @@ export function parseObservedNodeFromAPI(node: ObservedNode): ObservedNode {
             : null,
         }
       : null,
+  };
+}
+
+/** Parse dates on nested observed_node for mesh monitoring watch API responses. */
+export function parseNodeWatchFromAPI(watch: NodeWatch): NodeWatch {
+  return {
+    ...watch,
+    observed_node: parseObservedNodeFromAPI(
+      watch.observed_node as unknown as ObservedNode
+    ) as NodeWatch['observed_node'],
   };
 }

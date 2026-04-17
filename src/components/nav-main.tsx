@@ -74,11 +74,11 @@ export function NavMain() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
-          <SidebarMenuItem key="Monitor">
-            <SidebarMenuButton asChild tooltip="Monitor">
+          <SidebarMenuItem key="Watches">
+            <SidebarMenuButton asChild tooltip="Mesh watches">
               <Link to="/nodes/monitor">
                 <ActivityIcon />
-                <span>Monitor</span>
+                <span>Watches</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

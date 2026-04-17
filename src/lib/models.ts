@@ -422,17 +422,16 @@ export interface DiscordNotificationPrefs {
   discord_notify_verified: boolean;
 }
 
-/** Subset of observed node on mesh monitoring watch responses (API `ObservedNodeWatchSummary`). */
-export interface ObservedNodeWatchSummary {
-  internal_id: string;
-  node_id_str: string;
-  long_name: string | null;
-  last_heard: string | null;
-  /** Node-level silence threshold (seconds); same as NodeWatch.offline_after on responses. */
+/**
+ * Observed node embedded on NodeWatch responses: same shape as ObservedNode (list/detail API)
+ * plus mesh monitoring hints (`GET /api/monitoring/watches/`).
+ */
+export type ObservedNodeWatchSummary = ObservedNode & {
+  /** Node-level silence threshold (seconds); duplicated from NodePresence for convenience. */
   offline_after?: number;
   monitoring_verification_started_at?: string | null;
   monitoring_offline_confirmed_at?: string | null;
-}
+};
 
 /** GET/PATCH `/api/monitoring/nodes/{internal_id}/offline-after/` */
 export interface MonitoringOfflineAfterResponse {
