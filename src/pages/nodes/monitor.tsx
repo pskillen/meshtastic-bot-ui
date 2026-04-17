@@ -6,8 +6,7 @@ import { WatchedNodesTable } from '@/components/nodes/WatchedNodesTable';
 import { MonitoredNodesBatteryChart } from '@/components/nodes/MonitoredNodesBatteryChart';
 import { MonitoredNodesChannelUtilChart } from '@/components/nodes/MonitoredNodesChannelUtilChart';
 import { TracerouteDetailModal } from '@/pages/traceroutes/TracerouteDetailModal';
-import { Button } from '@/components/ui/button';
-import { RouteIcon } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import type { NodeWatch, ObservedNode } from '@/lib/models';
 
 function nodeFromWatch(watch: NodeWatch): ObservedNode {
@@ -23,27 +22,11 @@ export default function MonitorNodesPage() {
 
   return (
     <div className="container mx-auto p-4 space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
-        <div>
-          <h1 className="text-2xl font-bold">Mesh watches</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Status for nodes you are watching via mesh monitoring (server-backed).
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/nodes/my-nodes">My Nodes</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/nodes/infrastructure">Mesh Infrastructure</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/traceroutes" className="inline-flex items-center gap-1.5">
-              <RouteIcon className="h-4 w-4" aria-hidden />
-              Traceroutes
-            </Link>
-          </Button>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold">Mesh watches</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          You are explicitly monitoring these nodes for mesh connectivity.
+        </p>
       </div>
 
       {watchesQuery.isLoading && (
@@ -82,20 +65,27 @@ export default function MonitorNodesPage() {
           </div>
 
           <div className="bg-background rounded-lg border">
-            <MonitoredNodesBatteryChart nodes={nodesForCharts} />
-          </div>
-
-          <div className="bg-background rounded-lg border">
-            <MonitoredNodesChannelUtilChart nodes={nodesForCharts} />
-          </div>
-
-          <div className="bg-background rounded-lg border">
             <WatchedNodesTable
               watches={watches}
               watchesQuery={watchesQuery}
               onOpenTraceroute={setSelectedTracerouteId}
             />
           </div>
+
+          <div className="bg-background rounded-lg border">
+            <MonitoredNodesBatteryChart nodes={nodesForCharts} />
+          </div>
+
+          <Accordion type="single" collapsible className="bg-background rounded-lg border px-2">
+            <AccordionItem value="channel-util" className="border-0">
+              <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
+                Channel utilization
+              </AccordionTrigger>
+              <AccordionContent className="pb-4 pt-0">
+                <MonitoredNodesChannelUtilChart nodes={nodesForCharts} />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </>
       )}
 
