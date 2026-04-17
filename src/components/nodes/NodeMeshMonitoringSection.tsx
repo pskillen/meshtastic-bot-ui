@@ -1,30 +1,25 @@
+import { useState } from 'react';
 import { MeshWatchControls } from '@/components/nodes/MeshWatchControls';
-import {
-  useMonitoringOfflineAfter,
-  useNodeWatches,
-  usePatchMonitoringOfflineAfterMutation,
-} from '@/hooks/api/useNodeWatches';
+import { NodeMeshMonitoringSettingsDialog } from '@/components/nodes/NodeMeshMonitoringSettingsDialog';
+import { useMonitoringOfflineAfter, useNodeWatches } from '@/hooks/api/useNodeWatches';
 import type { ObservedNode } from '@/lib/models';
 import { authService } from '@/lib/auth/authService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Loader2, Settings } from 'lucide-react';
 
-const SILENCE_PRESETS: { label: string; seconds: number }[] = [
-  { label: '1 hour', seconds: 3600 },
-  { label: '2 hours', seconds: 7200 },
-  { label: '6 hours', seconds: 21600 },
-  { label: '12 hours', seconds: 43200 },
-  { label: '24 hours', seconds: 86400 },
-];
+function formatSilenceSummary(seconds: number): string {
+  if (seconds % 3600 === 0) return `${seconds / 3600} hour${seconds === 3600 ? '' : 's'}`;
+  if (seconds % 60 === 0) return `${seconds / 60} minutes`;
+  return `${seconds.toLocaleString()} seconds`;
+}
 
 export function NodeMeshMonitoringSection({ node }: { node: ObservedNode }) {
   const currentUser = authService.getCurrentUser();
   const watchesQuery = useNodeWatches();
   const observedUuid = String(node.internal_id);
   const offlineAfterQuery = useMonitoringOfflineAfter(observedUuid, Boolean(currentUser));
-  const patchOfflineAfter = usePatchMonitoringOfflineAfterMutation();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const watch = watchesQuery.data?.results.find((w) => w.observed_node.node_id_str === node.node_id_str);
 
@@ -33,24 +28,33 @@ export function NodeMeshMonitoringSection({ node }: { node: ObservedNode }) {
   }
 
   const currentSeconds = offlineAfterQuery.data?.offline_after;
-  const editable = offlineAfterQuery.data?.editable ?? false;
-  const presetValues = new Set(SILENCE_PRESETS.map((p) => p.seconds));
-  const selectValue =
-    currentSeconds != null
-      ? presetValues.has(currentSeconds)
-        ? String(currentSeconds)
-        : `custom:${currentSeconds}`
-      : '';
+  const canEditThreshold = offlineAfterQuery.data?.editable ?? false;
 
   return (
     <div className="mb-6">
       <Card>
-        <CardHeader>
-          <CardTitle>Mesh monitoring</CardTitle>
-          <CardDescription>
-            Get alerts when this node is quiet long enough that we run a verification traceroute round, then confirm
-            offline if the mesh still cannot reach it. Discord notifications use your linked account settings.
-          </CardDescription>
+        <CardHeader className="space-y-0">
+          <div className="flex flex-row items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <CardTitle>Mesh monitoring</CardTitle>
+              <CardDescription>
+                Get alerts when this node is quiet long enough that we run a verification traceroute round, then confirm
+                offline if the mesh still cannot reach it. Discord notifications use your linked account settings.
+              </CardDescription>
+            </div>
+            {canEditThreshold && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="shrink-0"
+                aria-label="Mesh monitoring settings"
+                onClick={() => setSettingsOpen(true)}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           <div>
@@ -63,12 +67,8 @@ export function NodeMeshMonitoringSection({ node }: { node: ObservedNode }) {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1">
             <h3 className="text-sm font-medium text-foreground">Silence before verification</h3>
-            <p className="text-sm text-muted-foreground">
-              Consider the node silent if there are no packets for this long (based on last heard). Then monitoring may
-              start a verification traceroute round.
-            </p>
             {offlineAfterQuery.isLoading && (
               <div className="flex items-center gap-2 text-muted-foreground text-sm">
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -79,50 +79,23 @@ export function NodeMeshMonitoringSection({ node }: { node: ObservedNode }) {
               <p className="text-sm text-muted-foreground">Could not load silence threshold.</p>
             )}
             {!offlineAfterQuery.isLoading && !offlineAfterQuery.isError && currentSeconds != null && (
-              <>
-                {editable ? (
-                  <Select
-                    value={selectValue}
-                    disabled={patchOfflineAfter.isPending}
-                    onValueChange={(v) => {
-                      const sec = v.startsWith('custom:') ? parseInt(v.slice('custom:'.length), 10) : parseInt(v, 10);
-                      if (!Number.isFinite(sec) || sec < 1) return;
-                      patchOfflineAfter.mutate(
-                        { observedNodeId: observedUuid, offline_after: sec, nodeId: node.node_id },
-                        {
-                          onError: (e) =>
-                            toast.error(e instanceof Error ? e.message : 'Could not update silence threshold'),
-                        }
-                      );
-                    }}
-                  >
-                    <SelectTrigger className="max-w-xs">
-                      <SelectValue placeholder="Choose duration" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SILENCE_PRESETS.map((p) => (
-                        <SelectItem key={p.seconds} value={String(p.seconds)}>
-                          {p.label} ({p.seconds.toLocaleString()}s)
-                        </SelectItem>
-                      ))}
-                      {currentSeconds != null && !presetValues.has(currentSeconds) && (
-                        <SelectItem value={`custom:${currentSeconds}`}>
-                          Current: {currentSeconds.toLocaleString()}s
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Threshold: {currentSeconds.toLocaleString()} seconds (only the claim owner or staff can change
-                    this.)
-                  </p>
-                )}
-              </>
+              <p className="text-sm text-muted-foreground">
+                Current threshold:{' '}
+                <span className="text-foreground font-medium">{formatSilenceSummary(currentSeconds)}</span> (
+                {currentSeconds.toLocaleString()}s).
+                {canEditThreshold ? ' Use the settings button above to change it.' : ''}
+              </p>
             )}
           </div>
         </CardContent>
       </Card>
+
+      <NodeMeshMonitoringSettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        observedNodeId={observedUuid}
+        nodeId={node.node_id}
+      />
     </div>
   );
 }
