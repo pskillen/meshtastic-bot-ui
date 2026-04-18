@@ -10,22 +10,26 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NodeSearch } from '@/components/NodeSearch';
 import { NodesAndConstellationsMap, MapNode } from '@/components/nodes/NodesAndConstellationsMap';
 import { ManagedNode, ObservedNode } from '@/lib/models';
 
+export type TriggerMode = 'user' | 'auto';
+
 interface TriggerTracerouteModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  mode: 'user' | 'auto';
+  /** Initial mode when the dialog opens. The user can switch modes inside the dialog when no fixedTargetNode is set. */
+  mode: TriggerMode;
   managedNodes: ManagedNode[];
   observedNodes: ObservedNode[];
   onTrigger: (managedNodeId: number, targetNodeId?: number) => Promise<void>;
   isSubmitting: boolean;
   /**
-   * When set in `user` mode, the target is locked to this ObservedNode: the
-   * target picker/map is hidden and a read-only row is shown instead. Ignored
-   * in `auto` mode.
+   * When set, the dialog is locked to user mode with the target fixed to this
+   * ObservedNode. The picker/map is hidden, the mode toggle is hidden, and the
+   * target row is read-only.
    */
   fixedTargetNode?: ObservedNode;
 }
@@ -37,18 +41,25 @@ function formatNodeLabel(node: { short_name: string | null; node_id_str: string 
 export function TriggerTracerouteModal({
   open,
   onOpenChange,
-  mode,
+  mode: initialMode,
   managedNodes,
   observedNodes,
   onTrigger,
   isSubmitting,
   fixedTargetNode,
 }: TriggerTracerouteModalProps) {
+  const [mode, setMode] = useState<TriggerMode>(initialMode);
   const [managedNodeId, setManagedNodeId] = useState<number | null>(null);
   const [targetNodeId, setTargetNodeId] = useState<number | null>(null);
   const [targetNodeLabel, setTargetNodeLabel] = useState<string | null>(null);
 
-  const hasFixedTarget = mode === 'user' && fixedTargetNode != null;
+  const hasFixedTarget = fixedTargetNode != null;
+
+  // Reset mode when the dialog reopens or the initial mode prop changes.
+  useEffect(() => {
+    if (!open) return;
+    setMode(hasFixedTarget ? 'user' : initialMode);
+  }, [open, initialMode, hasFixedTarget]);
 
   useEffect(() => {
     if (!hasFixedTarget || !fixedTargetNode) return;
@@ -101,9 +112,18 @@ export function TriggerTracerouteModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={mode === 'user' ? 'max-w-4xl' : undefined}>
         <DialogHeader>
-          <DialogTitle>{mode === 'user' ? 'Trigger Traceroute (target)' : 'Trigger Traceroute (auto)'}</DialogTitle>
+          <DialogTitle>Trigger Traceroute</DialogTitle>
           <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
+
+        {!hasFixedTarget && (
+          <Tabs value={mode} onValueChange={(v) => setMode(v as TriggerMode)} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="user">Pick target</TabsTrigger>
+              <TabsTrigger value="auto">Auto target</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
 
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">

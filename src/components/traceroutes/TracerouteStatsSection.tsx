@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { subHours, subDays } from 'date-fns';
 import { Cell, Legend, Line, LineChart, Pie, PieChart, XAxis, YAxis, Tooltip as RechartsTooltip } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,7 +35,12 @@ const SOURCE_LABELS: Record<string, string> = {
   auto: 'Auto',
   user: 'User',
   external: 'External',
+  monitor: 'Monitor',
 };
+
+// Min number of attempts before a target is included in top/least success rankings.
+// One-off 1/1 perfect runs would otherwise dominate the "top" list.
+const TOP_TARGETS_MIN_ATTEMPTS = 5;
 
 export function TracerouteStatsSection() {
   const [timeframe, setTimeframe] = useState<TimeframeKey>('7d');
@@ -60,10 +66,33 @@ export function TracerouteStatsSection() {
     }));
   }, [data?.success_failure]);
 
+  const successOverTimeData = useMemo(() => {
+    if (!data?.success_over_time?.length) return [];
+    return data.success_over_time.map((d) => {
+      const finished = d.completed + d.failed;
+      const success_pct = finished > 0 ? (d.completed / finished) * 100 : null;
+      return { ...d, success_pct };
+    });
+  }, [data?.success_over_time]);
+
   const lineChartConfig: ChartConfig = {
     completed: { color: '#22c55e', label: 'Completed' },
     failed: { color: '#ef4444', label: 'Failed' },
+    success_pct: { color: '#3b82f6', label: 'Success %' },
   };
+
+  const eligibleTargets = useMemo(
+    () => (data?.by_target ?? []).filter((t) => t.total >= TOP_TARGETS_MIN_ATTEMPTS && t.success_rate != null),
+    [data?.by_target]
+  );
+  const topSuccessTargets = useMemo(
+    () => [...eligibleTargets].sort((a, b) => (b.success_rate ?? 0) - (a.success_rate ?? 0)).slice(0, 5),
+    [eligibleTargets]
+  );
+  const leastSuccessTargets = useMemo(
+    () => [...eligibleTargets].sort((a, b) => (a.success_rate ?? 0) - (b.success_rate ?? 0)).slice(0, 5),
+    [eligibleTargets]
+  );
 
   if (error) {
     return (
@@ -95,7 +124,7 @@ export function TracerouteStatsSection() {
         </Select>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {/* TR sources pie */}
         <Card>
           <CardHeader className="pb-2">
@@ -166,42 +195,20 @@ export function TracerouteStatsSection() {
           </CardContent>
         </Card>
 
-        {/* Top routers */}
+        {/* Success over time (14d line) */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Top Routers</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="h-[180px] flex items-center justify-center text-muted-foreground text-sm">Loading…</div>
-            ) : data?.top_routers?.length ? (
-              <div className="space-y-2 max-h-[180px] overflow-y-auto">
-                {data.top_routers.slice(0, 8).map((r) => (
-                  <div key={r.node_id} className="flex justify-between items-center gap-2 text-sm">
-                    <span className="truncate font-mono" title={r.short_name}>
-                      {r.short_name || r.node_id_str}
-                    </span>
-                    <span className="text-muted-foreground tabular-nums">{r.count}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="h-[180px] flex items-center justify-center text-muted-foreground text-sm">No data</div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Success over time (14d line) */}
-        <Card className="md:col-span-2 lg:col-span-1">
-          <CardHeader className="pb-2">
             <CardTitle className="text-sm">Success Over Time (14d)</CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
+              Daily completed / failed counts (left axis) and success rate (right axis, dashed).
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <div className="h-[180px] flex items-center justify-center text-muted-foreground text-sm">Loading…</div>
-            ) : data?.success_over_time?.length ? (
+            ) : successOverTimeData.length ? (
               <ChartContainer config={lineChartConfig} className="aspect-auto h-[180px] w-full">
-                <LineChart data={data.success_over_time} margin={{ top: 4, right: 4, bottom: 20, left: 4 }}>
+                <LineChart data={successOverTimeData} margin={{ top: 4, right: 4, bottom: 20, left: 4 }}>
                   <XAxis
                     dataKey="date"
                     tickLine={false}
@@ -213,16 +220,32 @@ export function TracerouteStatsSection() {
                     }}
                     tick={{ fontSize: 10 }}
                   />
-                  <YAxis tickLine={false} axisLine={false} width={28} tick={{ fontSize: 10 }} />
+                  <YAxis yAxisId="left" tickLine={false} axisLine={false} width={28} tick={{ fontSize: 10 }} />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tickLine={false}
+                    axisLine={false}
+                    width={32}
+                    domain={[0, 100]}
+                    tickFormatter={(v: number) => `${v}%`}
+                    tick={{ fontSize: 10 }}
+                  />
                   <RechartsTooltip
                     content={
                       <ChartTooltipContent
-                        formatter={(v) => [v, '']}
+                        formatter={(value, name) => {
+                          if (name === 'success_pct') {
+                            return [value == null ? '—' : `${(value as number).toFixed(0)}%`, ' Success rate'];
+                          }
+                          return [value, ` ${name === 'completed' ? 'Completed' : 'Failed'}`];
+                        }}
                         labelFormatter={(l) => new Date(l).toLocaleDateString()}
                       />
                     }
                   />
                   <Line
+                    yAxisId="left"
                     type="monotone"
                     dataKey="completed"
                     stroke="#22c55e"
@@ -230,7 +253,25 @@ export function TracerouteStatsSection() {
                     dot={{ r: 2 }}
                     connectNulls
                   />
-                  <Line type="monotone" dataKey="failed" stroke="#ef4444" strokeWidth={2} dot={{ r: 2 }} connectNulls />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="failed"
+                    stroke="#ef4444"
+                    strokeWidth={2}
+                    dot={{ r: 2 }}
+                    connectNulls
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="success_pct"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                    dot={{ r: 2 }}
+                    connectNulls
+                  />
                   <Legend />
                 </LineChart>
               </ChartContainer>
@@ -242,6 +283,23 @@ export function TracerouteStatsSection() {
       </div>
 
       <TooltipProvider>
+        <div className="grid gap-4 md:grid-cols-2">
+          <TargetsRankingCard
+            title="Top success targets"
+            description={`Targets with the highest success rate in this period (min ${TOP_TARGETS_MIN_ATTEMPTS} attempts).`}
+            isLoading={isLoading}
+            rows={topSuccessTargets}
+            emptyMessage={`No targets with at least ${TOP_TARGETS_MIN_ATTEMPTS} finished attempts.`}
+          />
+          <TargetsRankingCard
+            title="Least successful targets"
+            description={`Targets with the lowest success rate in this period (min ${TOP_TARGETS_MIN_ATTEMPTS} attempts).`}
+            isLoading={isLoading}
+            rows={leastSuccessTargets}
+            emptyMessage={`No targets with at least ${TOP_TARGETS_MIN_ATTEMPTS} finished attempts.`}
+          />
+        </div>
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">By source node</CardTitle>
@@ -319,5 +377,83 @@ export function TracerouteStatsSection() {
         </Card>
       </TooltipProvider>
     </div>
+  );
+}
+
+interface TargetRow {
+  node_id: number;
+  node_id_str: string;
+  short_name: string | null;
+  long_name: string | null;
+  total: number;
+  completed: number;
+  failed: number;
+  success_rate: number | null;
+}
+
+function TargetsRankingCard({
+  title,
+  description,
+  isLoading,
+  rows,
+  emptyMessage,
+}: {
+  title: string;
+  description: string;
+  isLoading: boolean;
+  rows: TargetRow[];
+  emptyMessage: string;
+}) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm">{title}</CardTitle>
+        <CardDescription className="text-xs text-muted-foreground">{description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="min-h-[120px] flex items-center justify-center text-muted-foreground text-sm">Loading…</div>
+        ) : rows.length === 0 ? (
+          <div className="min-h-[120px] flex items-center justify-center text-muted-foreground text-sm">
+            {emptyMessage}
+          </div>
+        ) : (
+          <div className="rounded-md border overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Target</TableHead>
+                  <TableHead className="text-right tabular-nums">Attempts</TableHead>
+                  <TableHead className="text-right tabular-nums">Success rate</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((row) => (
+                  <TableRow key={row.node_id}>
+                    <TableCell>
+                      <Link
+                        to={`/traceroutes?target_node=${row.node_id}`}
+                        className="flex flex-col gap-0.5 min-w-0 hover:underline"
+                      >
+                        <span className="font-medium truncate" title={row.short_name ?? row.node_id_str}>
+                          {row.short_name ?? row.node_id_str}
+                        </span>
+                        <span className="text-xs text-muted-foreground font-mono truncate" title={row.node_id_str}>
+                          {row.node_id_str}
+                        </span>
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{row.completed + row.failed}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {row.success_rate != null ? `${(row.success_rate * 100).toFixed(0)}%` : '—'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

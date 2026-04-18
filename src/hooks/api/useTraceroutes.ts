@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useSuspenseQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { useMeshtasticApi } from './useApi';
 
 export interface UseTraceroutesParams {
@@ -18,6 +18,18 @@ export function useTraceroutes(params?: UseTraceroutesParams) {
   return useQuery({
     queryKey: ['traceroutes', params],
     queryFn: () => api.getTraceroutes(params),
+  });
+}
+
+export type UseTraceroutesInfiniteParams = Omit<UseTraceroutesParams, 'page'>;
+
+export function useTraceroutesInfinite(params?: UseTraceroutesInfiniteParams) {
+  const api = useMeshtasticApi();
+  return useInfiniteQuery({
+    queryKey: ['traceroutes', 'infinite', params],
+    queryFn: ({ pageParam = 1 }) => api.getTraceroutes({ ...params, page: pageParam as number }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => (lastPage.next ? allPages.length + 1 : undefined),
   });
 }
 

@@ -685,6 +685,16 @@ export class MeshtasticApi extends BaseApi {
       failed: number;
       success_rate: number | null;
     }>;
+    by_target?: Array<{
+      node_id: number;
+      node_id_str: string;
+      short_name: string | null;
+      long_name: string | null;
+      total: number;
+      completed: number;
+      failed: number;
+      success_rate: number | null;
+    }>;
     success_over_time: Array<{ date: string; completed: number; failed: number }>;
   }> {
     const searchParams = new URLSearchParams();
