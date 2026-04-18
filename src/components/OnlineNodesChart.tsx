@@ -74,8 +74,8 @@ export function OnlineNodesChart({
   };
 
   const aggregationWindow = React.useMemo(
-    () => getAggregationWindow(dateRange.startDate, dateRange.endDate),
-    [dateRange.startDate, dateRange.endDate]
+    () => (metric === 'new_nodes' ? 'daily' : getAggregationWindow(dateRange.startDate, dateRange.endDate)),
+    [dateRange.startDate, dateRange.endDate, metric]
   );
 
   const chartData = React.useMemo(() => {
@@ -89,12 +89,12 @@ export function OnlineNodesChart({
 
     const mergeMethod = metric === 'online_nodes' ? 'average' : 'sum';
     const aggregated = aggregateStats(raw, aggregationWindow, mergeMethod);
+    const rounded = metric === 'new_nodes' ? aggregated.map((p) => ({ ...p, value: Math.round(p.value) })) : aggregated;
 
-    const windowSize =
-      aggregationWindow === 'hourly' ? Math.min(24, aggregated.length) : Math.min(4, aggregated.length);
-    return aggregated.map((stat, index) => {
+    const windowSize = aggregationWindow === 'hourly' ? Math.min(24, rounded.length) : Math.min(4, rounded.length);
+    return rounded.map((stat, index) => {
       const startIdx = Math.max(0, index - windowSize + 1);
-      const window = aggregated.slice(startIdx, index + 1);
+      const window = rounded.slice(startIdx, index + 1);
       const avg = window.length > 0 ? window.reduce((acc, i) => acc + i.value, 0) / window.length : 0;
       return { ...stat, movingAverage: avg };
     });
@@ -162,7 +162,8 @@ export function OnlineNodesChart({
           tickLine={false}
           axisLine={false}
           tickMargin={8}
-          allowDecimals={metric === 'new_nodes'}
+          allowDecimals={false}
+          tickFormatter={metric === 'new_nodes' ? (v: number) => Math.round(v).toString() : undefined}
         />
         <ChartTooltip
           cursor={false}

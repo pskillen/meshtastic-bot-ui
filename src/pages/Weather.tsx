@@ -5,6 +5,7 @@ import { useMultiNodeEnvironmentMetricsSuspense } from '@/hooks/api/useMultiNode
 import { WeatherNodeCard } from '@/components/nodes/WeatherNodeCard';
 import { WeatherMapAgeLegend } from '@/components/nodes/WeatherMapAgeLegend';
 import { WeatherNodesMap } from '@/components/nodes/WeatherNodesMap';
+import { computeVisibleWeatherTemperatureAnchors } from '@/components/nodes/weather-map-helpers';
 import { TimeRangeSelect } from '@/components/TimeRangeSelect';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -70,6 +71,11 @@ function WeatherContent() {
 
   const { metricsMap } = useMultiNodeEnvironmentMetricsSuspense(nodes, chartDateRange);
 
+  const temperatureAnchors = useMemo(
+    () => computeVisibleWeatherTemperatureAnchors(nodes, WEATHER_MAP_ENV_AGE_HOURS),
+    [nodes]
+  );
+
   const sortedNodes = useMemo(
     () =>
       [...nodes].sort((a, b) => {
@@ -131,14 +137,19 @@ function WeatherContent() {
           <CardHeader>
             <CardTitle>Weather Node Locations</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Markers use a sky-blue tone when fresh and fade to gray as the reading ages (linear over 24h). Older
-              readings are hidden.
+              Marker fill colour reflects the latest reported temperature (cold blue → hot red, anchored on the visible
+              5th / 95th percentile). The 3px border fades from transparent (fresh) to slate as the reading ages over
+              24h. Older readings are hidden.
             </p>
           </CardHeader>
           <CardContent>
-            <WeatherMapAgeLegend fadeHours={WEATHER_MAP_ENV_AGE_HOURS} />
+            <WeatherMapAgeLegend fadeHours={WEATHER_MAP_ENV_AGE_HOURS} temperatureAnchors={temperatureAnchors} />
             <div className="h-[600px] w-full">
-              <WeatherNodesMap nodes={nodes} cutoffHours={WEATHER_MAP_ENV_AGE_HOURS} />
+              <WeatherNodesMap
+                nodes={nodes}
+                cutoffHours={WEATHER_MAP_ENV_AGE_HOURS}
+                temperatureAnchors={temperatureAnchors}
+              />
             </div>
           </CardContent>
         </Card>

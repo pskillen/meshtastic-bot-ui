@@ -1,30 +1,16 @@
 import { useMemo } from 'react';
-import { subHours } from 'date-fns';
-import { ObservedNode } from '@/lib/models';
+import { ObservedNode, LatestEnvironmentMetrics } from '@/lib/models';
 import { NodesAndConstellationsMap } from './NodesAndConstellationsMap';
-import { weatherMarkerBackgroundColor, WEATHER_MARKER_STALE_COLOR } from './map-utils';
-import { LatestEnvironmentMetrics } from '@/lib/models';
+import {
+  WeatherTemperatureAnchors,
+  computeWeatherTemperatureAnchors,
+  temperatureColor,
+  weatherBorderColor,
+  WEATHER_TEMP_NEUTRAL_COLOR,
+} from './map-utils';
+import { filterNodesForWeatherMap, getEnvironmentReportedTime } from './weather-map-helpers';
 
 const MAP_CUTOFF_HOURS = 24;
-
-function hasRecentLocation(node: ObservedNode): boolean {
-  const pos = node.latest_position as {
-    latitude?: number;
-    longitude?: number;
-    reported_time?: Date | string;
-  } | null;
-  if (!pos) return false;
-  const lat = pos.latitude;
-  const lon = pos.longitude;
-  if (lat == null || lon == null || lat === 0 || lon === 0) return false;
-  return true;
-}
-
-function getEnvironmentReportedTime(node: ObservedNode): Date | null {
-  const env = node.latest_environment_metrics as LatestEnvironmentMetrics | null;
-  if (!env?.reported_time) return null;
-  return new Date(env.reported_time);
-}
 
 function formatWeatherLabel(env: LatestEnvironmentMetrics | null | undefined): string {
   if (!env) return '—';
@@ -39,32 +25,39 @@ export interface WeatherNodesMapProps {
   nodes: ObservedNode[];
   /** Nodes with env reported after this are shown on map. Older are hidden. Default 24h. */
   cutoffHours?: number;
+  /**
+   * Optional pre-computed temperature anchors (e.g. lifted to a parent so the legend
+   * shows matching min/max). When omitted, anchors are derived from the visible nodes.
+   */
+  temperatureAnchors?: WeatherTemperatureAnchors;
 }
 
 /**
- * Map of weather nodes with temp labels and a fixed sky-blue pill that fades to slate gray
- * as the env reading ages (linear over cutoffHours). Nodes older than cutoff are hidden.
+ * Map of weather nodes. Marker fill is the node's latest temperature mapped onto a
+ * cold-blue → hot-red gradient anchored on the visible 5th/95th percentile. The 3px
+ * inset border fades from transparent (fresh) to slate (stale) over `cutoffHours`.
  */
-export function WeatherNodesMap({ nodes, cutoffHours = MAP_CUTOFF_HOURS }: WeatherNodesMapProps) {
-  const cutoff = useMemo(() => subHours(new Date(), cutoffHours), [cutoffHours]);
+export function WeatherNodesMap({ nodes, cutoffHours = MAP_CUTOFF_HOURS, temperatureAnchors }: WeatherNodesMapProps) {
+  const nodesForMap = useMemo(() => filterNodesForWeatherMap(nodes, cutoffHours), [nodes, cutoffHours]);
 
-  const nodesForMap = useMemo(() => {
-    return nodes.filter((node) => {
-      if (!hasRecentLocation(node)) return false;
-      const reported = getEnvironmentReportedTime(node);
-      if (!reported) return false;
-      return reported >= cutoff;
-    });
-  }, [nodes, cutoff]);
+  const anchors = useMemo<WeatherTemperatureAnchors>(() => {
+    if (temperatureAnchors) return temperatureAnchors;
+    return computeWeatherTemperatureAnchors(nodesForMap.map((n) => n.latest_environment_metrics?.temperature));
+  }, [temperatureAnchors, nodesForMap]);
 
   const getMarkerLabel = useMemo(() => (node: ObservedNode) => formatWeatherLabel(node.latest_environment_metrics), []);
 
   const getMarkerColor = useMemo(
     () => (node: ObservedNode) => {
-      const reported = getEnvironmentReportedTime(node);
-      if (!reported) return WEATHER_MARKER_STALE_COLOR;
-      return weatherMarkerBackgroundColor(reported, cutoffHours);
+      const temp = node.latest_environment_metrics?.temperature;
+      if (temp == null) return WEATHER_TEMP_NEUTRAL_COLOR;
+      return temperatureColor(temp, anchors.minC, anchors.maxC);
     },
+    [anchors]
+  );
+
+  const getMarkerBorderColor = useMemo(
+    () => (node: ObservedNode) => weatherBorderColor(getEnvironmentReportedTime(node), cutoffHours),
     [cutoffHours]
   );
 
@@ -79,6 +72,7 @@ export function WeatherNodesMap({ nodes, cutoffHours = MAP_CUTOFF_HOURS }: Weath
       enableBubbles={true}
       getMarkerLabel={getMarkerLabel}
       getMarkerColor={getMarkerColor}
+      getMarkerBorderColor={getMarkerBorderColor}
     />
   );
 }

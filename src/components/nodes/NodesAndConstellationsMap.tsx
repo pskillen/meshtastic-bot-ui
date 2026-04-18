@@ -63,6 +63,8 @@ export interface NodesAndConstellationsMapProps {
   getMarkerColor?: (node: ObservedNode) => string;
   /** Optional grayscale 0-1 for observed node markers (e.g. 24h = 100% gray) */
   getMarkerGrayscale?: (node: ObservedNode) => number;
+  /** Optional CSS colour for a 3px inset border on weather-style markers (e.g. age indicator) */
+  getMarkerBorderColor?: (node: ObservedNode) => string | undefined;
 }
 
 export function NodesAndConstellationsMap({
@@ -83,6 +85,7 @@ export function NodesAndConstellationsMap({
   getMarkerOpacity,
   getMarkerColor,
   getMarkerGrayscale,
+  getMarkerBorderColor,
 }: NodesAndConstellationsMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -410,10 +413,19 @@ export function NodesAndConstellationsMap({
       const color = getMarkerColor
         ? getMarkerColor(node as ObservedNode)
         : getRoleColor('role' in node ? node.role : undefined);
-      const iconFn = getMarkerLabel ? createWeatherNodeIcon : createNodeIcon;
-      const marker = L.marker(position, {
-        icon: iconFn(label, color, isSelected, hasSelection && !isSelected, opacity, grayscale),
-      });
+      const dimmed = hasSelection && !isSelected;
+      const icon = getMarkerLabel
+        ? createWeatherNodeIcon(
+            label,
+            color,
+            isSelected,
+            dimmed,
+            opacity,
+            grayscale,
+            getMarkerBorderColor?.(node as ObservedNode)
+          )
+        : createNodeIcon(label, color, isSelected, dimmed, opacity, grayscale);
+      const marker = L.marker(position, { icon });
       marker.on('click', () => handleMarkerClick(node));
       if (enableBubbles) {
         const constellationName = managedNodeConstellationMap.get(node.node_id) ?? null;
@@ -474,6 +486,7 @@ export function NodesAndConstellationsMap({
     getMarkerOpacity,
     getMarkerColor,
     getMarkerGrayscale,
+    getMarkerBorderColor,
   ]);
 
   return (
