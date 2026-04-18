@@ -26,6 +26,16 @@ const WEATHER_MARKER_STALE_RGB = { r: 148, g: 163, b: 184 }; // sync with WEATHE
 /** Pill colour when env time is missing (should not appear on map for long). */
 export const WEATHER_MARKER_STALE_COLOR = `rgb(${WEATHER_MARKER_STALE_RGB.r},${WEATHER_MARKER_STALE_RGB.g},${WEATHER_MARKER_STALE_RGB.b})`;
 
+/** Cold and hot endpoints for the temperature gradient on the weather map. */
+export const WEATHER_TEMP_COLD_HEX = '#2563eb'; // cold blue
+export const WEATHER_TEMP_HOT_HEX = '#dc2626'; // hot red
+
+const WEATHER_TEMP_COLD_RGB = { r: 37, g: 99, b: 235 }; // sync with WEATHER_TEMP_COLD_HEX
+const WEATHER_TEMP_HOT_RGB = { r: 220, g: 38, b: 38 }; // sync with WEATHER_TEMP_HOT_HEX
+
+/** Neutral fill used when temperature is missing or the visible range is degenerate. */
+export const WEATHER_TEMP_NEUTRAL_COLOR = WEATHER_MARKER_STALE_COLOR;
+
 /**
  * Background color for a weather map pill by env reading age: full sky blue when fresh, slate gray at `fadeHours`.
  */
@@ -42,6 +52,80 @@ export function weatherMarkerBackgroundColor(
   const g = Math.round(a.g + (b.g - a.g) * t);
   const bl = Math.round(a.b + (b.b - a.b) * t);
   return `rgb(${r},${g},${bl})`;
+}
+
+/**
+ * Map a temperature in Celsius to a colour on the cold-blue → hot-red gradient.
+ * Returns a neutral fill when temperature is missing or the [min, max] range is degenerate.
+ */
+export function temperatureColor(
+  tempC: number | null | undefined,
+  minC: number | null | undefined,
+  maxC: number | null | undefined
+): string {
+  if (tempC == null || !Number.isFinite(tempC)) return WEATHER_TEMP_NEUTRAL_COLOR;
+  if (minC == null || maxC == null || !Number.isFinite(minC) || !Number.isFinite(maxC)) {
+    return WEATHER_TEMP_NEUTRAL_COLOR;
+  }
+  if (maxC - minC < 0.001) return WEATHER_TEMP_NEUTRAL_COLOR;
+  const t = Math.max(0, Math.min(1, (tempC - minC) / (maxC - minC)));
+  const a = WEATHER_TEMP_COLD_RGB;
+  const b = WEATHER_TEMP_HOT_RGB;
+  const r = Math.round(a.r + (b.r - a.r) * t);
+  const g = Math.round(a.g + (b.g - a.g) * t);
+  const bl = Math.round(a.b + (b.b - a.b) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
+/**
+ * Border colour for a weather marker indicating env reading age:
+ * fully transparent at fresh, fading to opaque slate over `fadeHours`.
+ */
+export function weatherBorderColor(
+  reportedTime: Date | null | undefined,
+  fadeHours: number,
+  nowMs: number = Date.now()
+): string {
+  if (!reportedTime) {
+    const s = WEATHER_MARKER_STALE_RGB;
+    return `rgba(${s.r},${s.g},${s.b},1)`;
+  }
+  const ageMs = Math.max(0, nowMs - reportedTime.getTime());
+  const t = Math.min(1, ageMs / (fadeHours * 60 * 60 * 1000));
+  const s = WEATHER_MARKER_STALE_RGB;
+  return `rgba(${s.r},${s.g},${s.b},${t.toFixed(3)})`;
+}
+
+export interface WeatherTemperatureAnchors {
+  /** 5th-percentile temperature across the input set (°C); null if undefined. */
+  minC: number | null;
+  /** 95th-percentile temperature across the input set (°C); null if undefined. */
+  maxC: number | null;
+}
+
+/**
+ * Compute robust temperature anchors (5th / 95th percentile) from a list of Celsius readings.
+ * Filters non-finite values. Returns nulls when fewer than 2 valid readings.
+ *
+ * >>> computeWeatherTemperatureAnchors([])
+ * { minC: null, maxC: null }
+ */
+export function computeWeatherTemperatureAnchors(
+  temperaturesC: Array<number | null | undefined>
+): WeatherTemperatureAnchors {
+  const values = temperaturesC.filter((t): t is number => t != null && Number.isFinite(t));
+  if (values.length === 0) return { minC: null, maxC: null };
+  if (values.length === 1) return { minC: values[0], maxC: values[0] };
+  const sorted = [...values].sort((a, b) => a - b);
+  return { minC: percentileSorted(sorted, 5), maxC: percentileSorted(sorted, 95) };
+}
+
+function percentileSorted(sorted: number[], p: number): number {
+  const idx = (p / 100) * (sorted.length - 1);
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  if (lo === hi) return sorted[lo];
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
 }
 
 /** Minimal node fields for popup content */
@@ -136,6 +220,7 @@ const WEATHER_MARKER_HEIGHT = 56;
  * @param dimmed - When true, applies opacity 0.5
  * @param opacity - Optional 0-1 opacity override
  * @param grayscale - Optional 0-1 grayscale (0=full color, 1=100% gray)
+ * @param borderColor - Optional CSS colour for a 3px inset border (e.g. age indicator)
  */
 export function createWeatherNodeIcon(
   text: string,
@@ -143,19 +228,23 @@ export function createWeatherNodeIcon(
   highlighted = false,
   dimmed = false,
   opacity?: number,
-  grayscale?: number
+  grayscale?: number,
+  borderColor?: string
 ): L.DivIcon {
   const styles: string[] = [];
   if (opacity != null) styles.push(`opacity: ${opacity}`);
   else if (dimmed) styles.push('opacity: 0.5');
   if (grayscale != null && grayscale > 0) styles.push(`filter: grayscale(${grayscale * 100}%)`);
   const containerStyle = styles.length > 0 ? styles.join('; ') + ';' : '';
-  const highlightStyle = highlighted ? 'box-shadow: 0 0 0 3px rgba(226, 153, 6, 0.9);' : '';
+  const shadowParts: string[] = [];
+  if (borderColor) shadowParts.push(`inset 0 0 0 3px ${borderColor}`);
+  if (highlighted) shadowParts.push('0 0 0 3px rgba(226, 153, 6, 0.9)');
+  const shadowStyle = shadowParts.length > 0 ? `box-shadow: ${shadowParts.join(', ')};` : '';
   return L.divIcon({
     className: 'custom-node-marker weather-node-marker',
     html: `
       <div class="weather-marker-container" style="${containerStyle}">
-        <div class="weather-marker-pill" style="background: ${color}; ${highlightStyle}">
+        <div class="weather-marker-pill" style="background: ${color}; ${shadowStyle}">
           <span class="weather-marker-text">${escapeHtmlForMarker(text)}</span>
         </div>
       </div>
