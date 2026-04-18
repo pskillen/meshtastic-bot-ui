@@ -237,7 +237,7 @@ export function createWeatherNodeIcon(
   if (grayscale != null && grayscale > 0) styles.push(`filter: grayscale(${grayscale * 100}%)`);
   const containerStyle = styles.length > 0 ? styles.join('; ') + ';' : '';
   const shadowParts: string[] = [];
-  if (borderColor) shadowParts.push(`inset 0 0 0 3px ${borderColor}`);
+  if (borderColor) shadowParts.push(`inset 0 0 0 5px ${borderColor}`);
   if (highlighted) shadowParts.push('0 0 0 3px rgba(226, 153, 6, 0.9)');
   const shadowStyle = shadowParts.length > 0 ? `box-shadow: ${shadowParts.join(', ')};` : '';
   return L.divIcon({
