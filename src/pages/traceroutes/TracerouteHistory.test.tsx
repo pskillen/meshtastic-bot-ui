@@ -91,7 +91,25 @@ interface InfiniteOptions {
   fetchNextPage?: ReturnType<typeof vi.fn>;
 }
 
-function setupHooks(infinite: InfiniteOptions = {}, triggerable: ManagedNode[] = []) {
+function makeObservedNode(overrides: Partial<ObservedNode> = {}): ObservedNode {
+  return {
+    internal_id: 1,
+    node_id: 100,
+    node_id_str: '!00000064',
+    mac_addr: null,
+    long_name: 'Target',
+    short_name: 'TGT',
+    hw_model: null,
+    public_key: null,
+    ...overrides,
+  } as ObservedNode;
+}
+
+function setupHooks(
+  infinite: InfiniteOptions = {},
+  triggerable: ManagedNode[] = [],
+  observed: ObservedNode[] = []
+) {
   const fetchNextPage = infinite.fetchNextPage ?? vi.fn();
   mockedUseInfinite.mockReturnValue({
     traceroutes: infinite.traceroutes ?? [],
@@ -109,8 +127,8 @@ function setupHooks(infinite: InfiniteOptions = {}, triggerable: ManagedNode[] =
     isPending: false,
   } as unknown as ReturnType<typeof useTriggerTraceroute>);
   mockedUseNodes.mockReturnValue({
-    nodes: [],
-    totalCount: 0,
+    nodes: observed,
+    totalCount: observed.length,
   } as unknown as ReturnType<typeof useNodesSuspense>);
   return { fetchNextPage };
 }
@@ -205,5 +223,74 @@ describe('TracerouteHistory', () => {
     setupHooks({ traceroutes: [makeTraceroute()], totalCount: 73 });
     renderAt('/traceroutes');
     expect(screen.getByText('(73)')).toBeInTheDocument();
+  });
+
+  it('applies the "Show successful" preset to status filter when clicked', () => {
+    setupHooks();
+    renderAt('/traceroutes');
+    fireEvent.click(screen.getByRole('button', { name: /show successful/i }));
+    const lastCall = mockedUseInfinite.mock.calls.at(-1)?.[0];
+    expect(lastCall).toEqual(expect.objectContaining({ status: 'completed,pending,sent' }));
+  });
+
+  it('clears status when "Show successful" is clicked while already active', () => {
+    setupHooks();
+    renderAt('/traceroutes?status=completed,pending,sent');
+    fireEvent.click(screen.getByRole('button', { name: /show successful/i }));
+    const lastCall = mockedUseInfinite.mock.calls.at(-1)?.[0];
+    expect(lastCall?.status).toBeUndefined();
+  });
+
+  it('applies the "Monitoring TRs" preset to trigger_type when clicked', () => {
+    setupHooks();
+    renderAt('/traceroutes');
+    fireEvent.click(screen.getByRole('button', { name: /monitoring trs/i }));
+    const lastCall = mockedUseInfinite.mock.calls.at(-1)?.[0];
+    expect(lastCall).toEqual(expect.objectContaining({ trigger_type: 'monitor' }));
+  });
+
+  it('applies the "Manually triggered" preset to trigger_type when clicked', () => {
+    setupHooks();
+    renderAt('/traceroutes');
+    fireEvent.click(screen.getByRole('button', { name: /manually triggered/i }));
+    const lastCall = mockedUseInfinite.mock.calls.at(-1)?.[0];
+    expect(lastCall).toEqual(expect.objectContaining({ trigger_type: 'user' }));
+  });
+
+  it('opens the searchable target filter and filters options by query', () => {
+    const nodes = [
+      makeObservedNode({ node_id: 1, node_id_str: '!00000001', short_name: 'AAA', long_name: 'Alpha' }),
+      makeObservedNode({ node_id: 2, node_id_str: '!00000002', short_name: 'BBB', long_name: 'Bravo' }),
+      makeObservedNode({ node_id: 3, node_id_str: '!00000003', short_name: 'CCC', long_name: 'Charlie' }),
+    ];
+    setupHooks({}, [], nodes);
+    renderAt('/traceroutes');
+
+    fireEvent.click(screen.getByRole('button', { name: /target \(recipient\)/i }));
+
+    expect(screen.getAllByText('AAA').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('BBB').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('CCC').length).toBeGreaterThan(0);
+
+    const searchInput = screen.getByPlaceholderText('Search nodes...');
+    fireEvent.change(searchInput, { target: { value: 'brav' } });
+
+    expect(screen.queryByText('AAA')).not.toBeInTheDocument();
+    expect(screen.getAllByText('BBB').length).toBeGreaterThan(0);
+    expect(screen.queryByText('CCC')).not.toBeInTheDocument();
+  });
+
+  it('selecting a node from the searchable target filter updates the query', () => {
+    const nodes = [
+      makeObservedNode({ node_id: 555, node_id_str: '!0000022b', short_name: 'PICKME', long_name: 'Pick me' }),
+    ];
+    setupHooks({}, [], nodes);
+    renderAt('/traceroutes');
+
+    fireEvent.click(screen.getByRole('button', { name: /target \(recipient\)/i }));
+    fireEvent.click(screen.getByRole('button', { name: /pickme/i }));
+
+    const lastCall = mockedUseInfinite.mock.calls.at(-1)?.[0];
+    expect(lastCall).toEqual(expect.objectContaining({ target_node: 555 }));
   });
 });

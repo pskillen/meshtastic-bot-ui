@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { format, subDays } from 'date-fns';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -22,8 +23,7 @@ import { TriggerTracerouteModal, TriggerMode } from './TriggerTracerouteModal';
 import { TracerouteDetailModal } from './TracerouteDetailModal';
 import { getTracerouteErrorMessage } from './tracerouteErrors';
 import { TracerouteStatsSection } from '@/components/traceroutes/TracerouteStatsSection';
-import { AutoTraceRoute } from '@/lib/models';
-import { useState } from 'react';
+import { AutoTraceRoute, ObservedNode } from '@/lib/models';
 import { ChevronDown, RotateCw, RouteIcon, X } from 'lucide-react';
 
 type StatusValue = 'completed' | 'failed' | 'pending' | 'sent';
@@ -142,6 +142,9 @@ export function TracerouteHistory() {
     return SUCCESS_STATUS_PRESET.every((s) => statusValues.includes(s));
   }, [statusValues]);
 
+  const isMonitorPreset = triggerTypeValues.length === 1 && triggerTypeValues[0] === 'monitor';
+  const isUserPreset = triggerTypeValues.length === 1 && triggerTypeValues[0] === 'user';
+
   const [triggerModalOpen, setTriggerModalOpen] = useState(false);
   const [selectedTracerouteId, setSelectedTracerouteId] = useState<number | null>(null);
 
@@ -191,15 +194,6 @@ export function TracerouteHistory() {
         </CardHeader>
         <CardContent>
           <div className="mb-4 flex flex-wrap gap-2 items-center">
-            <Button
-              variant={isSuccessPreset ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setStatusValues(isSuccessPreset ? [] : SUCCESS_STATUS_PRESET)}
-              title="Show traceroutes that succeeded or are still in flight"
-            >
-              Success preset
-            </Button>
-
             <Select
               value={sourceNodeId != null ? String(sourceNodeId) : 'all'}
               onValueChange={(v) => setSourceNode(v === 'all' ? null : parseInt(v, 10))}
@@ -217,22 +211,13 @@ export function TracerouteHistory() {
               </SelectContent>
             </Select>
 
-            <Select
-              value={targetNodeId != null ? String(targetNodeId) : 'all'}
-              onValueChange={(v) => setTargetNode(v === 'all' ? null : parseInt(v, 10))}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Target (recipient)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All targets</SelectItem>
-                {observedNodes.map((n) => (
-                  <SelectItem key={n.node_id} value={String(n.node_id)}>
-                    {n.short_name ?? n.node_id_str ?? String(n.node_id)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableNodeFilter
+              nodes={observedNodes}
+              value={targetNodeId}
+              onChange={setTargetNode}
+              placeholder="Target (recipient)"
+              allLabel="All targets"
+            />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -286,6 +271,34 @@ export function TracerouteHistory() {
                 Clear filters
               </Button>
             )}
+          </div>
+
+          <div className="mb-4 flex flex-wrap gap-2 items-center">
+            <span className="text-xs uppercase tracking-wide text-muted-foreground mr-1">Presets:</span>
+            <Button
+              variant={isSuccessPreset ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setStatusValues(isSuccessPreset ? [] : SUCCESS_STATUS_PRESET)}
+              title="Show traceroutes that succeeded or are still in flight"
+            >
+              Show successful
+            </Button>
+            <Button
+              variant={isMonitorPreset ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setTriggerTypeValues(isMonitorPreset ? [] : ['monitor'])}
+              title="Show only monitor-triggered traceroutes"
+            >
+              Monitoring TRs
+            </Button>
+            <Button
+              variant={isUserPreset ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setTriggerTypeValues(isUserPreset ? [] : ['user'])}
+              title="Show only user-triggered traceroutes"
+            >
+              Manually triggered
+            </Button>
           </div>
 
           {isLoading && <div className="py-8 text-center text-muted-foreground">Loading...</div>}
@@ -406,6 +419,131 @@ export function TracerouteHistory() {
         }}
         isSubmitting={triggerMutation.isPending}
       />
+    </div>
+  );
+}
+
+interface SearchableNodeFilterProps {
+  nodes: ObservedNode[];
+  value: number | null;
+  onChange: (value: number | null) => void;
+  placeholder: string;
+  allLabel: string;
+  className?: string;
+}
+
+function SearchableNodeFilter({ nodes, value, onChange, placeholder, allLabel, className }: SearchableNodeFilterProps) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) {
+      setQuery('');
+      // Defer focus until after the dropdown is rendered.
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  }, [open]);
+
+  const selected = value != null ? nodes.find((n) => n.node_id === value) : null;
+  const selectedLabel = selected
+    ? (selected.short_name ?? selected.node_id_str ?? String(selected.node_id))
+    : placeholder;
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return nodes.slice(0, 200);
+    return nodes
+      .filter((n) => {
+        const haystack = [n.short_name, n.long_name, n.node_id_str, String(n.node_id)]
+          .filter((s): s is string => !!s)
+          .join(' ')
+          .toLowerCase();
+        return haystack.includes(q);
+      })
+      .slice(0, 200);
+  }, [nodes, query]);
+
+  return (
+    <div ref={containerRef} className={`relative ${className ?? ''}`}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="w-[200px] justify-between font-normal h-9"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className={selected ? '' : 'text-muted-foreground'}>{selectedLabel}</span>
+        <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+      </Button>
+      {open && (
+        <div className="absolute left-0 top-[calc(100%+0.25rem)] z-50 w-[260px] rounded-md border border-border bg-popover shadow-lg">
+          <div className="p-2 border-b border-border">
+            <Input
+              ref={inputRef}
+              type="text"
+              placeholder="Search nodes..."
+              className="h-8"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+          <ul role="listbox" className="max-h-64 overflow-y-auto py-1">
+            <li>
+              <button
+                type="button"
+                className={`w-full text-left px-3 py-1.5 text-sm hover:bg-accent ${value == null ? 'bg-accent/50 font-medium' : ''}`}
+                onClick={() => {
+                  onChange(null);
+                  setOpen(false);
+                }}
+              >
+                {allLabel}
+              </button>
+            </li>
+            {filtered.length === 0 && (
+              <li className="px-3 py-2 text-sm text-muted-foreground">No nodes match “{query}”</li>
+            )}
+            {filtered.map((n) => {
+              const label = n.short_name ?? n.node_id_str ?? String(n.node_id);
+              const isSelected = value === n.node_id;
+              return (
+                <li key={n.node_id}>
+                  <button
+                    type="button"
+                    className={`w-full text-left px-3 py-1.5 text-sm hover:bg-accent ${isSelected ? 'bg-accent/50 font-medium' : ''}`}
+                    onClick={() => {
+                      onChange(n.node_id);
+                      setOpen(false);
+                    }}
+                  >
+                    <div className="flex flex-col">
+                      <span>{label}</span>
+                      {n.long_name && n.long_name !== label && (
+                        <span className="text-xs text-muted-foreground">{n.long_name}</span>
+                      )}
+                    </div>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

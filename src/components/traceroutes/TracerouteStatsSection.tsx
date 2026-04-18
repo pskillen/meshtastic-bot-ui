@@ -42,6 +42,9 @@ const SOURCE_LABELS: Record<string, string> = {
 // One-off 1/1 perfect runs would otherwise dominate the "top" list.
 const TOP_TARGETS_MIN_ATTEMPTS = 5;
 
+// Max distinct slices to show in "by node" pie charts before grouping into "Other".
+const PIE_TOP_N = 7;
+
 export function TracerouteStatsSection() {
   const [timeframe, setTimeframe] = useState<TimeframeKey>('7d');
   const triggeredAtAfter = useMemo(() => getTriggeredAtAfter(timeframe), [timeframe]);
@@ -56,6 +59,28 @@ export function TracerouteStatsSection() {
       fill: CHART_COLORS[idx % CHART_COLORS.length],
     }));
   }, [data?.sources]);
+
+  const sentByNodeChartData = useMemo(() => {
+    const rows = data?.by_source ?? [];
+    if (rows.length === 0) return [];
+    const sorted = [...rows].sort((a, b) => b.total - a.total).filter((r) => r.total > 0);
+    const top = sorted.slice(0, PIE_TOP_N);
+    const rest = sorted.slice(PIE_TOP_N);
+    const otherTotal = rest.reduce((acc, r) => acc + r.total, 0);
+    const slices = top.map((r, idx) => ({
+      name: r.short_name ?? r.node_id_str ?? `Node ${r.managed_node_id}`,
+      value: r.total,
+      fill: CHART_COLORS[idx % CHART_COLORS.length],
+    }));
+    if (otherTotal > 0) {
+      slices.push({
+        name: `Other (${rest.length})`,
+        value: otherTotal,
+        fill: '#9ca3af',
+      });
+    }
+    return slices;
+  }, [data?.by_source]);
 
   const successFailureChartData = useMemo(() => {
     if (!data?.success_failure?.length) return [];
@@ -300,81 +325,123 @@ export function TracerouteStatsSection() {
           />
         </div>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">By source node</CardTitle>
-            <CardDescription className="text-xs text-muted-foreground">
-              Managed nodes that initiated traceroutes in this period. Success rate uses only completed and failed runs;
-              pending and sent count toward Total only.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="min-h-[120px] flex items-center justify-center text-muted-foreground text-sm">
-                Loading…
-              </div>
-            ) : data?.by_source?.length ? (
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Source</TableHead>
-                      <TableHead className="text-right tabular-nums">Total</TableHead>
-                      <TableHead className="text-right tabular-nums">Completed</TableHead>
-                      <TableHead className="text-right tabular-nums">Failed</TableHead>
-                      <TableHead className="text-right">
-                        <span className="inline-flex items-center justify-end gap-1">
-                          Success rate
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                type="button"
-                                className="text-muted-foreground hover:text-foreground inline-flex"
-                                aria-label="Success rate definition"
-                              >
-                                <HelpCircle className="h-3.5 w-3.5" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs text-left" side="top">
-                              Completed ÷ (completed + failed) for this period. If there are no finished runs, rate is
-                              shown as —.
-                            </TooltipContent>
-                          </Tooltip>
-                        </span>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.by_source.map((row) => (
-                      <TableRow key={row.managed_node_id}>
-                        <TableCell>
-                          <div className="flex flex-col gap-0.5 min-w-0">
-                            <span className="font-medium truncate" title={row.short_name}>
-                              {row.short_name}
-                            </span>
-                            <span className="text-xs text-muted-foreground font-mono truncate" title={row.node_id_str}>
-                              {row.node_id_str}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">{row.total}</TableCell>
-                        <TableCell className="text-right tabular-nums">{row.completed}</TableCell>
-                        <TableCell className="text-right tabular-nums">{row.failed}</TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {row.success_rate != null ? `${(row.success_rate * 100).toFixed(0)}%` : '—'}
-                        </TableCell>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Card className="lg:col-span-2">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">By source node</CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">
+                Managed nodes that initiated traceroutes in this period. Success rate uses only completed and failed
+                runs; pending and sent count toward Total only.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="min-h-[120px] flex items-center justify-center text-muted-foreground text-sm">
+                  Loading…
+                </div>
+              ) : data?.by_source?.length ? (
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Source</TableHead>
+                        <TableHead className="text-right tabular-nums">Total</TableHead>
+                        <TableHead className="text-right tabular-nums">Completed</TableHead>
+                        <TableHead className="text-right tabular-nums">Failed</TableHead>
+                        <TableHead className="text-right">
+                          <span className="inline-flex items-center justify-end gap-1">
+                            Success rate
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="text-muted-foreground hover:text-foreground inline-flex"
+                                  aria-label="Success rate definition"
+                                >
+                                  <HelpCircle className="h-3.5 w-3.5" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs text-left" side="top">
+                                Completed ÷ (completed + failed) for this period. If there are no finished runs, rate is
+                                shown as —.
+                              </TooltipContent>
+                            </Tooltip>
+                          </span>
+                        </TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <div className="min-h-[120px] flex items-center justify-center text-muted-foreground text-sm">
-                No data
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {data.by_source.map((row) => (
+                        <TableRow key={row.managed_node_id}>
+                          <TableCell>
+                            <div className="flex flex-col gap-0.5 min-w-0">
+                              <span className="font-medium truncate" title={row.short_name}>
+                                {row.short_name}
+                              </span>
+                              <span
+                                className="text-xs text-muted-foreground font-mono truncate"
+                                title={row.node_id_str}
+                              >
+                                {row.node_id_str}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">{row.total}</TableCell>
+                          <TableCell className="text-right tabular-nums">{row.completed}</TableCell>
+                          <TableCell className="text-right tabular-nums">{row.failed}</TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {row.success_rate != null ? `${(row.success_rate * 100).toFixed(0)}%` : '—'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="min-h-[120px] flex items-center justify-center text-muted-foreground text-sm">
+                  No data
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">TRs Sent by Node</CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">
+                Share of total runs per source node (top {PIE_TOP_N}, remainder grouped as “Other”).
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="h-[260px] flex items-center justify-center text-muted-foreground text-sm">Loading…</div>
+              ) : sentByNodeChartData.length > 0 ? (
+                <ChartContainer config={{}} className="aspect-auto h-[260px] w-full">
+                  <PieChart>
+                    <Pie
+                      data={sentByNodeChartData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={85}
+                      paddingAngle={2}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {sentByNodeChartData.map((entry, idx) => (
+                        <Cell key={idx} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip content={<ChartTooltipContent formatter={(v) => [v, '']} />} />
+                  </PieChart>
+                </ChartContainer>
+              ) : (
+                <div className="h-[260px] flex items-center justify-center text-muted-foreground text-sm">No data</div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </TooltipProvider>
     </div>
   );
