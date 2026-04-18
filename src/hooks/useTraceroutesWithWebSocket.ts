@@ -2,18 +2,22 @@ import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConfig } from '@/providers/ConfigProvider';
 import { authService } from '@/lib/auth/authService';
-import { useTraceroutes, UseTraceroutesParams } from '@/hooks/api/useTraceroutes';
+import {
+  useTraceroutes,
+  useTraceroutesInfinite,
+  UseTraceroutesParams,
+  UseTraceroutesInfiniteParams,
+} from '@/hooks/api/useTraceroutes';
 
 /**
- * Hook to fetch traceroutes and subscribe to real-time status updates via WebSocket.
- * Connects to ws/traceroutes/ when mounted; invalidates traceroutes query on status updates.
+ * Subscribe to live traceroute status updates via WebSocket and invalidate the
+ * shared `['traceroutes']` query cache when one arrives. Used by both the
+ * page-level history and embedded sections.
  */
-export function useTraceroutesWithWebSocket(params?: UseTraceroutesParams) {
+function useTraceroutesWebSocketInvalidator() {
   const queryClient = useQueryClient();
   const config = useConfig();
   const socketRef = useRef<WebSocket | null>(null);
-
-  const result = useTraceroutes(params);
 
   useEffect(() => {
     const token = authService.getAccessToken();
@@ -41,6 +45,24 @@ export function useTraceroutesWithWebSocket(params?: UseTraceroutesParams) {
       socketRef.current = null;
     };
   }, [config.apis.meshBot.baseUrl, queryClient]);
+}
 
-  return result;
+/**
+ * Hook to fetch traceroutes (single page) and subscribe to real-time status updates.
+ */
+export function useTraceroutesWithWebSocket(params?: UseTraceroutesParams) {
+  useTraceroutesWebSocketInvalidator();
+  return useTraceroutes(params);
+}
+
+/**
+ * Hook to fetch traceroutes paginated via useInfiniteQuery, with real-time updates.
+ * The full row list is exposed as `traceroutes` (flattened across pages).
+ */
+export function useTraceroutesInfiniteWithWebSocket(params?: UseTraceroutesInfiniteParams) {
+  useTraceroutesWebSocketInvalidator();
+  const query = useTraceroutesInfinite(params);
+  const traceroutes = query.data?.pages.flatMap((p) => p.results) ?? [];
+  const totalCount = query.data?.pages[0]?.count ?? null;
+  return { ...query, traceroutes, totalCount };
 }
