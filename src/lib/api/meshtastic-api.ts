@@ -753,6 +753,61 @@ export class MeshtasticApi extends BaseApi {
   }
 
   /**
+   * Get per-feeder success-range distance percentiles
+   */
+  async getFeederRanges(params?: {
+    triggered_at_after?: string;
+    triggered_at_before?: string;
+    constellation_id?: number;
+    min_samples?: number;
+  }): Promise<{
+    feeders: Array<{
+      managed_node_id: string;
+      node_id: number;
+      node_id_str: string;
+      short_name?: string | null;
+      long_name?: string | null;
+      lat: number;
+      lng: number;
+      direct: {
+        sample_count: number;
+        p50_km: number | null;
+        p90_km: number | null;
+        p95_km: number | null;
+        max_km: number | null;
+        low_confidence: boolean;
+      };
+      any: {
+        sample_count: number;
+        p50_km: number | null;
+        p90_km: number | null;
+        p95_km: number | null;
+        max_km: number | null;
+        low_confidence: boolean;
+      };
+    }>;
+    meta: {
+      min_samples: number;
+      window: { start: string | null; end: string | null };
+    };
+  }> {
+    const searchParams = new URLSearchParams();
+    if (params?.triggered_at_after) {
+      searchParams.append('triggered_at_after', params.triggered_at_after);
+    }
+    if (params?.triggered_at_before) {
+      searchParams.append('triggered_at_before', params.triggered_at_before);
+    }
+    if (params?.constellation_id != null) {
+      searchParams.append('constellation_id', params.constellation_id.toString());
+    }
+    if (params?.min_samples != null) {
+      searchParams.append('min_samples', params.min_samples.toString());
+    }
+    return this.get('/traceroutes/feeder-ranges/', searchParams);
+  }
+
+  /**
    * Get traceroute links for a specific node (from Neo4j)
    */
   async getNodeTracerouteLinks(

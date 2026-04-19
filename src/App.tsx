@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { TracerouteHistory } from '@/pages/traceroutes/TracerouteHistory';
 import { TracerouteHeatmapPage } from '@/pages/traceroutes/TracerouteHeatmapPage';
+import { FeederCoverageMapPage } from '@/pages/traceroutes/FeederCoverageMapPage';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 import { ConfigProvider } from '@/providers/ConfigProvider';
@@ -60,6 +61,7 @@ function App() {
                   <Route path="/traceroutes/heatmap" element={<Navigate to="/traceroutes/map/heat" replace />} />
                   <Route path="/traceroutes/map/heat" element={<TracerouteHeatmapPage edgeMetric="packets" />} />
                   <Route path="/traceroutes/map/snr" element={<TracerouteHeatmapPage edgeMetric="snr" />} />
+                  <Route path="/traceroutes/map/coverage" element={<FeederCoverageMapPage />} />
                   <Route path="/user/nodes" element={<NodeSettings />} />
                   <Route path="/user/settings" element={<SettingsPage />} />
                   <Route path="/user/api-keys" element={<ApiKeysPage />} />
