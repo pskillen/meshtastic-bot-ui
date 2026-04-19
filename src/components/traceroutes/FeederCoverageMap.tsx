@@ -158,7 +158,8 @@ function FeederPopupOverlay({
             )}
           </div>
           <div className="mt-2 text-xs italic text-slate-400">
-            Round-trip distance to successful TR targets. Lower bound on real range.
+            Circle = radius containing the chosen percentile of successful TR targets. Not &ldquo;N% of attempts succeed
+            at this range&rdquo;. Round-trip; lower bound on real reach.
           </div>
           <Link
             to={`/nodes/${feeder.node_id}`}

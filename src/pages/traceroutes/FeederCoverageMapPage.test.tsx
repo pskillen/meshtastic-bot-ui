@@ -2,7 +2,8 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import type { FeederRange, FeederRangesData } from '@/hooks/api/useFeederRanges';
 
@@ -105,15 +106,25 @@ describe('FeederCoverageMapPage', () => {
     expect(map.getAttribute('data-show-low')).toBe('false');
   });
 
-  it('changes metric when a metric toggle is clicked', () => {
+  it('changes metric when a metric toggle is clicked (label = "50% of successes")', () => {
     setData([makeFeeder({ node_id: 1 })]);
     renderPage();
-    const p50Btn = screen.getByRole('radio', { name: 'p50' });
+    const p50Btn = screen.getByRole('radio', { name: /50% of successes/i });
     act(() => {
       fireEvent.click(p50Btn);
     });
     const map = screen.getByTestId('map-stub');
     expect(map.getAttribute('data-metric')).toBe('p50');
+  });
+
+  it('uses a "Range covers" label and explains percentile semantics in the stats card', () => {
+    setData([makeFeeder({ node_id: 1 })]);
+    renderPage();
+    expect(screen.getByText(/Range covers/i)).toBeInTheDocument();
+    // Stats card explains the chosen percentile in plain English (default metric=p95).
+    expect(
+      screen.getAllByText(/Circle = radius containing 95% of successful direct-only TR targets/i)[0]
+    ).toBeInTheDocument();
   });
 
   it('switches mode to Any path', () => {
@@ -156,5 +167,44 @@ describe('FeederCoverageMapPage', () => {
     });
     const lastCallParams = useFeederRangesMock.mock.calls.at(-1)?.[0] as { minSamples?: number };
     expect(lastCallParams?.minSamples).toBe(25);
+  });
+
+  it('feeder filter dropdown defaults to "All feeders" and the map sees every feeder', () => {
+    setData([makeFeeder({ node_id: 1 }), makeFeeder({ node_id: 2 }), makeFeeder({ node_id: 3 })]);
+    renderPage();
+    expect(screen.getByRole('button', { name: /All feeders \(3\)/i })).toBeInTheDocument();
+    expect(screen.getByTestId('map-stub').getAttribute('data-feeders')).toBe('3');
+  });
+
+  it('unchecking a feeder narrows the map data and shows a reset button', async () => {
+    const user = userEvent.setup();
+    setData([
+      makeFeeder({ node_id: 1, short_name: 'AAA' }),
+      makeFeeder({ node_id: 2, short_name: 'BBB' }),
+      makeFeeder({ node_id: 3, short_name: 'CCC' }),
+    ]);
+    renderPage();
+
+    await user.click(screen.getByRole('button', { name: /All feeders \(3\)/i }));
+    // Radix renders menu items via a portal; query the document.
+    const aaaItem = await waitFor(() =>
+      screen.getByRole('menuitemcheckbox', { name: /AAA/i })
+    );
+    await user.click(aaaItem);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('map-stub').getAttribute('data-feeders')).toBe('2');
+    });
+    expect(await screen.findByText(/2 of 3 feeders/i)).toBeInTheDocument();
+
+    // Close the dropdown so the reset button outside it isn't aria-hidden by Radix.
+    await user.keyboard('{Escape}');
+
+    // Reset button restores the default "all" state.
+    await user.click(await screen.findByRole('button', { name: /Clear feeder filter/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId('map-stub').getAttribute('data-feeders')).toBe('3');
+    });
+    expect(await screen.findByText(/All feeders \(3\)/i)).toBeInTheDocument();
   });
 });

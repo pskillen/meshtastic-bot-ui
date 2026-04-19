@@ -1,18 +1,53 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { subDays, subHours } from 'date-fns';
-import { CircleDashedIcon } from 'lucide-react';
+import { ChevronDownIcon, CircleDashedIcon, FilterIcon, XIcon } from 'lucide-react';
 
 import { FeederCoverageMap } from '@/components/traceroutes/FeederCoverageMap';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { useFeederRanges, type FeederRangeMetric, type FeederRangeMode } from '@/hooks/api/useFeederRanges';
+import {
+  useFeederRanges,
+  type FeederRange,
+  type FeederRangeMetric,
+  type FeederRangeMode,
+} from '@/hooks/api/useFeederRanges';
 
 type TimeRange = '24h' | '7d' | '30d';
+
+const METRIC_LABELS: Record<FeederRangeMetric, string> = {
+  p50: '50%',
+  p90: '90%',
+  p95: '95%',
+  max: 'max',
+};
+
+function metricDescription(metric: FeederRangeMetric, mode: FeederRangeMode): string {
+  const modeLabel = mode === 'direct' ? 'direct-only' : 'any-path';
+  if (metric === 'max') {
+    return `Circle = furthest successful ${modeLabel} TR target.`;
+  }
+  const pct = metric === 'p50' ? '50%' : metric === 'p90' ? '90%' : '95%';
+  return `Circle = radius containing ${pct} of successful ${modeLabel} TR targets.`;
+}
+
+function feederLabel(f: FeederRange): string {
+  if (f.short_name && f.long_name) return `${f.short_name} — ${f.long_name}`;
+  return f.short_name || f.long_name || f.node_id_str;
+}
 
 function CoverageStatsCard({
   feederCount,
@@ -35,14 +70,84 @@ function CoverageStatsCard({
       <CardContent className="space-y-2 text-sm">
         <div>Feeders shown: {feederCount.toLocaleString()}</div>
         <div>Low confidence: {lowConfidenceCount.toLocaleString()}</div>
-        <div className="pt-1 text-xs text-muted-foreground">
-          Showing {metric.toUpperCase()} of {mode === 'direct' ? 'direct-only' : 'any-path'} TR distances per feeder.
-        </div>
+        <div className="pt-1 text-xs text-muted-foreground">{metricDescription(metric, mode)}</div>
         <div className="pt-2 text-xs italic text-muted-foreground">
-          Round-trip range. Lower bound on real reach. Experimental.
+          Not &ldquo;{metric === 'max' ? '100%' : METRIC_LABELS[metric]} of attempts succeed at this range&rdquo;.
+          Round-trip; lower bound on real reach. Experimental.
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function FeederFilterDropdown({
+  feeders,
+  selected,
+  onChange,
+}: {
+  feeders: FeederRange[];
+  selected: Set<string> | null;
+  onChange: (next: Set<string> | null) => void;
+}) {
+  const sorted = useMemo(
+    () => [...feeders].sort((a, b) => feederLabel(a).localeCompare(feederLabel(b), undefined, { sensitivity: 'base' })),
+    [feeders]
+  );
+  const isAll = selected === null;
+  const selectedCount = selected?.size ?? feeders.length;
+
+  const triggerLabel = isAll
+    ? `All feeders (${feeders.length})`
+    : selectedCount === 0
+      ? 'No feeders'
+      : `${selectedCount} of ${feeders.length} feeders`;
+
+  const toggle = (id: string, checked: boolean) => {
+    // Lazily materialise the explicit set when the user first deviates from "all".
+    const base = selected ? new Set(selected) : new Set(sorted.map((f) => f.managed_node_id));
+    if (checked) base.add(id);
+    else base.delete(id);
+    onChange(base);
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 gap-2" disabled={feeders.length === 0}>
+          <FilterIcon className="h-3.5 w-3.5" />
+          <span className="text-xs">{triggerLabel}</span>
+          <ChevronDownIcon className="h-3.5 w-3.5 opacity-60" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="max-h-[60vh] w-72">
+        <div className="flex items-center justify-between px-2 pb-1 pt-0.5">
+          <DropdownMenuLabel className="px-0 py-0 text-xs uppercase text-muted-foreground">Feeders</DropdownMenuLabel>
+          <div className="flex gap-2 text-xs">
+            <button type="button" className="text-emerald-600 hover:underline" onClick={() => onChange(null)}>
+              All
+            </button>
+            <button type="button" className="text-muted-foreground hover:underline" onClick={() => onChange(new Set())}>
+              None
+            </button>
+          </div>
+        </div>
+        <DropdownMenuSeparator />
+        {sorted.length === 0 && <div className="px-2 py-2 text-xs text-muted-foreground">No feeders in window.</div>}
+        {sorted.map((f) => {
+          const checked = isAll || (selected?.has(f.managed_node_id) ?? false);
+          return (
+            <DropdownMenuCheckboxItem
+              key={f.managed_node_id}
+              checked={checked}
+              onCheckedChange={(c) => toggle(f.managed_node_id, Boolean(c))}
+              onSelect={(e) => e.preventDefault()}
+            >
+              <span className="truncate text-xs">{feederLabel(f)}</span>
+            </DropdownMenuCheckboxItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -52,6 +157,8 @@ export function FeederCoverageMapPage() {
   const [mode, setMode] = useState<FeederRangeMode>('direct');
   const [showLowConfidence, setShowLowConfidence] = useState(false);
   const [minSamples, setMinSamples] = useState(10);
+  // null = "all feeders" (the default); a Set means the user has opted into an explicit selection.
+  const [selectedFeederIds, setSelectedFeederIds] = useState<Set<string> | null>(null);
 
   const triggeredAtAfter = useMemo(() => {
     if (timeRange === '24h') return subHours(new Date(), 24);
@@ -66,20 +173,28 @@ export function FeederCoverageMapPage() {
   });
 
   const feeders = useMemo(() => data?.feeders ?? [], [data?.feeders]);
+
+  const filteredFeeders = useMemo(() => {
+    if (selectedFeederIds === null) return feeders;
+    return feeders.filter((f) => selectedFeederIds.has(f.managed_node_id));
+  }, [feeders, selectedFeederIds]);
+
   const visibleCount = useMemo(() => {
-    return feeders.filter((f) => {
+    return filteredFeeders.filter((f) => {
       const block = mode === 'direct' ? f.direct : f.any;
       if (block.sample_count === 0) return false;
       if (!showLowConfidence && block.low_confidence) return false;
       return true;
     }).length;
-  }, [feeders, mode, showLowConfidence]);
+  }, [filteredFeeders, mode, showLowConfidence]);
   const lowConfidenceCount = useMemo(() => {
-    return feeders.filter((f) => {
+    return filteredFeeders.filter((f) => {
       const block = mode === 'direct' ? f.direct : f.any;
       return block.sample_count > 0 && block.low_confidence;
     }).length;
-  }, [feeders, mode]);
+  }, [filteredFeeders, mode]);
+
+  const clearFeederFilter = useCallback(() => setSelectedFeederIds(null), []);
 
   return (
     <div className="flex min-h-[50vh] flex-col gap-4 px-4 py-4 md:px-6 md:py-6">
@@ -96,7 +211,7 @@ export function FeederCoverageMapPage() {
         <div className="flex flex-wrap items-center gap-3" data-testid="coverage-filters">
           <div className="flex items-center gap-2">
             <Label className="text-xs uppercase text-muted-foreground" htmlFor="coverage-metric">
-              Metric
+              Range covers
             </Label>
             <ToggleGroup
               id="coverage-metric"
@@ -104,11 +219,20 @@ export function FeederCoverageMapPage() {
               size="sm"
               value={metric}
               onValueChange={(v) => v && setMetric(v as FeederRangeMetric)}
+              aria-label="Range covers"
             >
-              <ToggleGroupItem value="p50">p50</ToggleGroupItem>
-              <ToggleGroupItem value="p90">p90</ToggleGroupItem>
-              <ToggleGroupItem value="p95">p95</ToggleGroupItem>
-              <ToggleGroupItem value="max">max</ToggleGroupItem>
+              <ToggleGroupItem value="p50" aria-label="50% of successes">
+                50%
+              </ToggleGroupItem>
+              <ToggleGroupItem value="p90" aria-label="90% of successes">
+                90%
+              </ToggleGroupItem>
+              <ToggleGroupItem value="p95" aria-label="95% of successes">
+                95%
+              </ToggleGroupItem>
+              <ToggleGroupItem value="max" aria-label="Furthest success">
+                max
+              </ToggleGroupItem>
             </ToggleGroup>
           </div>
           <div className="flex items-center gap-2">
@@ -142,6 +266,22 @@ export function FeederCoverageMapPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-4 text-sm" data-testid="coverage-advanced">
+        <div className="flex items-center gap-2">
+          <Label htmlFor="coverage-feeders" className="text-xs">
+            Feeders
+          </Label>
+          <FeederFilterDropdown feeders={feeders} selected={selectedFeederIds} onChange={setSelectedFeederIds} />
+          {selectedFeederIds !== null && (
+            <button
+              type="button"
+              onClick={clearFeederFilter}
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              aria-label="Clear feeder filter"
+            >
+              <XIcon className="h-3 w-3" /> reset
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <Label htmlFor="coverage-low-conf" className="text-xs">
             Show low-confidence
@@ -191,7 +331,12 @@ export function FeederCoverageMapPage() {
               </div>
             )}
             {!error && !isLoading && (
-              <FeederCoverageMap feeders={feeders} metric={metric} mode={mode} showLowConfidence={showLowConfidence} />
+              <FeederCoverageMap
+                feeders={filteredFeeders}
+                metric={metric}
+                mode={mode}
+                showLowConfidence={showLowConfidence}
+              />
             )}
           </CardContent>
         </Card>
