@@ -81,6 +81,11 @@ export function NavMain() {
         { title: 'Heatmap', url: '/traceroutes/map/heat', icon: MapIcon },
         { title: 'Link quality', url: '/traceroutes/map/snr', icon: SignalIcon },
         { title: 'Coverage', url: '/traceroutes/map/coverage', icon: CircleDashedIcon },
+        {
+          title: 'Constellation coverage',
+          url: '/traceroutes/map/coverage/constellation',
+          icon: CircleDashedIcon,
+        },
       ],
     },
   ];

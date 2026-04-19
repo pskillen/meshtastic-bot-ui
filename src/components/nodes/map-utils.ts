@@ -308,8 +308,15 @@ export function precisionBitsToMeters(precisionBits: number | null | undefined):
 }
 
 /**
- * Build a boundary polygon from points using buffered convex hull.
+ * Build a boundary polygon from points using a buffered concave hull.
+ *
+ * Mesh coverage in non-isotropic terrain (hills, lochs, the central belt) is not
+ * well represented by a convex hull, so we use turf.concave with a generous edge
+ * length to "cling" around outliers. We fall back to convex when concave fails
+ * (e.g. all points colinear, fewer than 3 points, or no triangulation possible).
  */
+const CONCAVE_MAX_EDGE_KM = 2;
+
 export function boundaryPolygonFromPoints(
   points: Feature<Point>[],
   radiusKm: number
@@ -323,6 +330,21 @@ export function boundaryPolygonFromPoints(
   }
 
   const fc = turf.featureCollection(points);
+
+  if (points.length >= 3) {
+    try {
+      const concave = turf.concave(fc, {
+        maxEdge: CONCAVE_MAX_EDGE_KM,
+        units: 'kilometers',
+      }) as Feature<Polygon | MultiPolygon> | null;
+      if (concave?.geometry) {
+        return turf.buffer(concave, radiusKm, bufferOpts) as Feature<Polygon> | Feature<MultiPolygon>;
+      }
+    } catch {
+      // turf.concave can throw on degenerate inputs; fall through to convex.
+    }
+  }
+
   const hull = turf.convex(fc) as Feature<Polygon> | undefined;
   if (!hull?.geometry || hull.geometry.type !== 'Polygon') {
     return turf.buffer(points[0], radiusKm, bufferOpts) as Feature<Polygon>;

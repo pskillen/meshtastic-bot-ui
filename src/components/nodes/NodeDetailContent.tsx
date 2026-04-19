@@ -55,7 +55,7 @@ function hasEnvironmentSensorMetrics(env: LatestEnvironmentMetrics | null | unde
   });
 }
 
-function TracerouteLinksSection({ nodeId }: { nodeId: number }) {
+function TracerouteLinksSection({ nodeId, isManagedNode }: { nodeId: number; isManagedNode: boolean }) {
   const [timeRange, setTimeRange] = useState<TracerouteTimeRange>('7d');
   const triggeredAtAfter = useMemo(() => {
     if (timeRange === '24h') return subHours(new Date(), 24);
@@ -78,17 +78,28 @@ function TracerouteLinksSection({ nodeId }: { nodeId: number }) {
               Mesh links from traceroutes. Arcs colored by average SNR (green = good, red = poor).
             </CardDescription>
           </div>
-          <div className="w-full sm:w-auto sm:min-w-[140px]">
-            <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TracerouteTimeRange)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="24h">Last 24 hours</SelectItem>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            {isManagedNode && (
+              <Link
+                to={`/traceroutes/map/coverage?feeder=${nodeId}`}
+                className="text-sm text-teal-600 underline-offset-4 hover:underline dark:text-teal-400"
+                data-testid="node-coverage-map-link"
+              >
+                Coverage map
+              </Link>
+            )}
+            <div className="w-full sm:w-auto sm:min-w-[140px]">
+              <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TracerouteTimeRange)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="24h">Last 24 hours</SelectItem>
+                  <SelectItem value="7d">Last 7 days</SelectItem>
+                  <SelectItem value="30d">Last 30 days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -481,7 +492,7 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
       {!compact && (
         <>
           <NodeMeshMonitoringSection node={node} />
-          <TracerouteLinksSection nodeId={nodeId} />
+          <TracerouteLinksSection nodeId={nodeId} isManagedNode={isManagedNode} />
           <Suspense
             fallback={
               <div className="mb-6 flex min-h-[120px] items-center justify-center text-muted-foreground">

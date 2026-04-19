@@ -34,6 +34,55 @@ import {
 } from '@/lib/types';
 import { parseNodeWatchFromAPI, parseObservedNodeFromAPI } from './api-utils';
 
+export interface FeederReachFeeder {
+  managed_node_id: string;
+  node_id: number;
+  node_id_str: string;
+  short_name?: string | null;
+  long_name?: string | null;
+  lat: number | null;
+  lng: number | null;
+}
+
+export interface FeederReachTarget {
+  node_id: number;
+  node_id_str: string;
+  short_name?: string | null;
+  long_name?: string | null;
+  lat: number;
+  lng: number;
+  attempts: number;
+  successes: number;
+}
+
+export interface CoverageWindow {
+  start: string | null;
+  end: string | null;
+}
+
+export interface FeederReachData {
+  feeder: FeederReachFeeder;
+  targets: FeederReachTarget[];
+  meta: { window: CoverageWindow };
+}
+
+export interface ConstellationCoverageHex {
+  h3_index: string;
+  centre_lat: number;
+  centre_lng: number;
+  attempts: number;
+  successes: number;
+  contributing_feeders: number;
+  contributing_targets: number;
+}
+
+export interface ConstellationCoverageData {
+  constellation_id: number;
+  h3_resolution: number;
+  hexes: ConstellationCoverageHex[];
+  meta: { window: CoverageWindow };
+}
+
 export class MeshtasticApi extends BaseApi {
   constructor(config: ApiConfig) {
     super(config);
@@ -753,58 +802,48 @@ export class MeshtasticApi extends BaseApi {
   }
 
   /**
-   * Get per-feeder success-range distance percentiles
+   * Get per-target attempt and success counts for one feeder.
+   * The frontend uses this single payload to render dots, client-side H3
+   * hexagons, and a concave-hull polygon. See
+   * `docs/features/traceroute/coverage.md` in the API repo.
    */
-  async getFeederRanges(params?: {
+  async getFeederReach(params: {
+    feeder_id: number;
     triggered_at_after?: string;
     triggered_at_before?: string;
-    constellation_id?: number;
-    min_samples?: number;
-  }): Promise<{
-    feeders: Array<{
-      managed_node_id: string;
-      node_id: number;
-      node_id_str: string;
-      short_name?: string | null;
-      long_name?: string | null;
-      lat: number;
-      lng: number;
-      direct: {
-        sample_count: number;
-        p50_km: number | null;
-        p90_km: number | null;
-        p95_km: number | null;
-        max_km: number | null;
-        low_confidence: boolean;
-      };
-      any: {
-        sample_count: number;
-        p50_km: number | null;
-        p90_km: number | null;
-        p95_km: number | null;
-        max_km: number | null;
-        low_confidence: boolean;
-      };
-    }>;
-    meta: {
-      min_samples: number;
-      window: { start: string | null; end: string | null };
-    };
-  }> {
+  }): Promise<FeederReachData> {
     const searchParams = new URLSearchParams();
-    if (params?.triggered_at_after) {
+    searchParams.append('feeder_id', params.feeder_id.toString());
+    if (params.triggered_at_after) {
       searchParams.append('triggered_at_after', params.triggered_at_after);
     }
-    if (params?.triggered_at_before) {
+    if (params.triggered_at_before) {
       searchParams.append('triggered_at_before', params.triggered_at_before);
     }
-    if (params?.constellation_id != null) {
-      searchParams.append('constellation_id', params.constellation_id.toString());
+    return this.get('/traceroutes/feeder-reach/', searchParams);
+  }
+
+  /**
+   * Get server-side H3-binned reliability for a constellation.
+   */
+  async getConstellationCoverage(params: {
+    constellation_id: number;
+    triggered_at_after?: string;
+    triggered_at_before?: string;
+    h3_resolution?: number;
+  }): Promise<ConstellationCoverageData> {
+    const searchParams = new URLSearchParams();
+    searchParams.append('constellation_id', params.constellation_id.toString());
+    if (params.triggered_at_after) {
+      searchParams.append('triggered_at_after', params.triggered_at_after);
     }
-    if (params?.min_samples != null) {
-      searchParams.append('min_samples', params.min_samples.toString());
+    if (params.triggered_at_before) {
+      searchParams.append('triggered_at_before', params.triggered_at_before);
     }
-    return this.get('/traceroutes/feeder-ranges/', searchParams);
+    if (params.h3_resolution != null) {
+      searchParams.append('h3_resolution', params.h3_resolution.toString());
+    }
+    return this.get('/traceroutes/constellation-coverage/', searchParams);
   }
 
   /**
