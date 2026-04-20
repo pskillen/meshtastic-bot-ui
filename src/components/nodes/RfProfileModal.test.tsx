@@ -87,17 +87,20 @@ describe('RfProfileModal', () => {
     expect(altInput.value).toContain('90');
   });
 
-  it('shows azimuth and beamwidth when pattern is directional', async () => {
+  it('shows frequency band selector and map container (omni-only UI)', async () => {
     useRfProfile.mockReturnValue({
       data: {
         antenna_pattern: 'directional',
         antenna_azimuth_deg: 10,
         antenna_beamwidth_deg: 30,
+        rf_frequency_mhz: 868,
       },
       isLoading: false,
     });
     renderModal(makeNode());
-    expect(screen.getByLabelText(/azimuth/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/beamwidth/i)).toBeInTheDocument();
+    expect(screen.getByTestId('rf-profile-map')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/azimuth/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/beamwidth/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /frequency/i })).toBeInTheDocument();
   });
 });

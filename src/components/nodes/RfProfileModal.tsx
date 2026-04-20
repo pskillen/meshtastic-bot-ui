@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import type { AntennaPattern, ObservedNode, RfProfileUpdateBody } from '@/lib/models';
+import type { ObservedNode, RfProfileUpdateBody } from '@/lib/models';
 import { useMapTileUrl } from '@/hooks/useMapTileUrl';
 import { useRecomputeRfPropagation, useRfProfile, useUpdateRfProfile } from '@/hooks/api/useRfPropagation';
 import L from 'leaflet';
@@ -39,6 +39,22 @@ function numOrNull(v: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Supported ISM bands for propagation (MHz). */
+const RF_FREQUENCY_BANDS = [433, 868, 915] as const;
+
+function mhzToBandKey(mhz: number | null | undefined): string {
+  if (mhz == null) return '';
+  for (const b of RF_FREQUENCY_BANDS) {
+    if (Math.abs(mhz - b) < 0.5) return String(b);
+  }
+  return '';
+}
+
+const inputSurfaceClass = 'border border-slate-300 bg-background shadow-sm dark:border-slate-500 dark:bg-background';
+
+/** Radix Select value when no band chosen (keeps Select controlled; not sent to API). */
+const FREQ_BAND_UNSET = '__freq_unset__';
+
 export function RfProfileModal({ open, onOpenChange, node }: RfProfileModalProps) {
   const nodeId = node.node_id;
   const { data: profile, isLoading } = useRfProfile(nodeId, { enabled: open });
@@ -49,10 +65,8 @@ export function RfProfileModal({ open, onOpenChange, node }: RfProfileModalProps
   const [antennaHeight, setAntennaHeight] = useState('');
   const [antennaGain, setAntennaGain] = useState('');
   const [txPower, setTxPower] = useState('');
-  const [freq, setFreq] = useState('');
-  const [pattern, setPattern] = useState<AntennaPattern>('omni');
-  const [azimuth, setAzimuth] = useState('');
-  const [beamwidth, setBeamwidth] = useState('');
+  /** One of 433 | 868 | 915 or '' when unset / legacy value */
+  const [freqBand, setFreqBand] = useState('');
   const [rfLat, setRfLat] = useState('');
   const [rfLng, setRfLng] = useState('');
   const [rfAlt, setRfAlt] = useState('');
@@ -70,10 +84,7 @@ export function RfProfileModal({ open, onOpenChange, node }: RfProfileModalProps
       setAntennaHeight('');
       setAntennaGain('');
       setTxPower('');
-      setFreq('');
-      setPattern('omni');
-      setAzimuth('');
-      setBeamwidth('');
+      setFreqBand('');
       setRfLat('');
       setRfLng('');
       setRfAlt('');
@@ -83,10 +94,7 @@ export function RfProfileModal({ open, onOpenChange, node }: RfProfileModalProps
     setAntennaHeight(profile.antenna_height_m != null ? String(profile.antenna_height_m) : '');
     setAntennaGain(profile.antenna_gain_dbi != null ? String(profile.antenna_gain_dbi) : '');
     setTxPower(profile.tx_power_dbm != null ? String(profile.tx_power_dbm) : '');
-    setFreq(profile.rf_frequency_mhz != null ? String(profile.rf_frequency_mhz) : '');
-    setPattern((profile.antenna_pattern as AntennaPattern) ?? 'omni');
-    setAzimuth(profile.antenna_azimuth_deg != null ? String(profile.antenna_azimuth_deg) : '');
-    setBeamwidth(profile.antenna_beamwidth_deg != null ? String(profile.antenna_beamwidth_deg) : '');
+    setFreqBand(mhzToBandKey(profile.rf_frequency_mhz));
     const latS = profile.rf_latitude != null ? String(profile.rf_latitude) : '';
     const lngS = profile.rf_longitude != null ? String(profile.rf_longitude) : '';
     const altS = profile.rf_altitude_m != null ? String(profile.rf_altitude_m) : '';
@@ -104,12 +112,27 @@ export function RfProfileModal({ open, onOpenChange, node }: RfProfileModalProps
     return { lat: 55.8642, lng: -4.2518 };
   }, [node.latest_position?.latitude, node.latest_position?.longitude]);
 
-  // Intentionally omit rfLat/rfLng from deps: map is created once per open; marker syncs via a separate effect.
+  // Map mounts only after `!isLoading` so `mapRef` exists; tear down fully when dialog closes.
   useEffect(() => {
-    if (!open || !mapRef.current || mapInstanceRef.current) return;
-    const startLat = numOrUndef(rfLat) ?? initialCenter.lat;
-    const startLng = numOrUndef(rfLng) ?? initialCenter.lng;
-    const map = L.map(mapRef.current).setView([startLat, startLng], 13);
+    if (!open) {
+      markerRef.current?.remove();
+      markerRef.current = null;
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+      tileLayerRef.current = null;
+      if (mapRef.current) mapRef.current.innerHTML = '';
+      return;
+    }
+    if (isLoading || profile === undefined) return;
+    const el = mapRef.current;
+    if (!el || mapInstanceRef.current) return;
+
+    const startLat = profile !== null && profile.rf_latitude != null ? profile.rf_latitude : initialCenter.lat;
+    const startLng = profile !== null && profile.rf_longitude != null ? profile.rf_longitude : initialCenter.lng;
+
+    const map = L.map(el).setView([startLat, startLng], 13);
     const tileLayer = L.tileLayer(tileUrl, { attribution }).addTo(map);
     tileLayerRef.current = tileLayer;
     const marker = L.marker([startLat, startLng], { draggable: true }).addTo(map);
@@ -125,18 +148,21 @@ export function RfProfileModal({ open, onOpenChange, node }: RfProfileModalProps
       setRfLng(String(e.latlng.lng));
     });
     mapInstanceRef.current = map;
-    const t = setTimeout(() => map.invalidateSize(), 100);
+
+    const t1 = window.setTimeout(() => map.invalidateSize(), 100);
+    const t2 = window.setTimeout(() => map.invalidateSize(), 400);
+
     return () => {
-      clearTimeout(t);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
       markerRef.current?.remove();
       markerRef.current = null;
-      mapInstanceRef.current?.remove();
+      map.remove();
       mapInstanceRef.current = null;
       tileLayerRef.current = null;
-      if (mapRef.current) mapRef.current.innerHTML = '';
+      el.innerHTML = '';
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- marker position synced in a follow-up effect
-  }, [open, initialCenter.lat, initialCenter.lng, tileUrl, attribution]);
+  }, [open, isLoading, profile, initialCenter.lat, initialCenter.lng, tileUrl, attribution]);
 
   useEffect(() => {
     if (!open) return;
@@ -175,10 +201,10 @@ export function RfProfileModal({ open, onOpenChange, node }: RfProfileModalProps
     antenna_height_m: numOrNull(antennaHeight),
     antenna_gain_dbi: numOrNull(antennaGain),
     tx_power_dbm: numOrNull(txPower),
-    rf_frequency_mhz: numOrNull(freq),
-    antenna_pattern: pattern,
-    antenna_azimuth_deg: pattern === 'directional' ? numOrNull(azimuth) : null,
-    antenna_beamwidth_deg: pattern === 'directional' ? numOrNull(beamwidth) : null,
+    rf_frequency_mhz: freqBand === '' ? null : Number(freqBand),
+    antenna_pattern: 'omni',
+    antenna_azimuth_deg: null,
+    antenna_beamwidth_deg: null,
     rf_latitude: numOrNull(rfLat),
     rf_longitude: numOrNull(rfLng),
     rf_altitude_m: numOrNull(rfAlt),
@@ -190,12 +216,6 @@ export function RfProfileModal({ open, onOpenChange, node }: RfProfileModalProps
   };
 
   const handleSave = async () => {
-    if (pattern === 'directional') {
-      if (azimuth.trim() === '' || beamwidth.trim() === '') {
-        toast.error('Directional pattern requires azimuth and beamwidth.');
-        return;
-      }
-    }
     try {
       await updateMutation.mutateAsync(buildBody());
       toast.success('RF profile saved');
@@ -237,21 +257,37 @@ export function RfProfileModal({ open, onOpenChange, node }: RfProfileModalProps
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div>
                     <Label htmlFor="rf-lat">Latitude</Label>
-                    <Input id="rf-lat" value={rfLat} onChange={(e) => setRfLat(e.target.value)} />
+                    <Input
+                      id="rf-lat"
+                      className={inputSurfaceClass}
+                      value={rfLat}
+                      onChange={(e) => setRfLat(e.target.value)}
+                    />
                   </div>
                   <div>
                     <Label htmlFor="rf-lng">Longitude</Label>
-                    <Input id="rf-lng" value={rfLng} onChange={(e) => setRfLng(e.target.value)} />
+                    <Input
+                      id="rf-lng"
+                      className={inputSurfaceClass}
+                      value={rfLng}
+                      onChange={(e) => setRfLng(e.target.value)}
+                    />
                   </div>
                   <div>
                     <Label htmlFor="rf-alt">Altitude (m)</Label>
-                    <Input id="rf-alt" value={rfAlt} onChange={(e) => setRfAlt(e.target.value)} />
+                    <Input
+                      id="rf-alt"
+                      className={inputSurfaceClass}
+                      value={rfAlt}
+                      onChange={(e) => setRfAlt(e.target.value)}
+                    />
                   </div>
                 </div>
                 <div
                   ref={mapRef}
-                  className="map-container h-[220px] w-full rounded-md border"
-                  style={{ position: 'relative', zIndex: 1 }}
+                  data-testid="rf-profile-map"
+                  className="map-container h-[220px] w-full min-h-[220px] rounded-md border border-slate-300 dark:border-slate-500"
+                  style={{ position: 'relative', zIndex: 0 }}
                 />
               </div>
             </Card>
@@ -263,44 +299,44 @@ export function RfProfileModal({ open, onOpenChange, node }: RfProfileModalProps
               <div className="grid grid-cols-1 gap-3 px-6 pb-6 sm:grid-cols-2">
                 <div>
                   <Label>Height AGL (m)</Label>
-                  <Input value={antennaHeight} onChange={(e) => setAntennaHeight(e.target.value)} />
+                  <Input
+                    className={inputSurfaceClass}
+                    value={antennaHeight}
+                    onChange={(e) => setAntennaHeight(e.target.value)}
+                  />
                 </div>
                 <div>
                   <Label>Gain (dBi)</Label>
-                  <Input value={antennaGain} onChange={(e) => setAntennaGain(e.target.value)} />
+                  <Input
+                    className={inputSurfaceClass}
+                    value={antennaGain}
+                    onChange={(e) => setAntennaGain(e.target.value)}
+                  />
                 </div>
                 <div>
                   <Label>TX power (dBm)</Label>
-                  <Input value={txPower} onChange={(e) => setTxPower(e.target.value)} />
-                </div>
-                <div>
-                  <Label>Frequency (MHz)</Label>
-                  <Input value={freq} onChange={(e) => setFreq(e.target.value)} />
+                  <Input className={inputSurfaceClass} value={txPower} onChange={(e) => setTxPower(e.target.value)} />
                 </div>
                 <div className="sm:col-span-2">
-                  <Label>Pattern</Label>
-                  <Select value={pattern} onValueChange={(v) => setPattern(v as AntennaPattern)}>
-                    <SelectTrigger>
-                      <SelectValue />
+                  <Label htmlFor="rf-frequency-band">Frequency</Label>
+                  <Select
+                    value={freqBand === '' ? FREQ_BAND_UNSET : freqBand}
+                    onValueChange={(v) => setFreqBand(v === FREQ_BAND_UNSET ? '' : v)}
+                  >
+                    <SelectTrigger id="rf-frequency-band" className={inputSurfaceClass}>
+                      <SelectValue placeholder="Select band" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="omni">Omni</SelectItem>
-                      <SelectItem value="directional">Directional</SelectItem>
+                      <SelectItem value={FREQ_BAND_UNSET}>Select band</SelectItem>
+                      {RF_FREQUENCY_BANDS.map((mhz) => (
+                        <SelectItem key={mhz} value={String(mhz)}>
+                          {mhz} MHz
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  <p className="mt-1 text-xs text-muted-foreground">ISM bands supported for propagation today.</p>
                 </div>
-                {pattern === 'directional' && (
-                  <>
-                    <div>
-                      <Label htmlFor="rf-azimuth">Azimuth (deg)</Label>
-                      <Input id="rf-azimuth" value={azimuth} onChange={(e) => setAzimuth(e.target.value)} />
-                    </div>
-                    <div>
-                      <Label htmlFor="rf-beamwidth">Beamwidth (deg)</Label>
-                      <Input id="rf-beamwidth" value={beamwidth} onChange={(e) => setBeamwidth(e.target.value)} />
-                    </div>
-                  </>
-                )}
               </div>
             </Card>
 
