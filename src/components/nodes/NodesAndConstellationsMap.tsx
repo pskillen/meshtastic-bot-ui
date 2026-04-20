@@ -65,6 +65,8 @@ export interface NodesAndConstellationsMapProps {
   getMarkerGrayscale?: (node: ObservedNode) => number;
   /** Optional CSS colour for a 3px inset border on weather-style markers (e.g. age indicator) */
   getMarkerBorderColor?: (node: ObservedNode) => string | undefined;
+  /** Optional marker colour override for managed nodes */
+  getManagedNodeMarkerColor?: (node: ManagedNode) => string;
 }
 
 export function NodesAndConstellationsMap({
@@ -86,6 +88,7 @@ export function NodesAndConstellationsMap({
   getMarkerColor,
   getMarkerGrayscale,
   getMarkerBorderColor,
+  getManagedNodeMarkerColor,
 }: NodesAndConstellationsMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -446,7 +449,7 @@ export function NodesAndConstellationsMap({
           const marker = L.marker(position, {
             icon: createNodeIcon(
               node.short_name || node.node_id_str?.slice(4, 8) || '?',
-              c.color,
+              getManagedNodeMarkerColor ? getManagedNodeMarkerColor(node) : c.color,
               isSelected,
               hasSelection && !isSelected
             ),
@@ -487,6 +490,7 @@ export function NodesAndConstellationsMap({
     getMarkerColor,
     getMarkerGrayscale,
     getMarkerBorderColor,
+    getManagedNodeMarkerColor,
   ]);
 
   return (

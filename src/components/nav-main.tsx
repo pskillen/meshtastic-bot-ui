@@ -68,6 +68,7 @@ export function NavMain() {
       icon: NetworkIcon,
       children: [
         { title: 'My nodes', url: '/nodes/my-nodes', icon: RadioIcon },
+        { title: 'Managed nodes', url: '/nodes/managed-nodes', icon: ActivityIcon },
         { title: 'Watches', url: '/nodes/monitor', icon: ActivityIcon },
         { title: 'Mesh infra', url: '/nodes/infrastructure', icon: ServerIcon },
       ],
