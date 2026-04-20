@@ -49,3 +49,15 @@ export function useRecomputeRfPropagation(nodeId: number) {
     },
   });
 }
+
+export function useDismissRfPropagation(nodeId: number) {
+  const api = useMeshtasticApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.dismissRfPropagation(nodeId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['rf-propagation', nodeId] });
+      void queryClient.invalidateQueries({ queryKey: ['nodes', nodeId] });
+    },
+  });
+}

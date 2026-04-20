@@ -4,7 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import type { ObservedNode } from '@/lib/models';
 import { isRfPropagationNone } from '@/lib/models';
-import { useRfProfile, useRfPropagation, useRecomputeRfPropagation } from '@/hooks/api/useRfPropagation';
+import {
+  useRfProfile,
+  useRfPropagation,
+  useRecomputeRfPropagation,
+  useDismissRfPropagation,
+} from '@/hooks/api/useRfPropagation';
 import { RfProfileModal } from '@/components/nodes/RfProfileModal';
 import { RfPropagationMap } from '@/components/nodes/RfPropagationMap';
 
@@ -22,6 +27,7 @@ export function RfPropagationSection({ node }: RfPropagationSectionProps) {
   const { data: profile } = useRfProfile(nodeId, { enabled: showSection });
   const { data: propagation, isLoading: propLoading } = useRfPropagation(nodeId, { enabled: showSection });
   const recompute = useRecomputeRfPropagation(nodeId);
+  const dismiss = useDismissRfPropagation(nodeId);
 
   if (!showSection) {
     return null;
@@ -109,16 +115,38 @@ export function RfPropagationSection({ node }: RfPropagationSectionProps) {
           )}
 
           {!propLoading && propagation && !isRfPropagationNone(propagation) && propagation.status === 'pending' && (
-            <div className="flex min-h-[160px] flex-col items-center justify-center gap-2 text-muted-foreground">
+            <div className="flex min-h-[160px] flex-col items-center justify-center gap-3 text-muted-foreground">
               <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-teal-500" />
               <p>Queued for rendering…</p>
+              {canEdit && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void dismiss.mutateAsync()}
+                  disabled={dismiss.isPending}
+                >
+                  Cancel
+                </Button>
+              )}
             </div>
           )}
 
           {!propLoading && propagation && !isRfPropagationNone(propagation) && propagation.status === 'running' && (
-            <div className="flex min-h-[160px] flex-col items-center justify-center gap-2 text-muted-foreground">
+            <div className="flex min-h-[160px] flex-col items-center justify-center gap-3 text-muted-foreground">
               <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-teal-500" />
               <p>Rendering…</p>
+              {canEdit && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void dismiss.mutateAsync()}
+                  disabled={dismiss.isPending}
+                >
+                  Cancel
+                </Button>
+              )}
             </div>
           )}
 
@@ -127,9 +155,20 @@ export function RfPropagationSection({ node }: RfPropagationSectionProps) {
               <p className="font-medium text-destructive">Render failed</p>
               {propagation.error_message ? <p>{propagation.error_message}</p> : null}
               {canEdit && (
-                <Button type="button" size="sm" variant="secondary" onClick={() => void recompute.mutateAsync()}>
-                  Render now
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" size="sm" variant="secondary" onClick={() => void recompute.mutateAsync()}>
+                    Render now
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void dismiss.mutateAsync()}
+                    disabled={dismiss.isPending}
+                  >
+                    Dismiss
+                  </Button>
+                </div>
               )}
             </div>
           )}
