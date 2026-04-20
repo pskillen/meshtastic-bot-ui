@@ -19,11 +19,12 @@ import { CheckCircle, Clock, Copy, Settings } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { authService } from '@/lib/auth/authService';
-import { getRoleLabel } from '@/lib/meshtastic';
+import { getRoleLabel, INFRASTRUCTURE_ROLE_IDS } from '@/lib/meshtastic';
 import type { EnvironmentExposureSlug, LatestEnvironmentMetrics, WeatherUseSlug } from '@/lib/models';
 import { NodeEnvironmentSettingsDialog } from '@/components/nodes/NodeEnvironmentSettingsDialog';
 import { NodeMeshMonitoringSection } from '@/components/nodes/NodeMeshMonitoringSection';
 import { NodeTracerouteHistorySection } from '@/components/nodes/NodeTracerouteHistorySection';
+import { RfPropagationSection } from '@/components/nodes/RfPropagationSection';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { STRATEGY_META, type TracerouteStrategyValue } from '@/lib/traceroute-strategy';
 
@@ -535,6 +536,7 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
         <>
           <NodeMeshMonitoringSection node={node} />
           <TracerouteLinksSection nodeId={nodeId} isManagedNode={isManagedNode} />
+          {node.role != null && INFRASTRUCTURE_ROLE_IDS.has(node.role) && <RfPropagationSection node={node} />}
           <Suspense
             fallback={
               <div className="mb-6 flex min-h-[120px] items-center justify-center text-muted-foreground">
