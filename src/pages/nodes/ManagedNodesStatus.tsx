@@ -1,7 +1,6 @@
 import { Suspense, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { format, formatDistanceToNow } from 'date-fns';
-import { toast } from 'sonner';
 import { ChevronDown, Loader2 } from 'lucide-react';
 
 import { NodesAndConstellationsMap } from '@/components/nodes/NodesAndConstellationsMap';
@@ -22,8 +21,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useManagedNodesSuspense } from '@/hooks/api/useNodes';
-import { useTriggerTraceroute } from '@/hooks/api/useTraceroutes';
-import { authService } from '@/lib/auth/authService';
 import { ManagedNodeStatusTier, getManagedNodeStatusTier, managedNodeStatusTierColor } from '@/lib/managed-node-status';
 import { ManagedNode } from '@/lib/models';
 
@@ -72,10 +69,15 @@ function tierLabel(tier: ManagedNodeStatusTier): string {
   return tier[0].toUpperCase() + tier.slice(1);
 }
 
-function formatTimestamp(value: Date | string | null | undefined): string {
+function renderTimestampCell(value: Date | string | null | undefined) {
   if (!value) return 'Never';
   const date = new Date(value);
-  return `${format(date, 'PPpp')} (${formatDistanceToNow(date, { addSuffix: true })})`;
+  return (
+    <div className="flex flex-col">
+      <span>{format(date, 'PPpp')}</span>
+      <span className="text-xs text-muted-foreground">{formatDistanceToNow(date, { addSuffix: true })}</span>
+    </div>
+  );
 }
 
 function autoTracerouteBadge(node: ManagedNode) {
@@ -84,9 +86,7 @@ function autoTracerouteBadge(node: ManagedNode) {
 }
 
 function ManagedNodesStatusContent() {
-  const currentUser = authService.getCurrentUser();
   const { managedNodes } = useManagedNodesSuspense({ pageSize: 500, includeStatus: true });
-  const triggerMutation = useTriggerTraceroute();
   const [searchParams, setSearchParams] = useSearchParams();
   const [queryInput, setQueryInput] = useState(() => parseManagedNodesUrlState(searchParams).query);
   const filters = useMemo(() => parseManagedNodesUrlState(searchParams), [searchParams]);
@@ -184,6 +184,23 @@ function ManagedNodesStatusContent() {
 
   const toggleFromList = <T extends string>(current: T[], value: T) =>
     current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
+  const nodesByConstellation = useMemo(() => {
+    const grouped = new Map<number, { id: number; name: string; nodes: ManagedNode[] }>();
+    for (const node of sortedManagedNodes) {
+      const constellationName = node.constellation.name ?? `Constellation ${node.constellation.id}`;
+      const existing = grouped.get(node.constellation.id);
+      if (existing) {
+        existing.nodes.push(node);
+      } else {
+        grouped.set(node.constellation.id, {
+          id: node.constellation.id,
+          name: constellationName,
+          nodes: [node],
+        });
+      }
+    }
+    return Array.from(grouped.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [sortedManagedNodes]);
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -355,88 +372,63 @@ function ManagedNodesStatusContent() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Managed node health</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Status</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Node ID</TableHead>
-                <TableHead>Constellation</TableHead>
-                <TableHead>Last packet ingested</TableHead>
-                <TableHead>Packets / hour</TableHead>
-                <TableHead>Packets / 24h</TableHead>
-                <TableHead>Radio last heard</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead>Auto-TR</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedManagedNodes.map((node) => {
-                const tier = getManagedNodeStatusTier(node.last_packet_ingested_at);
-                const canOpenSettings = currentUser?.id === node.owner.id;
-                return (
-                  <TableRow key={node.node_id}>
-                    <TableCell>
-                      <Badge style={{ backgroundColor: managedNodeStatusTierColor(tier), color: 'white' }}>
-                        {tierLabel(tier)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Link to={`/nodes/${node.node_id}`} className="text-primary hover:underline">
-                        {node.long_name ?? node.short_name ?? node.node_id_str}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{node.node_id_str}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{node.constellation.name ?? '—'}</Badge>
-                    </TableCell>
-                    <TableCell>{formatTimestamp(node.last_packet_ingested_at)}</TableCell>
-                    <TableCell>{node.packets_last_hour ?? 0}</TableCell>
-                    <TableCell>{node.packets_last_24h ?? 0}</TableCell>
-                    <TableCell>{formatTimestamp(node.radio_last_heard)}</TableCell>
-                    <TableCell>{node.owner.username}</TableCell>
-                    <TableCell>{autoTracerouteBadge(node)}</TableCell>
-                    <TableCell className="space-x-3">
-                      <Link to={`/nodes/${node.node_id}`} className="text-primary hover:underline">
-                        View details
-                      </Link>
-                      {canOpenSettings && (
-                        <Link to="/user/nodes" className="text-primary hover:underline">
-                          Settings
-                        </Link>
-                      )}
-                      {node.is_eligible_traceroute_source && (
-                        <Button
-                          variant="link"
-                          className="h-auto p-0"
-                          disabled={triggerMutation.isPending}
-                          onClick={async () => {
-                            try {
-                              await triggerMutation.mutateAsync({ managedNodeId: node.node_id });
-                              toast.success(`Traceroute triggered from ${node.short_name ?? node.node_id_str}`);
-                            } catch (error) {
-                              const message = error instanceof Error ? error.message : 'Failed to trigger traceroute';
-                              toast.error(message);
-                            }
-                          }}
-                        >
-                          Trigger traceroute
-                        </Button>
-                      )}
-                    </TableCell>
+      <div className="space-y-4">
+        {nodesByConstellation.map((group) => (
+          <Card key={group.id}>
+            <CardHeader>
+              <CardTitle>{group.name}</CardTitle>
+              <CardDescription>{group.nodes.length} managed nodes</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Short name</TableHead>
+                    <TableHead>Long name</TableHead>
+                    <TableHead>Last packet ingested</TableHead>
+                    <TableHead>Packets / hour</TableHead>
+                    <TableHead>Packets / 24h</TableHead>
+                    <TableHead>Radio last heard</TableHead>
+                    <TableHead>Owner</TableHead>
+                    <TableHead>Auto-TR</TableHead>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {group.nodes.map((node) => {
+                    const tier = getManagedNodeStatusTier(node.last_packet_ingested_at);
+                    return (
+                      <TableRow key={node.node_id}>
+                        <TableCell>
+                          <Badge style={{ backgroundColor: managedNodeStatusTierColor(tier), color: 'white' }}>
+                            {tierLabel(tier)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Link to={`/nodes/${node.node_id}`} className="text-primary hover:underline">
+                            {node.short_name ?? '—'}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          <Link to={`/nodes/${node.node_id}`} className="text-primary hover:underline">
+                            {node.long_name ?? node.node_id_str}
+                          </Link>
+                        </TableCell>
+                        <TableCell>{renderTimestampCell(node.last_packet_ingested_at)}</TableCell>
+                        <TableCell>{node.packets_last_hour ?? 0}</TableCell>
+                        <TableCell>{node.packets_last_24h ?? 0}</TableCell>
+                        <TableCell>{renderTimestampCell(node.radio_last_heard)}</TableCell>
+                        <TableCell>{node.owner.username}</TableCell>
+                        <TableCell>{autoTracerouteBadge(node)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }
