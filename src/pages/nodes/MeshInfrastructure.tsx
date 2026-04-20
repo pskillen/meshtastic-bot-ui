@@ -108,7 +108,7 @@ function MeshInfrastructureContent() {
     return m;
   }, [watchesQuery.data]);
 
-  const { managedNodes } = useManagedNodesSuspense(500);
+  const { managedNodes } = useManagedNodesSuspense({ pageSize: 500 });
 
   const { metricsMap } = useMultiNodeMetricsSuspense(nodes, chartDateRange);
 

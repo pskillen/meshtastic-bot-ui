@@ -82,7 +82,7 @@ function NodesListContent() {
     pageSize: 100,
   });
 
-  const { managedNodes } = useManagedNodesSuspense(500);
+  const { managedNodes } = useManagedNodesSuspense({ pageSize: 500 });
 
   const sortNodes = (nodes: ObservedNode[]) => {
     return [...nodes].sort((a, b) => {

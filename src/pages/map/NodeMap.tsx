@@ -51,7 +51,7 @@ function NodeMapContent() {
 
   const lastHeardAfter = useMemo(() => getLastHeardAfter(timeRange), [timeRange]);
 
-  const { managedNodes } = useManagedNodesSuspense(500);
+  const { managedNodes } = useManagedNodesSuspense({ pageSize: 500 });
   const { nodes: observedNodes } = useNodesSuspense({
     lastHeardAfter,
     pageSize: 500,

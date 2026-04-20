@@ -370,10 +370,15 @@ export class MeshtasticApi extends BaseApi {
   /**
    * Get a paginated list of managed nodes
    */
-  async getManagedNodes(params?: PaginationParams): Promise<PaginatedResponse<ManagedNode>> {
+  async getManagedNodes(
+    params?: PaginationParams & {
+      includeStatus?: boolean;
+    }
+  ): Promise<PaginatedResponse<ManagedNode>> {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.append('page', params.page.toString());
     if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    if (params?.includeStatus) searchParams.append('include', 'status');
     return this.get<PaginatedResponse<ManagedNode>>('/nodes/managed-nodes/', searchParams);
   }
 

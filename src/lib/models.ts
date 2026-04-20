@@ -57,6 +57,11 @@ export interface ManagedNode {
   long_name: string | null;
   short_name: string | null;
   last_heard: Date | null;
+  radio_last_heard?: Date | null;
+  last_packet_ingested_at?: Date | null;
+  packets_last_hour?: number;
+  packets_last_24h?: number;
+  is_eligible_traceroute_source?: boolean;
   node_id_str: string;
   owner: {
     id: number;

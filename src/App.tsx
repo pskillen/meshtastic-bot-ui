@@ -1,4 +1,4 @@
-import { Suspense } from 'react';
+import { Suspense, lazy } from 'react';
 import { TracerouteHistory } from '@/pages/traceroutes/TracerouteHistory';
 import { TracerouteHeatmapPage } from '@/pages/traceroutes/TracerouteHeatmapPage';
 import { FeederCoveragePage } from '@/pages/traceroutes/FeederCoveragePage';
@@ -28,6 +28,8 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import MonitorNodes from '@/pages/nodes/monitor';
 
+const ManagedNodesStatus = lazy(() => import('@/pages/nodes/ManagedNodesStatus'));
+
 function App() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
@@ -51,6 +53,14 @@ function App() {
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/nodes" element={<NodesList />} />
                   <Route path="/nodes/infrastructure" element={<MeshInfrastructure />} />
+                  <Route
+                    path="/nodes/managed-nodes"
+                    element={
+                      <Suspense fallback={<div>Loading managed nodes...</div>}>
+                        <ManagedNodesStatus />
+                      </Suspense>
+                    }
+                  />
                   <Route path="/weather" element={<Weather />} />
                   <Route path="/nodes/my-nodes" element={<MyNodes />} />
                   <Route path="/nodes/monitor" element={<MonitorNodes />} />
