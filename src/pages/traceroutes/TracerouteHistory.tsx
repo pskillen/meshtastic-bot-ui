@@ -25,6 +25,7 @@ import { getTracerouteErrorMessage } from './tracerouteErrors';
 import { TracerouteStatsSection } from '@/components/traceroutes/TracerouteStatsSection';
 import { StrategyBadge } from '@/components/traceroutes/StrategyBadge';
 import { AutoTraceRoute, ObservedNode } from '@/lib/models';
+import { formatElapsedBetween } from '@/lib/utils';
 import { TRACEROUTE_STRATEGIES, type TracerouteStrategyValue } from '@/lib/traceroute-strategy';
 import { ChevronDown, RotateCw, RouteIcon, X } from 'lucide-react';
 
@@ -96,6 +97,12 @@ function parseNumberParam(raw: string | null): number | null {
   if (!raw) return null;
   const n = parseInt(raw, 10);
   return Number.isFinite(n) ? n : null;
+}
+
+function completedElapsedDisplay(tr: AutoTraceRoute): string {
+  if (tr.status === 'failed') return '—';
+  if (!tr.triggered_at || !tr.completed_at) return '—';
+  return formatElapsedBetween(new Date(tr.triggered_at), new Date(tr.completed_at));
 }
 
 function multiSelectLabel<T extends string>(
@@ -385,7 +392,7 @@ export function TracerouteHistory() {
                     <TableHead>Status</TableHead>
                     <TableHead>Route</TableHead>
                     <TableHead>Triggered</TableHead>
-                    <TableHead>Completed</TableHead>
+                    <TableHead title="Time from triggered to completion (successful runs only)">Elapsed</TableHead>
                     {canTrigger && <TableHead className="w-12"></TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -410,7 +417,15 @@ export function TracerouteHistory() {
                         {routeSummary(tr)}
                       </TableCell>
                       <TableCell>{tr.triggered_at ? format(new Date(tr.triggered_at), 'PPp') : '—'}</TableCell>
-                      <TableCell>{tr.completed_at ? format(new Date(tr.completed_at), 'PPp') : '—'}</TableCell>
+                      <TableCell
+                        title={
+                          tr.status !== 'failed' && tr.completed_at
+                            ? format(new Date(tr.completed_at), 'PPp')
+                            : undefined
+                        }
+                      >
+                        {completedElapsedDisplay(tr)}
+                      </TableCell>
                       {canTrigger && (
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           {triggerableNodes.some((n) => n.node_id === tr.source_node.node_id) ? (
