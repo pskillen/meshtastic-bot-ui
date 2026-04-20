@@ -99,8 +99,19 @@ function parseNumberParam(raw: string | null): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function completedElapsedDisplay(tr: AutoTraceRoute): string {
+function TracerouteElapsedCell({ tr }: { tr: AutoTraceRoute }) {
   if (tr.status === 'failed') return '—';
+  /** Only completion time is reliable for externally ingested traceroutes */
+  if (tr.trigger_type === 'external') {
+    return (
+      <span
+        className="text-muted-foreground"
+        title="External traceroutes do not record when the probe started; elapsed time cannot be computed."
+      >
+        Unknown
+      </span>
+    );
+  }
   if (!tr.triggered_at || !tr.completed_at) return '—';
   return formatElapsedBetween(new Date(tr.triggered_at), new Date(tr.completed_at));
 }
@@ -420,11 +431,13 @@ export function TracerouteHistory() {
                       <TableCell
                         title={
                           tr.status !== 'failed' && tr.completed_at
-                            ? format(new Date(tr.completed_at), 'PPp')
+                            ? tr.trigger_type === 'external'
+                              ? `Completed ${format(new Date(tr.completed_at), 'PPp')} (start time not recorded)`
+                              : format(new Date(tr.completed_at), 'PPp')
                             : undefined
                         }
                       >
-                        {completedElapsedDisplay(tr)}
+                        <TracerouteElapsedCell tr={tr} />
                       </TableCell>
                       {canTrigger && (
                         <TableCell onClick={(e) => e.stopPropagation()}>
