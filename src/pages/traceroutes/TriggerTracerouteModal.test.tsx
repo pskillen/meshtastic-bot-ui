@@ -78,6 +78,21 @@ describe('TriggerTracerouteModal with fixedTargetNode', () => {
     expect(trigger).toBeDisabled();
   });
 
+  it('shows target strategy selector in auto mode', () => {
+    render(
+      <TriggerTracerouteModal
+        open={true}
+        onOpenChange={vi.fn()}
+        mode="auto"
+        managedNodes={[makeManagedNode()]}
+        observedNodes={[]}
+        onTrigger={vi.fn()}
+        isSubmitting={false}
+      />
+    );
+    expect(screen.getByTestId('trigger-traceroute-strategy')).toBeInTheDocument();
+  });
+
   it('does not render the fixed-target row when fixedTargetNode is omitted', () => {
     // NodeSearch pulls in the nodes API; render the auto mode to avoid that
     // while still verifying the fixed-target UI is absent.

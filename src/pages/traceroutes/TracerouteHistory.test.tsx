@@ -12,6 +12,7 @@ vi.mock('@/hooks/api/useTraceroutes', () => ({
 }));
 vi.mock('@/hooks/api/useNodes', () => ({
   useNodesSuspense: vi.fn(),
+  useManagedNodesSuspense: vi.fn(),
 }));
 
 vi.mock('@/components/traceroutes/TracerouteStatsSection', () => ({
@@ -30,13 +31,14 @@ vi.mock('@/pages/traceroutes/TriggerTracerouteModal', () => ({
 
 import { useTraceroutesInfiniteWithWebSocket } from '@/hooks/useTraceroutesWithWebSocket';
 import { useTracerouteTriggerableNodesSuspense, useTriggerTraceroute } from '@/hooks/api/useTraceroutes';
-import { useNodesSuspense } from '@/hooks/api/useNodes';
+import { useNodesSuspense, useManagedNodesSuspense } from '@/hooks/api/useNodes';
 import { TracerouteHistory } from './TracerouteHistory';
 
 const mockedUseInfinite = vi.mocked(useTraceroutesInfiniteWithWebSocket);
 const mockedUseTriggerable = vi.mocked(useTracerouteTriggerableNodesSuspense);
 const mockedUseTrigger = vi.mocked(useTriggerTraceroute);
 const mockedUseNodes = vi.mocked(useNodesSuspense);
+const mockedUseManagedNodes = vi.mocked(useManagedNodesSuspense);
 
 function makeManagedNode(overrides: Partial<ManagedNode> = {}): ManagedNode {
   return {
@@ -130,6 +132,9 @@ function setupHooks(
     nodes: observed,
     totalCount: observed.length,
   } as unknown as ReturnType<typeof useNodesSuspense>);
+  mockedUseManagedNodes.mockReturnValue({
+    managedNodes: triggerable,
+  } as unknown as ReturnType<typeof useManagedNodesSuspense>);
   return { fetchNextPage };
 }
 
@@ -167,6 +172,14 @@ describe('TracerouteHistory', () => {
     renderAt('/traceroutes?trigger_type=user,monitor');
     expect(mockedUseInfinite).toHaveBeenCalledWith(
       expect.objectContaining({ trigger_type: 'user,monitor' })
+    );
+  });
+
+  it('hydrates strategy CSV from the URL into target_strategy', () => {
+    setupHooks();
+    renderAt('/traceroutes?strategy=intra_zone,dx_across');
+    expect(mockedUseInfinite).toHaveBeenCalledWith(
+      expect.objectContaining({ target_strategy: 'intra_zone,dx_across' })
     );
   });
 

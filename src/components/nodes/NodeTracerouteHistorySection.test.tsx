@@ -11,6 +11,10 @@ vi.mock('@/hooks/api/useTraceroutes', () => ({
   useTriggerTraceroute: vi.fn(),
 }));
 
+vi.mock('@/hooks/api/useNodes', () => ({
+  useManagedNodesSuspense: vi.fn(),
+}));
+
 vi.mock('@/pages/traceroutes/TracerouteDetailModal', () => ({
   TracerouteDetailModal: ({
     tracerouteId,
@@ -38,7 +42,11 @@ vi.mock('@/pages/traceroutes/TriggerTracerouteModal', () => ({
     mode: 'user' | 'auto';
     managedNodes: ManagedNode[];
     observedNodes: ObservedNode[];
-    onTrigger: (managedNodeId: number, targetNodeId?: number) => Promise<void>;
+    onTrigger: (
+      managedNodeId: number,
+      targetNodeId?: number,
+      targetStrategy?: 'intra_zone' | 'dx_across' | 'dx_same_side',
+    ) => Promise<void>;
     isSubmitting: boolean;
   }) =>
     open ? (
@@ -50,11 +58,13 @@ vi.mock('@/pages/traceroutes/TriggerTracerouteModal', () => ({
 
 import { useTraceroutesWithWebSocket } from '@/hooks/useTraceroutesWithWebSocket';
 import { useTracerouteTriggerableNodesSuspense, useTriggerTraceroute } from '@/hooks/api/useTraceroutes';
+import { useManagedNodesSuspense } from '@/hooks/api/useNodes';
 import { NodeTracerouteHistorySection } from './NodeTracerouteHistorySection';
 
 const mockedUseTraceroutesWithWebSocket = vi.mocked(useTraceroutesWithWebSocket);
 const mockedUseTriggerableNodes = vi.mocked(useTracerouteTriggerableNodesSuspense);
 const mockedUseTriggerTraceroute = vi.mocked(useTriggerTraceroute);
+const mockedUseManagedNodes = vi.mocked(useManagedNodesSuspense);
 
 function makeObservedNode(overrides: Partial<ObservedNode> = {}): ObservedNode {
   return {
@@ -114,6 +124,7 @@ interface UseTraceroutesReturn {
 function setupHooks(options: {
   traceroutes?: AutoTraceRoute[];
   triggerableNodes?: ManagedNode[];
+  managedNodes?: ManagedNode[];
   isLoading?: boolean;
   error?: Error | null;
   mutate?: ReturnType<typeof vi.fn>;
@@ -133,6 +144,13 @@ function setupHooks(options: {
     mutateAsync: vi.fn(),
     isPending: options.isPending ?? false,
   } as unknown as ReturnType<typeof useTriggerTraceroute>);
+  const managedList = options.managedNodes ?? options.triggerableNodes ?? [];
+  mockedUseManagedNodes.mockReturnValue({
+    managedNodes: managedList,
+    totalManagedNodes: managedList.length,
+    fetchNextPage: vi.fn(),
+    hasNextPage: false,
+  } as unknown as ReturnType<typeof useManagedNodesSuspense>);
 }
 
 function renderSection(observedNode: ObservedNode = makeObservedNode()) {
@@ -215,7 +233,7 @@ describe('NodeTracerouteHistorySection', () => {
     renderSection(observed);
     fireEvent.click(screen.getByRole('button', { name: /repeat traceroute/i }));
     expect(mutate).toHaveBeenCalledWith(
-      { managedNodeId: 777, targetNodeId: 888 },
+      expect.objectContaining({ managedNodeId: 777, targetNodeId: 888 }),
       expect.objectContaining({ onError: expect.any(Function) })
     );
   });

@@ -49,3 +49,13 @@ export function formatUptimeSeconds(seconds: number): string {
 
   return parts.length > 0 ? parts.join(' ') : '0 seconds';
 }
+
+/**
+ * Wall-clock duration between two instants, using the same unit rules as {@link formatUptimeSeconds}
+ * (e.g. "1 minute 30 seconds").
+ */
+export function formatElapsedBetween(start: Date, end: Date): string {
+  const ms = end.getTime() - start.getTime();
+  if (!Number.isFinite(ms) || ms < 0) return '—';
+  return formatUptimeSeconds(Math.floor(ms / 1000));
+}

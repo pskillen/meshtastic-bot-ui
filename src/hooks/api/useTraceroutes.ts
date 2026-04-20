@@ -7,6 +7,8 @@ export interface UseTraceroutesParams {
   target_node?: number;
   status?: string;
   trigger_type?: string;
+  /** CSV of strategy tokens (intra_zone, dx_across, dx_same_side, legacy) */
+  target_strategy?: string;
   triggered_after?: string;
   triggered_before?: string;
   page?: number;
@@ -87,8 +89,15 @@ export function useTriggerTraceroute() {
   const api = useMeshtasticApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ managedNodeId, targetNodeId }: { managedNodeId: number; targetNodeId?: number }) =>
-      api.triggerTraceroute(managedNodeId, targetNodeId),
+    mutationFn: ({
+      managedNodeId,
+      targetNodeId,
+      targetStrategy,
+    }: {
+      managedNodeId: number;
+      targetNodeId?: number;
+      targetStrategy?: 'intra_zone' | 'dx_across' | 'dx_same_side';
+    }) => api.triggerTraceroute(managedNodeId, targetNodeId, targetStrategy),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['traceroutes'] });
       queryClient.invalidateQueries({ queryKey: ['traceroutes', 'triggerable-nodes'] });

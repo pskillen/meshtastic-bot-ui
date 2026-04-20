@@ -18,12 +18,15 @@ import {
 import { toast } from 'sonner';
 import { useTraceroutesInfiniteWithWebSocket } from '@/hooks/useTraceroutesWithWebSocket';
 import { useTracerouteTriggerableNodesSuspense, useTriggerTraceroute } from '@/hooks/api/useTraceroutes';
-import { useNodesSuspense } from '@/hooks/api/useNodes';
+import { useManagedNodesSuspense, useNodesSuspense } from '@/hooks/api/useNodes';
 import { TriggerTracerouteModal, TriggerMode } from './TriggerTracerouteModal';
 import { TracerouteDetailModal } from './TracerouteDetailModal';
 import { getTracerouteErrorMessage } from './tracerouteErrors';
 import { TracerouteStatsSection } from '@/components/traceroutes/TracerouteStatsSection';
+import { StrategyBadge } from '@/components/traceroutes/StrategyBadge';
 import { AutoTraceRoute, ObservedNode } from '@/lib/models';
+import { formatElapsedBetween } from '@/lib/utils';
+import { TRACEROUTE_STRATEGIES, type TracerouteStrategyValue } from '@/lib/traceroute-strategy';
 import { ChevronDown, RotateCw, RouteIcon, X } from 'lucide-react';
 
 type StatusValue = 'completed' | 'failed' | 'pending' | 'sent';
@@ -42,6 +45,20 @@ const TRIGGER_TYPE_OPTIONS: Array<{ value: TriggerTypeValue; label: string }> = 
   { value: 'external', label: 'External' },
   { value: 'monitor', label: 'Monitor' },
 ];
+
+const STRATEGY_FILTER_OPTIONS: Array<{ value: TracerouteStrategyValue; label: string }> = TRACEROUTE_STRATEGIES.map(
+  (value) => ({
+    value,
+    label:
+      value === 'intra_zone'
+        ? 'Intra-zone'
+        : value === 'dx_across'
+          ? 'DX across'
+          : value === 'dx_same_side'
+            ? 'DX same side'
+            : 'Legacy',
+  })
+);
 
 function routeSummary(tr: AutoTraceRoute): string {
   const route = tr.route;
@@ -82,6 +99,23 @@ function parseNumberParam(raw: string | null): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function TracerouteElapsedCell({ tr }: { tr: AutoTraceRoute }) {
+  if (tr.status === 'failed') return '—';
+  /** Only completion time is reliable for externally ingested traceroutes */
+  if (tr.trigger_type === 'external') {
+    return (
+      <span
+        className="text-muted-foreground"
+        title="External traceroutes do not record when the probe started; elapsed time cannot be computed."
+      >
+        Unknown
+      </span>
+    );
+  }
+  if (!tr.triggered_at || !tr.completed_at) return '—';
+  return formatElapsedBetween(new Date(tr.triggered_at), new Date(tr.completed_at));
+}
+
 function multiSelectLabel<T extends string>(
   values: T[],
   options: Array<{ value: T; label: string }>,
@@ -102,6 +136,7 @@ export function TracerouteHistory() {
   const targetNodeId = parseNumberParam(searchParams.get('target_node'));
   const statusValues = parseCsvParam<StatusValue>(searchParams.get('status'));
   const triggerTypeValues = parseCsvParam<TriggerTypeValue>(searchParams.get('trigger_type'));
+  const strategyValues = parseCsvParam<TracerouteStrategyValue>(searchParams.get('strategy'));
 
   const updateParams = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(searchParams);
@@ -120,12 +155,18 @@ export function TracerouteHistory() {
   const setStatusValues = (values: StatusValue[]) => updateParams({ status: values.length ? values.join(',') : null });
   const setTriggerTypeValues = (values: TriggerTypeValue[]) =>
     updateParams({ trigger_type: values.length ? values.join(',') : null });
+  const setStrategyValues = (values: TracerouteStrategyValue[]) =>
+    updateParams({ strategy: values.length ? values.join(',') : null });
 
   const toggleValue = <T extends string>(current: T[], value: T): T[] =>
     current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
 
   const hasAnyFilter =
-    sourceNodeId != null || targetNodeId != null || statusValues.length > 0 || triggerTypeValues.length > 0;
+    sourceNodeId != null ||
+    targetNodeId != null ||
+    statusValues.length > 0 ||
+    triggerTypeValues.length > 0 ||
+    strategyValues.length > 0;
 
   const clearFilters = () => {
     const next = new URLSearchParams(searchParams);
@@ -133,6 +174,7 @@ export function TracerouteHistory() {
     next.delete('target_node');
     next.delete('status');
     next.delete('trigger_type');
+    next.delete('strategy');
     setSearchParams(next, { replace: true });
   };
 
@@ -153,6 +195,7 @@ export function TracerouteHistory() {
     target_node: targetNodeId ?? undefined,
     status: statusValues.length ? statusValues.join(',') : undefined,
     trigger_type: triggerTypeValues.length ? triggerTypeValues.join(',') : undefined,
+    target_strategy: strategyValues.length ? strategyValues.join(',') : undefined,
     page_size: 50,
   };
 
@@ -160,6 +203,20 @@ export function TracerouteHistory() {
     useTraceroutesInfiniteWithWebSocket(queryParams);
 
   const { triggerableNodes } = useTracerouteTriggerableNodesSuspense();
+  const { managedNodes } = useManagedNodesSuspense({
+    pageSize: 500,
+    includeStatus: true,
+    includeGeoClassification: true,
+  });
+  const managedByMeshId = useMemo(() => new Map(managedNodes.map((m) => [m.node_id, m])), [managedNodes]);
+  const modalManagedNodes = useMemo(
+    () =>
+      triggerableNodes.map((t) => {
+        const full = managedByMeshId.get(t.node_id);
+        return full ? { ...t, ...full } : t;
+      }),
+    [triggerableNodes, managedByMeshId]
+  );
   const canTrigger = triggerableNodes.length > 0;
   const { nodes: observedNodes } = useNodesSuspense({
     lastHeardAfter: subDays(new Date(), 7),
@@ -265,6 +322,29 @@ export function TracerouteHistory() {
               </DropdownMenuContent>
             </DropdownMenu>
 
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="w-[180px] justify-between">
+                  {multiSelectLabel(strategyValues, STRATEGY_FILTER_OPTIONS, 'Strategy')}
+                  <ChevronDown className="h-4 w-4 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Strategy</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {STRATEGY_FILTER_OPTIONS.map((opt) => (
+                  <DropdownMenuCheckboxItem
+                    key={opt.value}
+                    checked={strategyValues.includes(opt.value)}
+                    onCheckedChange={() => setStrategyValues(toggleValue(strategyValues, opt.value))}
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    {opt.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             {hasAnyFilter && (
               <Button variant="ghost" size="sm" onClick={clearFilters} title="Clear all filters">
                 <X className="mr-1 h-4 w-4" />
@@ -318,11 +398,12 @@ export function TracerouteHistory() {
                     <TableHead>Source</TableHead>
                     <TableHead>Target</TableHead>
                     <TableHead>Type</TableHead>
+                    <TableHead>Strategy</TableHead>
                     <TableHead>Triggered by</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Route</TableHead>
                     <TableHead>Triggered</TableHead>
-                    <TableHead>Completed</TableHead>
+                    <TableHead title="Time from triggered to completion (successful runs only)">Elapsed</TableHead>
                     {canTrigger && <TableHead className="w-12"></TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -336,6 +417,9 @@ export function TracerouteHistory() {
                       <TableCell>{tr.source_node?.short_name ?? tr.source_node?.node_id_str ?? '—'}</TableCell>
                       <TableCell>{tr.target_node?.short_name ?? tr.target_node?.node_id_str ?? '—'}</TableCell>
                       <TableCell>{tr.trigger_type}</TableCell>
+                      <TableCell>
+                        <StrategyBadge value={tr.target_strategy} />
+                      </TableCell>
                       <TableCell>{tr.triggered_by_username ?? '—'}</TableCell>
                       <TableCell>
                         <StatusBadge status={tr.status} />
@@ -344,7 +428,17 @@ export function TracerouteHistory() {
                         {routeSummary(tr)}
                       </TableCell>
                       <TableCell>{tr.triggered_at ? format(new Date(tr.triggered_at), 'PPp') : '—'}</TableCell>
-                      <TableCell>{tr.completed_at ? format(new Date(tr.completed_at), 'PPp') : '—'}</TableCell>
+                      <TableCell
+                        title={
+                          tr.status !== 'failed' && tr.completed_at
+                            ? tr.trigger_type === 'external'
+                              ? `Completed ${format(new Date(tr.completed_at), 'PPp')} (start time not recorded)`
+                              : format(new Date(tr.completed_at), 'PPp')
+                            : undefined
+                        }
+                      >
+                        <TracerouteElapsedCell tr={tr} />
+                      </TableCell>
                       {canTrigger && (
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           {triggerableNodes.some((n) => n.node_id === tr.source_node.node_id) ? (
@@ -357,6 +451,12 @@ export function TracerouteHistory() {
                                   {
                                     managedNodeId: tr.source_node.node_id,
                                     targetNodeId: tr.target_node.node_id,
+                                    targetStrategy:
+                                      tr.target_strategy === 'intra_zone' ||
+                                      tr.target_strategy === 'dx_across' ||
+                                      tr.target_strategy === 'dx_same_side'
+                                        ? tr.target_strategy
+                                        : undefined,
                                   },
                                   {
                                     onError: (err) => {
@@ -405,11 +505,11 @@ export function TracerouteHistory() {
         open={triggerModalOpen}
         onOpenChange={setTriggerModalOpen}
         mode={'user' as TriggerMode}
-        managedNodes={triggerableNodes}
+        managedNodes={modalManagedNodes}
         observedNodes={observedNodes}
-        onTrigger={async (managedNodeId, targetNodeId) => {
+        onTrigger={async (managedNodeId, targetNodeId, targetStrategy) => {
           try {
-            await triggerMutation.mutateAsync({ managedNodeId, targetNodeId });
+            await triggerMutation.mutateAsync({ managedNodeId, targetNodeId, targetStrategy });
             setTriggerModalOpen(false);
           } catch (err) {
             toast.error('Traceroute failed', {

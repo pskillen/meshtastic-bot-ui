@@ -24,6 +24,8 @@ import type { EnvironmentExposureSlug, LatestEnvironmentMetrics, WeatherUseSlug 
 import { NodeEnvironmentSettingsDialog } from '@/components/nodes/NodeEnvironmentSettingsDialog';
 import { NodeMeshMonitoringSection } from '@/components/nodes/NodeMeshMonitoringSection';
 import { NodeTracerouteHistorySection } from '@/components/nodes/NodeTracerouteHistorySection';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { STRATEGY_META, type TracerouteStrategyValue } from '@/lib/traceroute-strategy';
 
 interface NodeDetailContentProps {
   nodeId: number;
@@ -154,11 +156,13 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
     navigator.clipboard.writeText(text);
   };
 
-  const { managedNodes } = useManagedNodesSuspense();
+  const { managedNodes } = useManagedNodesSuspense({ includeGeoClassification: true });
 
   const isManagedNode = useMemo(() => {
     return managedNodes.some((managedNode) => managedNode.node_id === nodeId);
   }, [managedNodes, nodeId]);
+
+  const managedForThisNode = useMemo(() => managedNodes.find((m) => m.node_id === nodeId), [managedNodes, nodeId]);
 
   useEffect(() => {
     if (node) {
@@ -245,6 +249,44 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
               ))}
           </div>
         </div>
+      )}
+
+      {managedForThisNode?.geo_classification && (
+        <Card className="mb-6" data-testid="node-detail-feeder-geo">
+          <CardHeader>
+            <CardTitle>Traceroute feeder classification</CardTitle>
+            <CardDescription>
+              Geometry vs constellation envelope — drives which automated target strategies apply.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2 items-center">
+              <Badge variant="outline">
+                {managedForThisNode.geo_classification.tier === 'perimeter'
+                  ? `Perimeter${
+                      managedForThisNode.geo_classification.bearing_octant
+                        ? ` (${managedForThisNode.geo_classification.bearing_octant})`
+                        : ''
+                    }`
+                  : 'Internal'}
+              </Badge>
+              <TooltipProvider delayDuration={200}>
+                {managedForThisNode.geo_classification.applicable_strategies.map((s) => (
+                  <Tooltip key={s}>
+                    <TooltipTrigger asChild>
+                      <Badge variant="secondary" className="cursor-help">
+                        {STRATEGY_META[s as TracerouteStrategyValue]?.label ?? s}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs text-sm">
+                      {STRATEGY_META[s as TracerouteStrategyValue]?.shortDescription ?? s}
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </TooltipProvider>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       <div className={`grid grid-cols-1 ${compact ? 'gap-4' : 'md:grid-cols-2 gap-6'} mb-6`}>

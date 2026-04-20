@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { HelpCircle } from 'lucide-react';
 import { useTracerouteStats } from '@/hooks/api/useTraceroutes';
+import { strategyLabel } from '@/lib/traceroute-strategy';
 
 const TR_STATS_TIMEFRAME_OPTIONS = [
   { key: '24h', label: '24 hours' },
@@ -59,6 +60,21 @@ export function TracerouteStatsSection() {
       fill: CHART_COLORS[idx % CHART_COLORS.length],
     }));
   }, [data?.sources]);
+
+  const strategyMixChartData = useMemo(() => {
+    const raw = data?.by_strategy;
+    if (!raw || typeof raw !== 'object') return [];
+    return Object.entries(raw)
+      .map(([key, counts], idx) => {
+        const total = counts.completed + counts.failed + counts.pending + counts.sent;
+        return {
+          name: strategyLabel(key),
+          value: total,
+          fill: CHART_COLORS[idx % CHART_COLORS.length],
+        };
+      })
+      .filter((d) => d.value > 0);
+  }, [data?.by_strategy]);
 
   const sentByNodeChartData = useMemo(() => {
     const rows = data?.by_source ?? [];
@@ -149,7 +165,7 @@ export function TracerouteStatsSection() {
         </Select>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {/* TR sources pie */}
         <Card>
           <CardHeader className="pb-2">
@@ -173,6 +189,44 @@ export function TracerouteStatsSection() {
                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   >
                     {sourcesChartData.map((entry, idx) => (
+                      <Cell key={idx} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip content={<ChartTooltipContent formatter={(v) => [v, '']} />} />
+                </PieChart>
+              </ChartContainer>
+            ) : (
+              <div className="h-[180px] flex items-center justify-center text-muted-foreground text-sm">No data</div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Strategy mix */}
+        <Card data-testid="traceroute-strategy-mix-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Strategy mix</CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
+              Share of runs by target selection hypothesis (scheduled + manual when recorded).
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="h-[180px] flex items-center justify-center text-muted-foreground text-sm">Loading…</div>
+            ) : strategyMixChartData.length > 0 ? (
+              <ChartContainer config={{}} className="aspect-auto h-[180px] w-full">
+                <PieChart>
+                  <Pie
+                    data={strategyMixChartData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={65}
+                    paddingAngle={2}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {strategyMixChartData.map((entry, idx) => (
                       <Cell key={idx} fill={entry.fill} />
                     ))}
                   </Pie>

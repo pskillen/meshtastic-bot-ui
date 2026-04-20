@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { DeviceMetrics, ObservedNode, NodeWatch, PaginatedResponse } from '@/lib/models';
+import { DeviceMetrics, ManagedNode, ObservedNode, NodeWatch, PaginatedResponse } from '@/lib/models';
 import { MeshWatchControls } from '@/components/nodes/MeshWatchControls';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { STRATEGY_META, type TracerouteStrategyValue } from '@/lib/traceroute-strategy';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { getRoleLabel } from '@/lib/meshtastic';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +24,8 @@ interface InfrastructureNodeCardProps {
   watch?: NodeWatch;
   /** From useNodeWatches — loading/error for watch list */
   watchesQuery?: Pick<UseQueryResult<PaginatedResponse<NodeWatch>>, 'isLoading' | 'isError'>;
+  /** When this infrastructure node is a managed feeder, geo classification from the API */
+  managedNode?: ManagedNode | null;
 }
 
 function InfrastructureNodeCardInner({
@@ -31,6 +35,7 @@ function InfrastructureNodeCardInner({
   onCompareToggle,
   watch,
   watchesQuery,
+  managedNode,
 }: InfrastructureNodeCardProps) {
   const roleLabel = getRoleLabel(node.role);
   const [compareSelected, setCompareSelected] = useState(false);
@@ -80,6 +85,33 @@ function InfrastructureNodeCardInner({
       </div>
       <div className="flex-1 space-y-2">
         <p className="text-slate-600 dark:text-slate-400">ID: {node.node_id_str}</p>
+        {managedNode?.geo_classification && (
+          <div className="flex flex-wrap gap-1.5 py-1" data-testid="infra-feeder-geo">
+            <Badge variant="outline" className="text-xs font-normal">
+              {managedNode.geo_classification.tier === 'perimeter'
+                ? `Perimeter${
+                    managedNode.geo_classification.bearing_octant
+                      ? ` (${managedNode.geo_classification.bearing_octant})`
+                      : ''
+                  }`
+                : 'Internal feeder'}
+            </Badge>
+            <TooltipProvider delayDuration={200}>
+              {managedNode.geo_classification.applicable_strategies.map((s) => (
+                <Tooltip key={s}>
+                  <TooltipTrigger asChild>
+                    <Badge variant="secondary" className="text-xs cursor-help font-normal">
+                      {STRATEGY_META[s as TracerouteStrategyValue]?.label ?? s}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs">
+                    {STRATEGY_META[s as TracerouteStrategyValue]?.shortDescription ?? s}
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </TooltipProvider>
+          </div>
+        )}
         {node.owner && <p className="text-slate-600 dark:text-slate-400">Owner: {node.owner.username}</p>}
         {node.latest_device_metrics && (
           <div className="flex flex-wrap gap-3 text-sm">
