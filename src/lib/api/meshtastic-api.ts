@@ -33,6 +33,7 @@ import {
   StatsSnapshotsParams,
 } from '@/lib/types';
 import { parseNodeWatchFromAPI, parseObservedNodeFromAPI } from './api-utils';
+import type { RfProfile, RfProfileUpdateBody, RfPropagationPollResult, RfPropagationRenderRow } from '@/lib/models';
 
 export interface FeederReachFeeder {
   managed_node_id: string;
@@ -208,6 +209,31 @@ export class MeshtasticApi extends BaseApi {
   ): Promise<ObservedNode> {
     const node = await this.patch<ObservedNode>(`/nodes/observed-nodes/${nodeId}/environment-settings/`, body);
     return parseObservedNodeFromAPI(node);
+  }
+
+  /**
+   * Get RF propagation profile. Returns null when the API responds with 204 (no profile yet).
+   */
+  async getRfProfile(nodeId: number): Promise<RfProfile | null> {
+    const response = await this.axios.get<RfProfile>(`/nodes/observed-nodes/${nodeId}/rf-profile/`, {
+      validateStatus: (s) => s === 200 || s === 204,
+    });
+    if (response.status === 204) {
+      return null;
+    }
+    return response.data;
+  }
+
+  async updateRfProfile(nodeId: number, body: RfProfileUpdateBody): Promise<RfProfile> {
+    return this.patch<RfProfile>(`/nodes/observed-nodes/${nodeId}/rf-profile/`, body);
+  }
+
+  async getRfPropagation(nodeId: number): Promise<RfPropagationPollResult> {
+    return this.get<RfPropagationPollResult>(`/nodes/observed-nodes/${nodeId}/rf-propagation/`);
+  }
+
+  async recomputeRfPropagation(nodeId: number): Promise<RfPropagationRenderRow> {
+    return this.post<RfPropagationRenderRow>(`/nodes/observed-nodes/${nodeId}/rf-propagation/recompute/`);
   }
 
   /**
