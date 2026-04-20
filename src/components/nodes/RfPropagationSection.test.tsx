@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import type { ObservedNode } from '@/lib/models';
@@ -8,12 +8,14 @@ import { RfPropagationSection } from './RfPropagationSection';
 const useRfProfile = vi.fn();
 const useRfPropagation = vi.fn();
 const useRecomputeRfPropagation = vi.fn();
+const useDismissRfPropagation = vi.fn();
 
 vi.mock('@/hooks/api/useRfPropagation', () => ({
   useRfProfile: (...args: unknown[]) => useRfProfile(...args),
   useRfPropagation: (...args: unknown[]) => useRfPropagation(...args),
   useUpdateRfProfile: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
   useRecomputeRfPropagation: (...args: unknown[]) => useRecomputeRfPropagation(...args),
+  useDismissRfPropagation: (...args: unknown[]) => useDismissRfPropagation(...args),
 }));
 
 function makeNode(overrides: Partial<ObservedNode> = {}): ObservedNode {
@@ -42,6 +44,7 @@ function renderWithClient(ui: ReactElement) {
 describe('RfPropagationSection', () => {
   beforeEach(() => {
     useRecomputeRfPropagation.mockReturnValue({ mutateAsync: vi.fn(), isPending: false });
+    useDismissRfPropagation.mockReturnValue({ mutateAsync: vi.fn(), isPending: false });
   });
 
   it('hides content for non-owner stranger without a profile', () => {
@@ -76,6 +79,61 @@ describe('RfPropagationSection', () => {
     );
     expect(screen.getByTitle('Edit RF profile')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /render now/i })).toBeInTheDocument();
+  });
+
+  it('shows Cancel button while pending and calls dismiss on click', () => {
+    useRfProfile.mockReturnValue({ data: null, isLoading: false });
+    useRfPropagation.mockReturnValue({ data: { status: 'pending' }, isLoading: false });
+    const dismissMutate = vi.fn();
+    useDismissRfPropagation.mockReturnValue({ mutateAsync: dismissMutate, isPending: false });
+
+    renderWithClient(
+      <RfPropagationSection node={makeNode({ rf_profile_editable: true, has_rf_profile: false })} />
+    );
+
+    const cancel = screen.getByRole('button', { name: /^cancel$/i });
+    fireEvent.click(cancel);
+    expect(dismissMutate).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows Cancel button while running', () => {
+    useRfProfile.mockReturnValue({ data: null, isLoading: false });
+    useRfPropagation.mockReturnValue({ data: { status: 'running' }, isLoading: false });
+    renderWithClient(
+      <RfPropagationSection node={makeNode({ rf_profile_editable: true, has_rf_profile: true })} />
+    );
+    expect(screen.getByText(/Rendering…/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^cancel$/i })).toBeInTheDocument();
+  });
+
+  it('shows Dismiss button when failed and calls dismiss on click', () => {
+    useRfProfile.mockReturnValue({ data: null, isLoading: false });
+    useRfPropagation.mockReturnValue({
+      data: { status: 'failed', error_message: 'engine 422' },
+      isLoading: false,
+    });
+    const dismissMutate = vi.fn();
+    useDismissRfPropagation.mockReturnValue({ mutateAsync: dismissMutate, isPending: false });
+
+    renderWithClient(
+      <RfPropagationSection node={makeNode({ rf_profile_editable: true, has_rf_profile: true })} />
+    );
+
+    expect(screen.getByText(/Render failed/i)).toBeInTheDocument();
+    expect(screen.getByText(/engine 422/)).toBeInTheDocument();
+    const dismissBtn = screen.getByRole('button', { name: /^dismiss$/i });
+    fireEvent.click(dismissBtn);
+    expect(dismissMutate).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides Cancel/Dismiss buttons for non-editors', () => {
+    useRfProfile.mockReturnValue({ data: { antenna_pattern: 'omni' }, isLoading: false });
+    useRfPropagation.mockReturnValue({ data: { status: 'pending' }, isLoading: false });
+    renderWithClient(
+      <RfPropagationSection node={makeNode({ rf_profile_editable: false, has_rf_profile: true })} />
+    );
+    expect(screen.queryByRole('button', { name: /^cancel$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^dismiss$/i })).not.toBeInTheDocument();
   });
 
   it('renders Leaflet container when render is ready and node flags allow map', () => {

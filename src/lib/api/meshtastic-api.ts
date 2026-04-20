@@ -236,6 +236,10 @@ export class MeshtasticApi extends BaseApi {
     return this.post<RfPropagationRenderRow>(`/nodes/observed-nodes/${nodeId}/rf-propagation/recompute/`);
   }
 
+  async dismissRfPropagation(nodeId: number): Promise<{ deleted: number }> {
+    return this.post<{ deleted: number }>(`/nodes/observed-nodes/${nodeId}/rf-propagation/dismiss/`);
+  }
+
   /**
    * Search for observed nodes
    */
