@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { subDays, subHours } from 'date-fns';
 import { CircleDashedIcon } from 'lucide-react';
 
@@ -109,18 +109,19 @@ export function ConstellationCoveragePage() {
 
   return (
     <div className="flex min-h-[50vh] flex-col gap-4 px-4 py-4 md:px-6 md:py-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <CircleDashedIcon className="h-6 w-6" />
-          <h1 className="text-xl font-semibold sm:text-2xl">Constellation coverage</h1>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex items-center gap-2">
+            <CircleDashedIcon className="h-6 w-6 shrink-0" />
+            <h1 className="text-xl font-semibold sm:text-2xl">Constellation coverage</h1>
+          </div>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            Combines traceroute attempts from every managed node in the selected constellation, grouped into map hex
+            cells. Each cell shows aggregate successes and failures toward targets in that area (smoothing and
+            minimum-attempt filters apply below).
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-3" data-testid="constellation-coverage-filters">
-          <Link
-            to="/traceroutes/map/coverage"
-            className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-          >
-            Per-feeder view
-          </Link>
           <div className="flex items-center gap-2">
             <Label className="text-xs text-muted-foreground" htmlFor="constellation-coverage-constellation">
               Constellation

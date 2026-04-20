@@ -153,18 +153,19 @@ export function FeederCoveragePage() {
 
   return (
     <div className="flex min-h-[50vh] flex-col gap-4 px-4 py-4 md:px-6 md:py-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <CircleDashedIcon className="h-6 w-6" />
-          <h1 className="text-xl font-semibold sm:text-2xl">Feeder coverage</h1>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex items-center gap-2">
+            <CircleDashedIcon className="h-6 w-6 shrink-0" />
+            <h1 className="text-xl font-semibold sm:text-2xl">Managed node coverage</h1>
+          </div>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            Maps completed and failed auto-traceroutes from one managed node to each probed target over the time window.
+            Dots show per-target reliability; hex bins summarise nearby targets; the polygon outlines where at least one
+            successful route was observed (not a guarantee of RF coverage).
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-3" data-testid="coverage-filters">
-          <Link
-            to="/traceroutes/map/coverage/constellation"
-            className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-          >
-            Constellation view
-          </Link>
           <div className="flex w-full items-center gap-2 sm:w-auto">
             <Label className="text-xs text-muted-foreground" htmlFor="feeder-coverage-feeder">
               Feeder
