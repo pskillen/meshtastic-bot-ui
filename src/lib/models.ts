@@ -22,6 +22,59 @@ export type EnvironmentExposureSlug = 'unknown' | 'indoor' | 'outdoor' | 'shelte
 /** API slugs for ObservedNode.weather_use */
 export type WeatherUseSlug = 'unknown' | 'include' | 'exclude';
 
+export type AntennaPattern = 'omni' | 'directional';
+
+/** RF propagation profile from GET/PATCH `/nodes/observed-nodes/{id}/rf-profile/` (snake_case from API). */
+export interface RfProfile {
+  antenna_height_m?: number | null;
+  antenna_gain_dbi?: number | null;
+  tx_power_dbm?: number | null;
+  rf_frequency_mhz?: number | null;
+  antenna_pattern?: AntennaPattern;
+  antenna_azimuth_deg?: number | null;
+  antenna_beamwidth_deg?: number | null;
+  /** Present only for claim owner or staff. */
+  rf_latitude?: number | null;
+  rf_longitude?: number | null;
+  rf_altitude_m?: number | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type RfProfileUpdateBody = Partial<
+  Pick<
+    RfProfile,
+    | 'antenna_height_m'
+    | 'antenna_gain_dbi'
+    | 'tx_power_dbm'
+    | 'rf_frequency_mhz'
+    | 'antenna_pattern'
+    | 'antenna_azimuth_deg'
+    | 'antenna_beamwidth_deg'
+    | 'rf_latitude'
+    | 'rf_longitude'
+    | 'rf_altitude_m'
+  >
+>;
+
+export type RfPropagationRenderStatus = 'none' | 'pending' | 'running' | 'ready' | 'failed';
+
+export interface RfPropagationRenderRow {
+  status: Exclude<RfPropagationRenderStatus, 'none'>;
+  input_hash?: string | null;
+  asset_url?: string | null;
+  bounds?: { west: number; south: number; east: number; north: number } | null;
+  error_message?: string;
+  created_at: string;
+  completed_at?: string | null;
+}
+
+export type RfPropagationPollResult = RfPropagationRenderRow | { status: 'none' };
+
+export function isRfPropagationNone(r: RfPropagationPollResult): r is { status: 'none' } {
+  return r.status === 'none';
+}
+
 // ObservedNode from Meshflow API v2
 export interface ObservedNode {
   internal_id: number;
@@ -40,6 +93,10 @@ export interface ObservedNode {
   weather_use?: WeatherUseSlug;
   /** True when the current user may PATCH environment-settings (staff or claim owner). */
   environment_settings_editable?: boolean;
+  /** True when the current user may PATCH rf-profile (staff or claim owner). */
+  rf_profile_editable?: boolean;
+  has_rf_profile?: boolean;
+  has_ready_rf_render?: boolean;
   // Additional fields for UI compatibility
   last_heard?: Date | null;
   latest_device_metrics?: DeviceMetrics | null;
