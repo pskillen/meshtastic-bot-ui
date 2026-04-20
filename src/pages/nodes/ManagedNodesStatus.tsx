@@ -24,18 +24,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useManagedNodesSuspense } from '@/hooks/api/useNodes';
 import { useTriggerTraceroute } from '@/hooks/api/useTraceroutes';
 import { authService } from '@/lib/auth/authService';
-import {
-  ManagedNodeStatusTier,
-  getManagedNodeStatusTier,
-  managedNodeStatusTierColor,
-} from '@/lib/managed-node-status';
+import { ManagedNodeStatusTier, getManagedNodeStatusTier, managedNodeStatusTierColor } from '@/lib/managed-node-status';
 import { ManagedNode } from '@/lib/models';
 
-import {
-  ManagedNodesSortKey,
-  parseManagedNodesUrlState,
-  updateManagedNodesUrlState,
-} from './managed-nodes-url-state';
+import { ManagedNodesSortKey, parseManagedNodesUrlState, updateManagedNodesUrlState } from './managed-nodes-url-state';
 
 const STATUS_OPTIONS: Array<{ value: ManagedNodeStatusTier; label: string }> = [
   { value: 'online', label: 'Online' },
@@ -127,10 +119,12 @@ function ManagedNodesStatusContent() {
     const queryLower = filters.query.toLowerCase();
     return managedNodes.filter((node) => {
       const tier = getManagedNodeStatusTier(node.last_packet_ingested_at);
-      if (filters.constellationIds.length > 0 && !filters.constellationIds.includes(node.constellation.id)) return false;
+      if (filters.constellationIds.length > 0 && !filters.constellationIds.includes(node.constellation.id))
+        return false;
       if (filters.statusTiers.length > 0 && !filters.statusTiers.includes(tier)) return false;
       if (filters.ownerUsernames.length > 0 && !filters.ownerUsernames.includes(node.owner.username)) return false;
-      if (filters.allowAutoTraceroute != null && !!node.allow_auto_traceroute !== filters.allowAutoTraceroute) return false;
+      if (filters.allowAutoTraceroute != null && !!node.allow_auto_traceroute !== filters.allowAutoTraceroute)
+        return false;
       if (queryLower.length > 0) {
         const haystack = `${node.long_name ?? ''} ${node.short_name ?? ''} ${node.node_id_str}`.toLowerCase();
         if (!haystack.includes(queryLower)) return false;
@@ -334,7 +328,10 @@ function ManagedNodesStatusContent() {
 
           <div className="space-y-2">
             <Label>Sort</Label>
-            <Select value={filters.sort} onValueChange={(value) => updateFilters({ sort: value as ManagedNodesSortKey })}>
+            <Select
+              value={filters.sort}
+              onValueChange={(value) => updateFilters({ sort: value as ManagedNodesSortKey })}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
