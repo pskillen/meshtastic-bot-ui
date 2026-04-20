@@ -1,14 +1,12 @@
-import { useMemo, useState, useCallback, useEffect } from 'react';
-import { Map, useControl, useMap } from 'react-map-gl';
-import { MapboxOverlay, MapboxOverlayProps } from '@deck.gl/mapbox';
+import { useMemo, useState, useCallback } from 'react';
+import { Popup } from 'react-map-gl';
 import { ArcLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
 import type { PickingInfo } from '@deck.gl/core';
-import 'mapbox-gl/dist/mapbox-gl.css';
 import { Link } from 'react-router-dom';
-import { useConfig } from '@/providers/ConfigProvider';
-import { useMapboxStyle } from '@/hooks/useMapboxStyle';
 import { X } from 'lucide-react';
 import type { NodeTracerouteLinkEdge, NodeTracerouteLinkNode } from '@/hooks/api/useNodeTracerouteLinks';
+
+import { DeckMapboxMap } from '@/components/map/DeckMapboxMap';
 
 const DEFAULT_CENTER = { longitude: -4.2518, latitude: 55.8642, zoom: 8 };
 const FOCUS_NODE_COLOR: [number, number, number, number] = [34, 197, 94, 255]; // green - focus
@@ -26,12 +24,6 @@ function interpolateColorBySnr(snr: number, minSnr: number, maxSnr: number): [nu
   return [r, g, b, 200];
 }
 
-function DeckGLOverlay(props: MapboxOverlayProps) {
-  const overlay = useControl(() => new MapboxOverlay(props));
-  overlay.setProps(props);
-  return null;
-}
-
 export interface NodeTracerouteLinksMapProps {
   edges: NodeTracerouteLinkEdge[];
   nodes: NodeTracerouteLinkNode[];
@@ -43,97 +35,7 @@ function getNodeLabel(node: NodeTracerouteLinkNode): string {
   return node.short_name || node.long_name || node.node_id_str || `!${node.node_id.toString(16)}`;
 }
 
-function NodePopupOverlay({
-  node,
-  edge,
-  onClose,
-}: {
-  node: NodeTracerouteLinkNode;
-  edge?: NodeTracerouteLinkEdge;
-  onClose: () => void;
-}) {
-  const { current: mapRef } = useMap();
-  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
-
-  useEffect(() => {
-    const map = mapRef?.getMap?.();
-    if (!map || !mapRef || !node) return;
-
-    const updatePosition = () => {
-      try {
-        const point = mapRef.project([node.lng, node.lat]);
-        setPosition({ x: point.x, y: point.y });
-      } catch {
-        setPosition(null);
-      }
-    };
-
-    updatePosition();
-    map.on('move', updatePosition);
-    map.on('zoom', updatePosition);
-    return () => {
-      map.off('move', updatePosition);
-      map.off('zoom', updatePosition);
-    };
-  }, [mapRef, node?.lng, node?.lat]);
-
-  if (!position) return null;
-
-  return (
-    <div className="pointer-events-none absolute inset-0 z-[10000]" style={{ position: 'absolute' }}>
-      <div
-        className="pointer-events-auto min-w-[140px] rounded border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100 shadow-lg"
-        style={{
-          position: 'absolute',
-          left: position.x,
-          top: position.y,
-          transform: 'translate(-50%, -100%)',
-          marginTop: -8,
-        }}
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-1 top-1 rounded p-0.5 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
-          aria-label="Close"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
-        <div className="pr-5">
-          <div className="font-semibold">
-            {node.long_name && node.short_name ? `${node.long_name} (${node.short_name})` : getNodeLabel(node)}
-          </div>
-          <div className="mt-0.5 text-xs text-slate-400">{node.node_id_str || `!${node.node_id.toString(16)}`}</div>
-          {edge && (
-            <div className="mt-1 space-y-0.5 text-xs">
-              {edge.avg_snr_in != null && (
-                <div>
-                  <span className="text-slate-400">SNR in:</span> {edge.avg_snr_in.toFixed(1)} dB
-                </div>
-              )}
-              {edge.avg_snr_out != null && (
-                <div>
-                  <span className="text-slate-400">SNR out:</span> {edge.avg_snr_out.toFixed(1)} dB
-                </div>
-              )}
-            </div>
-          )}
-          <Link
-            to={`/nodes/${node.node_id}`}
-            className="mt-1 inline-block text-xs text-emerald-400 hover:text-emerald-300 hover:underline"
-          >
-            Open details
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function NodeTracerouteLinksMap({ edges, nodes, focusNodeId, showLabels = true }: NodeTracerouteLinksMapProps) {
-  const config = useConfig();
-  const mapboxToken = config.mapboxToken ?? (import.meta.env.VITE_MAPBOX_TOKEN as string | undefined);
-  const mapStyle = useMapboxStyle();
   const [selectedNode, setSelectedNode] = useState<NodeTracerouteLinkNode | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<NodeTracerouteLinkEdge | null>(null);
 
@@ -240,34 +142,67 @@ export function NodeTracerouteLinksMap({ edges, nodes, focusNodeId, showLabels =
     return DEFAULT_CENTER;
   }, [nodes, focusNodeId]);
 
-  if (!mapboxToken) {
-    return (
-      <div className="flex min-h-[300px] items-center justify-center rounded-md border bg-muted/30 text-muted-foreground">
-        Mapbox token required. Set VITE_MAPBOX_TOKEN (dev) or MAPBOX_TOKEN (Docker) in your environment.
-      </div>
-    );
-  }
-
   return (
-    <div className="relative h-full w-full">
-      <Map
-        mapboxAccessToken={mapboxToken}
-        initialViewState={initialViewState}
-        mapStyle={mapStyle}
-        style={{ width: '100%', height: '100%' }}
-      >
-        <DeckGLOverlay interleaved={false} layers={layers} onClick={handleClick} />
-        {selectedNode && (
-          <NodePopupOverlay
-            node={selectedNode}
-            edge={selectedEdge ?? undefined}
-            onClose={() => {
-              setSelectedNode(null);
-              setSelectedEdge(null);
-            }}
-          />
-        )}
-      </Map>
-    </div>
+    <DeckMapboxMap layers={layers} initialViewState={initialViewState} onClick={handleClick}>
+      {selectedNode && (
+        <Popup
+          longitude={selectedNode.lng}
+          latitude={selectedNode.lat}
+          anchor="bottom"
+          closeButton={false}
+          closeOnClick={false}
+          onClose={() => {
+            setSelectedNode(null);
+            setSelectedEdge(null);
+          }}
+          maxWidth="320px"
+          className="meshflow-map-popup"
+        >
+          <div className="relative min-w-[140px] rounded-md border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100 shadow-lg">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedNode(null);
+                setSelectedEdge(null);
+              }}
+              className="absolute right-1 top-1 rounded p-0.5 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
+              aria-label="Close"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+            <div className="pr-5">
+              <div className="font-semibold">
+                {selectedNode.long_name && selectedNode.short_name
+                  ? `${selectedNode.long_name} (${selectedNode.short_name})`
+                  : getNodeLabel(selectedNode)}
+              </div>
+              <div className="mt-0.5 text-xs text-slate-400">
+                {selectedNode.node_id_str || `!${selectedNode.node_id.toString(16)}`}
+              </div>
+              {selectedEdge && (
+                <div className="mt-1 space-y-0.5 text-xs">
+                  {selectedEdge.avg_snr_in != null && (
+                    <div>
+                      <span className="text-slate-400">SNR in:</span> {selectedEdge.avg_snr_in.toFixed(1)} dB
+                    </div>
+                  )}
+                  {selectedEdge.avg_snr_out != null && (
+                    <div>
+                      <span className="text-slate-400">SNR out:</span> {selectedEdge.avg_snr_out.toFixed(1)} dB
+                    </div>
+                  )}
+                </div>
+              )}
+              <Link
+                to={`/nodes/${selectedNode.node_id}`}
+                className="mt-1 inline-block text-xs text-emerald-400 hover:text-emerald-300 hover:underline"
+              >
+                Open details
+              </Link>
+            </div>
+          </div>
+        </Popup>
+      )}
+    </DeckMapboxMap>
   );
 }

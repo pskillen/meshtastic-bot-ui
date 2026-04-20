@@ -1,19 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Map as MapboxMap, useControl, useMap } from 'react-map-gl';
-import { MapboxOverlay, type MapboxOverlayProps } from '@deck.gl/mapbox';
+import { useCallback, useMemo, useState } from 'react';
+import { Popup } from 'react-map-gl';
 import { PolygonLayer, ScatterplotLayer } from '@deck.gl/layers';
 import { H3HexagonLayer } from '@deck.gl/geo-layers';
 import type { Layer, PickingInfo } from '@deck.gl/core';
 import { latLngToCell } from 'h3-js';
 import { concave, featureCollection, point as turfPoint } from '@turf/turf';
 import type { Feature, MultiPolygon, Polygon } from 'geojson';
-import 'mapbox-gl/dist/mapbox-gl.css';
 
 import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
 
-import { useConfig } from '@/providers/ConfigProvider';
-import { useMapboxStyle } from '@/hooks/useMapboxStyle';
+import { DeckMapboxMap } from '@/components/map/DeckMapboxMap';
 import type { FeederReachFeeder, FeederReachTarget } from '@/lib/api/meshtastic-api';
 
 export type CoverageLayerKey = 'dots' | 'hex' | 'polygon';
@@ -32,7 +29,6 @@ function smoothedRate(successes: number, attempts: number): number {
 /** Map a smoothed reliability (0..1) to red→amber→green. */
 function reliabilityColor(rate: number, alpha = 220): [number, number, number, number] {
   const t = Math.max(0, Math.min(1, rate));
-  // 0.0=red(239,68,68), 0.7=amber(245,158,11), 0.9+=green(34,197,94)
   let r: number;
   let g: number;
   let b: number;
@@ -55,96 +51,8 @@ function attemptsToRadius(attempts: number): number {
   return Math.max(6, Math.min(30, 6 + Math.sqrt(attempts) * 3));
 }
 
-function DeckGLOverlay(props: MapboxOverlayProps) {
-  const overlay = useControl(() => new MapboxOverlay(props));
-  overlay.setProps(props);
-  return null;
-}
-
 function getTargetLabel(t: FeederReachTarget): string {
   return t.short_name || t.long_name || t.node_id_str || `!${t.node_id.toString(16)}`;
-}
-
-function TargetPopupOverlay({ target, onClose }: { target: FeederReachTarget | null; onClose: () => void }) {
-  const { current: mapRef } = useMap();
-  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
-
-  useEffect(() => {
-    if (!target || !mapRef) {
-      setPosition(null);
-      return;
-    }
-    const map = mapRef.getMap?.();
-    if (!map) return;
-
-    const updatePosition = () => {
-      try {
-        const point = mapRef.project([target.lng, target.lat]);
-        setPosition({ x: point.x, y: point.y });
-      } catch {
-        setPosition(null);
-      }
-    };
-
-    updatePosition();
-    map.on('move', updatePosition);
-    map.on('zoom', updatePosition);
-    return () => {
-      map.off('move', updatePosition);
-      map.off('zoom', updatePosition);
-    };
-  }, [mapRef, target]);
-
-  if (!target || !position) return null;
-
-  const rawRate = target.attempts > 0 ? target.successes / target.attempts : 0;
-  const smoothed = smoothedRate(target.successes, target.attempts);
-
-  return (
-    <div
-      className="pointer-events-none absolute inset-0 z-[10000]"
-      style={{ position: 'absolute' }}
-      data-testid="coverage-target-popup"
-    >
-      <div
-        className="pointer-events-auto min-w-[180px] rounded border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100 shadow-lg"
-        style={{
-          position: 'absolute',
-          left: position.x,
-          top: position.y,
-          transform: 'translate(-50%, -100%)',
-          marginTop: -8,
-        }}
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-1 top-1 rounded p-0.5 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
-          aria-label="Close"
-        >
-          <X className="h-3.5 w-3.5" aria-hidden />
-        </button>
-        <div className="pr-5">
-          <div className="font-semibold">
-            {target.long_name && target.short_name
-              ? `${target.long_name} (${target.short_name})`
-              : getTargetLabel(target)}
-          </div>
-          <div className="mt-0.5 text-xs text-slate-400">{target.node_id_str || `!${target.node_id.toString(16)}`}</div>
-          <div className="mt-1 text-xs">
-            {target.successes} / {target.attempts} ({(rawRate * 100).toFixed(0)}% raw)
-          </div>
-          <div className="text-xs">Smoothed: {(smoothed * 100).toFixed(0)}%</div>
-          <Link
-            to={`/nodes/${target.node_id}`}
-            className="mt-1 inline-block text-xs text-emerald-400 hover:text-emerald-300 hover:underline"
-          >
-            Open details
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 interface HexBin {
@@ -162,9 +70,6 @@ export interface FeederCoverageMapProps {
 }
 
 export function FeederCoverageMap({ feeder, targets, enabledLayers, minAttempts }: FeederCoverageMapProps) {
-  const config = useConfig();
-  const mapboxToken = config.mapboxToken ?? (import.meta.env.VITE_MAPBOX_TOKEN as string | undefined);
-  const mapStyle = useMapboxStyle();
   const [selectedTarget, setSelectedTarget] = useState<FeederReachTarget | null>(null);
 
   const enabledSet = useMemo(() => new Set(enabledLayers), [enabledLayers]);
@@ -299,25 +204,62 @@ export function FeederCoverageMap({ feeder, targets, enabledLayers, minAttempts 
     return DEFAULT_CENTER;
   }, [feeder.lat, feeder.lng]);
 
-  if (!mapboxToken) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center rounded-md border bg-muted/30 text-muted-foreground">
-        Mapbox token required. Set VITE_MAPBOX_TOKEN (dev) or MAPBOX_TOKEN (Docker) in your environment.
-      </div>
-    );
-  }
-
   return (
-    <div className="relative h-full w-full" data-testid="feeder-coverage-map-container">
-      <MapboxMap
-        mapboxAccessToken={mapboxToken}
-        initialViewState={initialView}
-        mapStyle={mapStyle}
-        style={{ width: '100%', height: '100%' }}
-      >
-        <DeckGLOverlay interleaved={false} layers={layers} onClick={handleClick} />
-        <TargetPopupOverlay target={selectedTarget} onClose={() => setSelectedTarget(null)} />
-      </MapboxMap>
-    </div>
+    <DeckMapboxMap
+      layers={layers}
+      initialViewState={initialView}
+      onClick={handleClick}
+      data-testid="feeder-coverage-map-container"
+    >
+      {selectedTarget && (
+        <Popup
+          longitude={selectedTarget.lng}
+          latitude={selectedTarget.lat}
+          anchor="bottom"
+          closeButton={false}
+          closeOnClick={false}
+          onClose={() => setSelectedTarget(null)}
+          maxWidth="320px"
+          className="meshflow-map-popup"
+        >
+          <div className="relative min-w-[180px] rounded-md border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100 shadow-lg">
+            <button
+              type="button"
+              onClick={() => setSelectedTarget(null)}
+              className="absolute right-1 top-1 rounded p-0.5 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
+              aria-label="Close"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden />
+            </button>
+            <div className="pr-5">
+              <div className="font-semibold">
+                {selectedTarget.long_name && selectedTarget.short_name
+                  ? `${selectedTarget.long_name} (${selectedTarget.short_name})`
+                  : getTargetLabel(selectedTarget)}
+              </div>
+              <div className="mt-0.5 text-xs text-slate-400">
+                {selectedTarget.node_id_str || `!${selectedTarget.node_id.toString(16)}`}
+              </div>
+              <div className="mt-1 text-xs">
+                {selectedTarget.successes} / {selectedTarget.attempts} (
+                {selectedTarget.attempts > 0
+                  ? ((selectedTarget.successes / selectedTarget.attempts) * 100).toFixed(0)
+                  : '0'}
+                % raw)
+              </div>
+              <div className="text-xs">
+                Smoothed: {(smoothedRate(selectedTarget.successes, selectedTarget.attempts) * 100).toFixed(0)}%
+              </div>
+              <Link
+                to={`/nodes/${selectedTarget.node_id}`}
+                className="mt-1 inline-block text-xs text-emerald-400 hover:text-emerald-300 hover:underline"
+              >
+                Open details
+              </Link>
+            </div>
+          </div>
+        </Popup>
+      )}
+    </DeckMapboxMap>
   );
 }
