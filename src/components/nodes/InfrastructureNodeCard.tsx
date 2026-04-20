@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { NodeMiniChart } from '@/components/nodes/NodeMiniChart';
 import { Check, ChevronRight } from 'lucide-react';
 import { useState, memo } from 'react';
+import { RfPropagationMapModal } from '@/components/nodes/RfPropagationMapModal';
 
 interface InfrastructureNodeCardProps {
   node: ObservedNode;
@@ -39,6 +40,7 @@ function InfrastructureNodeCardInner({
 }: InfrastructureNodeCardProps) {
   const roleLabel = getRoleLabel(node.role);
   const [compareSelected, setCompareSelected] = useState(false);
+  const [propagationMapOpen, setPropagationMapOpen] = useState(false);
 
   return (
     <div className="flex flex-col h-full p-6 bg-white dark:bg-slate-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 border border-slate-200 dark:border-slate-700">
@@ -159,6 +161,24 @@ function InfrastructureNodeCardInner({
         >
           Coverage map
         </Link>
+        {node.has_ready_rf_render === true && (
+          <>
+            <button
+              type="button"
+              className="text-sm text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
+              data-testid={`infra-propagation-map-${node.node_id}`}
+              onClick={() => setPropagationMapOpen(true)}
+            >
+              Propagation map
+            </button>
+            <RfPropagationMapModal
+              open={propagationMapOpen}
+              onOpenChange={setPropagationMapOpen}
+              nodeId={node.node_id}
+              shortLabel={node.short_name}
+            />
+          </>
+        )}
         <Link
           to={`/nodes/${node.node_id}`}
           className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
