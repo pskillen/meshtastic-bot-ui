@@ -14,6 +14,10 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NodeSearch } from '@/components/NodeSearch';
 import { NodesAndConstellationsMap, MapNode } from '@/components/nodes/NodesAndConstellationsMap';
 import { ManagedNode, ObservedNode } from '@/lib/models';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
+import { Info } from 'lucide-react';
+export type ManualTargetStrategyChoice = 'auto' | 'intra_zone' | 'dx_across' | 'dx_same_side';
 
 export type TriggerMode = 'user' | 'auto';
 
@@ -24,7 +28,11 @@ interface TriggerTracerouteModalProps {
   mode: TriggerMode;
   managedNodes: ManagedNode[];
   observedNodes: ObservedNode[];
-  onTrigger: (managedNodeId: number, targetNodeId?: number) => Promise<void>;
+  onTrigger: (
+    managedNodeId: number,
+    targetNodeId?: number,
+    targetStrategy?: 'intra_zone' | 'dx_across' | 'dx_same_side'
+  ) => Promise<void>;
   isSubmitting: boolean;
   /**
    * When set, the dialog is locked to user mode with the target fixed to this
@@ -52,6 +60,7 @@ export function TriggerTracerouteModal({
   const [managedNodeId, setManagedNodeId] = useState<number | null>(null);
   const [targetNodeId, setTargetNodeId] = useState<number | null>(null);
   const [targetNodeLabel, setTargetNodeLabel] = useState<string | null>(null);
+  const [strategyChoice, setStrategyChoice] = useState<ManualTargetStrategyChoice>('auto');
 
   const hasFixedTarget = fixedTargetNode != null;
 
@@ -59,6 +68,7 @@ export function TriggerTracerouteModal({
   useEffect(() => {
     if (!open) return;
     setMode(hasFixedTarget ? 'user' : initialMode);
+    setStrategyChoice('auto');
   }, [open, initialMode, hasFixedTarget]);
 
   useEffect(() => {
@@ -67,10 +77,21 @@ export function TriggerTracerouteModal({
     setTargetNodeLabel(formatNodeLabel(fixedTargetNode));
   }, [hasFixedTarget, fixedTargetNode]);
 
+  const selectedManaged = managedNodes.find((m) => m.node_id === managedNodeId);
+  const geo = selectedManaged?.geo_classification;
+  const canIntraZone = geo?.applicable_strategies?.includes('intra_zone') ?? false;
+
+  const strategyForApi: 'intra_zone' | 'dx_across' | 'dx_same_side' | undefined =
+    strategyChoice === 'auto'
+      ? undefined
+      : strategyChoice === 'intra_zone' && !canIntraZone
+        ? undefined
+        : strategyChoice;
+
   const handleSubmit = async () => {
     if (!managedNodeId) return;
     if (mode === 'user' && !targetNodeId) return;
-    await onTrigger(managedNodeId, mode === 'user' ? (targetNodeId ?? undefined) : undefined);
+    await onTrigger(managedNodeId, mode === 'user' ? (targetNodeId ?? undefined) : undefined, strategyForApi);
     setManagedNodeId(null);
     if (!hasFixedTarget) {
       setTargetNodeId(null);
@@ -78,7 +99,10 @@ export function TriggerTracerouteModal({
     }
   };
 
-  const canSubmit = managedNodeId != null && (mode === 'auto' || targetNodeId != null);
+  const canSubmit =
+    managedNodeId != null &&
+    (mode === 'auto' || targetNodeId != null) &&
+    !(strategyChoice === 'intra_zone' && !canIntraZone);
 
   const handleMapNodeSelect = (node: MapNode | null) => {
     if (!node) {
@@ -141,6 +165,56 @@ export function TriggerTracerouteModal({
                     {node.short_name ?? node.node_id_str} ({node.node_id_str})
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            {selectedManaged?.geo_classification && (
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <Badge variant="outline" className="font-normal">
+                  {selectedManaged.geo_classification.tier === 'perimeter'
+                    ? `Perimeter${
+                        selectedManaged.geo_classification.bearing_octant
+                          ? ` (${selectedManaged.geo_classification.bearing_octant})`
+                          : ''
+                      }`
+                    : 'Internal'}
+                </Badge>
+                <span className="text-xs">Traceroute feeder geometry vs constellation</span>
+              </div>
+            )}
+          </div>
+
+          <div className="grid gap-2">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="tr-strategy">Target strategy</Label>
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className="text-muted-foreground hover:text-foreground"
+                      aria-label="Strategy help"
+                    >
+                      <Info className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-xs text-xs">
+                    In auto mode, chooses how the API picks a target. In pick-target mode, records the hypothesis with
+                    an explicit target. Intra-zone only applies to perimeter feeders.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <Select value={strategyChoice} onValueChange={(v) => setStrategyChoice(v as ManualTargetStrategyChoice)}>
+              <SelectTrigger id="tr-strategy" data-testid="trigger-traceroute-strategy">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Pick automatically</SelectItem>
+                <SelectItem value="intra_zone" disabled={!canIntraZone}>
+                  Intra-zone
+                </SelectItem>
+                <SelectItem value="dx_across">DX across</SelectItem>
+                <SelectItem value="dx_same_side">DX same side</SelectItem>
               </SelectContent>
             </Select>
           </div>

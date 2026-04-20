@@ -329,6 +329,7 @@ export interface UseInfrastructureNodesOptions {
 export interface UseManagedNodesSuspenseOptions {
   pageSize?: number;
   includeStatus?: boolean;
+  includeGeoClassification?: boolean;
 }
 
 /**
@@ -432,11 +433,19 @@ export function useManagedNodesSuspense(options?: UseManagedNodesSuspenseOptions
   const api = useMeshtasticApi();
   const pageSize = options?.pageSize ?? 500;
   const includeStatus = options?.includeStatus ?? false;
+  const includeGeoClassification = options?.includeGeoClassification ?? false;
+  const includeKey =
+    [includeStatus ? 'status' : '', includeGeoClassification ? 'geo' : ''].filter(Boolean).join('+') || 'base';
   const managedNodesQuery = useSuspenseInfiniteQuery<PaginatedResponse<ManagedNode>, Error>({
     refetchInterval: 1000 * 60, // 1 minute
-    queryKey: ['managed-nodes', pageSize, includeStatus ? 'status' : 'base'],
+    queryKey: ['managed-nodes', pageSize, includeKey],
     queryFn: async ({ pageParam = 1 }) =>
-      api.getManagedNodes({ page: pageParam as number, page_size: pageSize, includeStatus }),
+      api.getManagedNodes({
+        page: pageParam as number,
+        page_size: pageSize,
+        includeStatus,
+        includeGeoClassification,
+      }),
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) => (lastPage.next ? allPages.length + 1 : undefined),
   });

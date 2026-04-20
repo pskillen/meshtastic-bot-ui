@@ -373,12 +373,16 @@ export class MeshtasticApi extends BaseApi {
   async getManagedNodes(
     params?: PaginationParams & {
       includeStatus?: boolean;
+      includeGeoClassification?: boolean;
     }
   ): Promise<PaginatedResponse<ManagedNode>> {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.append('page', params.page.toString());
     if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    if (params?.includeStatus) searchParams.append('include', 'status');
+    const includes: string[] = [];
+    if (params?.includeStatus) includes.push('status');
+    if (params?.includeGeoClassification) includes.push('geo_classification');
+    if (includes.length) searchParams.set('include', includes.join(','));
     return this.get<PaginatedResponse<ManagedNode>>('/nodes/managed-nodes/', searchParams);
   }
 
@@ -673,6 +677,7 @@ export class MeshtasticApi extends BaseApi {
     target_node?: number;
     status?: string;
     trigger_type?: string;
+    target_strategy?: string;
     triggered_after?: string;
     triggered_before?: string;
     page?: number;
@@ -684,6 +689,7 @@ export class MeshtasticApi extends BaseApi {
     if (params?.target_node) searchParams.append('target_node', params.target_node.toString());
     if (params?.status) searchParams.append('status', params.status);
     if (params?.trigger_type) searchParams.append('trigger_type', params.trigger_type);
+    if (params?.target_strategy) searchParams.append('target_strategy', params.target_strategy);
     if (params?.triggered_after) searchParams.append('triggered_after', params.triggered_after);
     if (params?.triggered_before) searchParams.append('triggered_before', params.triggered_before);
     if (params?.page) searchParams.append('page', params.page.toString());
@@ -701,9 +707,18 @@ export class MeshtasticApi extends BaseApi {
   /**
    * Trigger a traceroute manually
    */
-  async triggerTraceroute(managedNodeId: number, targetNodeId?: number): Promise<AutoTraceRoute> {
-    const data: { managed_node_id: number; target_node_id?: number } = { managed_node_id: managedNodeId };
+  async triggerTraceroute(
+    managedNodeId: number,
+    targetNodeId?: number,
+    targetStrategy?: 'intra_zone' | 'dx_across' | 'dx_same_side'
+  ): Promise<AutoTraceRoute> {
+    const data: {
+      managed_node_id: number;
+      target_node_id?: number;
+      target_strategy?: 'intra_zone' | 'dx_across' | 'dx_same_side';
+    } = { managed_node_id: managedNodeId };
     if (targetNodeId != null) data.target_node_id = targetNodeId;
+    if (targetStrategy != null) data.target_strategy = targetStrategy;
     return this.post<AutoTraceRoute>('/traceroutes/trigger/', data);
   }
 
@@ -750,6 +765,7 @@ export class MeshtasticApi extends BaseApi {
       success_rate: number | null;
     }>;
     success_over_time: Array<{ date: string; completed: number; failed: number }>;
+    by_strategy: Record<string, { completed: number; failed: number; pending: number; sent: number }>;
   }> {
     const searchParams = new URLSearchParams();
     if (params?.triggered_at_after) {
@@ -766,6 +782,8 @@ export class MeshtasticApi extends BaseApi {
     constellation_id?: number;
     bbox?: [number, number, number, number];
     edge_metric?: 'packets' | 'snr';
+    source_node_id?: number;
+    target_strategy?: string;
   }): Promise<{
     edges: Array<{
       from_node_id: number;
@@ -802,6 +820,12 @@ export class MeshtasticApi extends BaseApi {
     }
     if (params?.edge_metric) {
       searchParams.append('edge_metric', params.edge_metric);
+    }
+    if (params?.source_node_id != null) {
+      searchParams.append('source_node_id', params.source_node_id.toString());
+    }
+    if (params?.target_strategy) {
+      searchParams.append('target_strategy', params.target_strategy);
     }
     return this.get('/traceroutes/heatmap-edges/', searchParams);
   }

@@ -1,15 +1,70 @@
-import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useMemo, useCallback } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { subHours, subDays } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useHeatmapEdges } from '@/hooks/api/useHeatmapEdges';
+import { useManagedNodesSuspense } from '@/hooks/api/useNodes';
 import { TracerouteHeatmapMap } from '@/components/traceroutes/TracerouteHeatmapMap';
-import { RouteIcon } from 'lucide-react';
+import { RouteIcon, ChevronDown, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { TRACEROUTE_STRATEGIES, type TracerouteStrategyValue } from '@/lib/traceroute-strategy';
 
 type TimeRange = '24h' | '7d' | '30d' | 'custom';
 export type EdgeMetric = 'packets' | 'snr';
+
+function parseCsvParam<T extends string>(raw: string | null): T[] {
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean) as T[];
+}
+
+function parseSourceParam(raw: string | null): number | null {
+  if (!raw) return null;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+const HEATMAP_STRATEGY_OPTIONS: Array<{ value: TracerouteStrategyValue; label: string }> = TRACEROUTE_STRATEGIES.filter(
+  (v) => v !== 'legacy'
+).map((value) => ({
+  value,
+  label:
+    value === 'intra_zone'
+      ? 'Intra-zone'
+      : value === 'dx_across'
+        ? 'DX across'
+        : value === 'dx_same_side'
+          ? 'DX same side'
+          : value,
+}));
+
+function multiSelectLabel<T extends string>(
+  values: T[],
+  options: Array<{ value: T; label: string }>,
+  fallback: string
+): string {
+  if (values.length === 0) return fallback;
+  if (values.length === 1) {
+    return options.find((o) => o.value === values[0])?.label ?? values[0];
+  }
+  return `${fallback} (${values.length})`;
+}
+
+function toggleValue<T extends string>(current: T[], value: T): T[] {
+  return current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
+}
 
 function NetworkStatsCard({
   meta,
@@ -56,7 +111,23 @@ function NetworkStatsCard({
 }
 
 export function TracerouteHeatmapPage({ edgeMetric }: { edgeMetric: EdgeMetric }) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [timeRange, setTimeRange] = useState<TimeRange>('7d');
+
+  const strategyTokens = parseCsvParam<TracerouteStrategyValue>(searchParams.get('strategy'));
+  const sourceMeshId = parseSourceParam(searchParams.get('source'));
+
+  const updateParams = useCallback(
+    (patch: Record<string, string | null>) => {
+      const next = new URLSearchParams(searchParams);
+      for (const [key, value] of Object.entries(patch)) {
+        if (value == null || value === '') next.delete(key);
+        else next.set(key, value);
+      }
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams]
+  );
 
   const triggeredAtAfter = useMemo(() => {
     if (timeRange === '24h') return subHours(new Date(), 24);
@@ -65,14 +136,20 @@ export function TracerouteHeatmapPage({ edgeMetric }: { edgeMetric: EdgeMetric }
     return undefined; // Custom would open a date picker
   }, [timeRange]);
 
+  const { managedNodes } = useManagedNodesSuspense({ pageSize: 500 });
+
   const { data, isLoading, error } = useHeatmapEdges({
     triggeredAtAfter,
     edgeMetric,
+    sourceNodeId: sourceMeshId ?? undefined,
+    targetStrategy: strategyTokens.length ? strategyTokens.join(',') : undefined,
   });
 
   const edges = data?.edges ?? [];
   const nodes = data?.nodes ?? [];
   const meta = data?.meta ?? { active_nodes_count: 0, total_trace_routes_count: 0 };
+
+  const hasGeoFilters = strategyTokens.length > 0 || sourceMeshId != null;
 
   return (
     <div className="flex min-h-[50vh] flex-col gap-4 px-4 py-4 md:px-6 md:py-6">
@@ -120,6 +197,63 @@ export function TracerouteHeatmapPage({ edgeMetric }: { edgeMetric: EdgeMetric }
               </SelectContent>
             </Select>
           </div>
+
+          <Select
+            value={sourceMeshId != null ? String(sourceMeshId) : 'all'}
+            onValueChange={(v) => updateParams({ source: v === 'all' ? null : v })}
+          >
+            <SelectTrigger className="w-full sm:w-[200px]" data-testid="heatmap-source-select">
+              <SelectValue placeholder="Source feeder" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All sources</SelectItem>
+              {managedNodes.map((n) => (
+                <SelectItem key={n.node_id} value={String(n.node_id)}>
+                  {n.short_name ?? n.node_id_str ?? String(n.node_id)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="w-full sm:w-[180px] justify-between" type="button">
+                {multiSelectLabel(strategyTokens, HEATMAP_STRATEGY_OPTIONS, 'Strategy')}
+                <ChevronDown className="h-4 w-4 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuLabel>Strategy</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {HEATMAP_STRATEGY_OPTIONS.map((opt) => (
+                <DropdownMenuCheckboxItem
+                  key={opt.value}
+                  checked={strategyTokens.includes(opt.value)}
+                  onCheckedChange={() =>
+                    updateParams({
+                      strategy: toggleValue(strategyTokens, opt.value).join(',') || null,
+                    })
+                  }
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  {opt.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {hasGeoFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={() => updateParams({ strategy: null, source: null })}
+              data-testid="heatmap-clear-geo-filters"
+            >
+              <X className="mr-1 h-4 w-4" />
+              Clear geo filters
+            </Button>
+          )}
         </div>
       </div>
 

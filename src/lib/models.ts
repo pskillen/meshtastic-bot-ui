@@ -51,6 +51,13 @@ export interface ObservedNode {
   claim?: ObservedNodeClaimEmbedded | null;
 }
 
+/** Present when API is called with include=geo_classification */
+export interface GeoClassification {
+  tier: 'perimeter' | 'internal';
+  bearing_octant: 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW' | null;
+  applicable_strategies: ('intra_zone' | 'dx_across' | 'dx_same_side')[];
+}
+
 // ManagedNode from Meshflow API v2
 export interface ManagedNode {
   node_id: number;
@@ -62,6 +69,7 @@ export interface ManagedNode {
   packets_last_hour?: number;
   packets_last_24h?: number;
   is_eligible_traceroute_source?: boolean;
+  geo_classification?: GeoClassification | null;
   node_id_str: string;
   owner: {
     id: number;
@@ -127,7 +135,9 @@ export interface AutoTraceRoute {
   id: number;
   source_node: ManagedNode;
   target_node: ObservedNode;
-  trigger_type: 'auto' | 'user';
+  trigger_type: 'auto' | 'user' | 'external' | 'monitor';
+  /** Hypothesis-driven selector; null means legacy / unspecified */
+  target_strategy?: 'intra_zone' | 'dx_across' | 'dx_same_side' | 'legacy' | null;
   triggered_by: number | null;
   triggered_by_username: string | null;
   trigger_source: string | null;

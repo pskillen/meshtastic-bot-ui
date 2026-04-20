@@ -35,6 +35,10 @@ export interface UseHeatmapEdgesParams {
   constellationId?: number;
   bbox?: [number, number, number, number];
   edgeMetric?: 'packets' | 'snr';
+  /** Meshtastic node id of the feeder (matches API `source_node_id`) */
+  sourceNodeId?: number;
+  /** CSV of strategy tokens sent to API `target_strategy` */
+  targetStrategy?: string;
 }
 
 export function useHeatmapEdges(params?: UseHeatmapEdgesParams) {
@@ -49,6 +53,8 @@ export function useHeatmapEdges(params?: UseHeatmapEdgesParams) {
         constellationId: params?.constellationId,
         bbox: params?.bbox,
         edgeMetric: params?.edgeMetric,
+        sourceNodeId: params?.sourceNodeId,
+        targetStrategy: params?.targetStrategy,
       },
     ],
     placeholderData: keepPreviousData,
@@ -58,6 +64,8 @@ export function useHeatmapEdges(params?: UseHeatmapEdgesParams) {
         constellation_id: params?.constellationId,
         bbox: params?.bbox,
         edge_metric: params?.edgeMetric,
+        source_node_id: params?.sourceNodeId,
+        target_strategy: params?.targetStrategy,
       }),
   });
 }

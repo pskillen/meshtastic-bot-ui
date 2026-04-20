@@ -108,7 +108,8 @@ function MeshInfrastructureContent() {
     return m;
   }, [watchesQuery.data]);
 
-  const { managedNodes } = useManagedNodesSuspense({ pageSize: 500 });
+  const { managedNodes } = useManagedNodesSuspense({ pageSize: 500, includeGeoClassification: true });
+  const managedByMeshId = useMemo(() => new Map(managedNodes.map((m) => [m.node_id, m])), [managedNodes]);
 
   const { metricsMap } = useMultiNodeMetricsSuspense(nodes, chartDateRange);
 
@@ -343,6 +344,7 @@ function MeshInfrastructureContent() {
             <InfrastructureNodeCard
               key={node.internal_id}
               node={node}
+              managedNode={managedByMeshId.get(node.node_id)}
               metrics={metricsMap[node.node_id] ?? []}
               dateRange={chartDateRange}
               onCompareToggle={handleCompareToggle}

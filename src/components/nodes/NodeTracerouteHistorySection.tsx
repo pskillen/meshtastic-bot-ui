@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -13,6 +13,7 @@ import { TracerouteDetailModal } from '@/pages/traceroutes/TracerouteDetailModal
 import { TriggerTracerouteModal } from '@/pages/traceroutes/TriggerTracerouteModal';
 import { getTracerouteErrorMessage } from '@/pages/traceroutes/tracerouteErrors';
 import type { AutoTraceRoute, ObservedNode } from '@/lib/models';
+import { useManagedNodesSuspense } from '@/hooks/api/useNodes';
 
 const PAGE_SIZE = 10;
 
@@ -53,6 +54,20 @@ export function NodeTracerouteHistorySection({ nodeId, observedNode }: NodeTrace
     page_size: PAGE_SIZE,
   });
   const { triggerableNodes } = useTracerouteTriggerableNodesSuspense();
+  const { managedNodes } = useManagedNodesSuspense({
+    pageSize: 500,
+    includeStatus: true,
+    includeGeoClassification: true,
+  });
+  const managedByMeshId = useMemo(() => new Map(managedNodes.map((m) => [m.node_id, m])), [managedNodes]);
+  const modalManagedNodes = useMemo(
+    () =>
+      triggerableNodes.map((t) => {
+        const full = managedByMeshId.get(t.node_id);
+        return full ? { ...t, ...full } : t;
+      }),
+    [triggerableNodes, managedByMeshId]
+  );
   const canTrigger = triggerableNodes.length > 0;
   const triggerMutation = useTriggerTraceroute();
 
@@ -60,7 +75,16 @@ export function NodeTracerouteHistorySection({ nodeId, observedNode }: NodeTrace
 
   const handleRepeat = (tr: AutoTraceRoute) => {
     triggerMutation.mutate(
-      { managedNodeId: tr.source_node.node_id, targetNodeId: tr.target_node.node_id },
+      {
+        managedNodeId: tr.source_node.node_id,
+        targetNodeId: tr.target_node.node_id,
+        targetStrategy:
+          tr.target_strategy === 'intra_zone' ||
+          tr.target_strategy === 'dx_across' ||
+          tr.target_strategy === 'dx_same_side'
+            ? tr.target_strategy
+            : undefined,
+      },
       {
         onError: (err) => {
           toast.error('Traceroute failed', {
@@ -183,12 +207,12 @@ export function NodeTracerouteHistorySection({ nodeId, observedNode }: NodeTrace
         open={triggerModalOpen}
         onOpenChange={setTriggerModalOpen}
         mode="user"
-        managedNodes={triggerableNodes}
+        managedNodes={modalManagedNodes}
         observedNodes={[observedNode]}
         fixedTargetNode={observedNode}
-        onTrigger={async (managedNodeId, targetNodeId) => {
+        onTrigger={async (managedNodeId, targetNodeId, targetStrategy) => {
           try {
-            await triggerMutation.mutateAsync({ managedNodeId, targetNodeId });
+            await triggerMutation.mutateAsync({ managedNodeId, targetNodeId, targetStrategy });
             setTriggerModalOpen(false);
           } catch (err) {
             toast.error('Traceroute failed', {
