@@ -309,9 +309,18 @@ function MeshInfrastructureContent() {
                         />
                       </TableCell>
                       <TableCell>
-                        <Link to={`/nodes/${node.node_id}`} className="text-primary text-sm hover:underline">
-                          View details
-                        </Link>
+                        <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-3">
+                          <Link to={`/nodes/${node.node_id}`} className="text-primary text-sm hover:underline">
+                            View details
+                          </Link>
+                          <Link
+                            to={`/traceroutes/map/coverage?feeder=${node.node_id}`}
+                            className="text-muted-foreground text-sm underline-offset-4 hover:text-primary hover:underline"
+                            data-testid={`infra-no-loc-coverage-link-${node.node_id}`}
+                          >
+                            Coverage map
+                          </Link>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

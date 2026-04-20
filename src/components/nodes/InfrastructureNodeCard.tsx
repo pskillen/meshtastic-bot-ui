@@ -119,7 +119,14 @@ function InfrastructureNodeCardInner({
           </div>
         )}
       </div>
-      <div className="mt-auto flex justify-end pt-3">
+      <div className="mt-auto flex justify-end gap-3 pt-3">
+        <Link
+          to={`/traceroutes/map/coverage?feeder=${node.node_id}`}
+          className="text-sm text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
+          data-testid={`infra-coverage-link-${node.node_id}`}
+        >
+          Coverage map
+        </Link>
         <Link
           to={`/nodes/${node.node_id}`}
           className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"

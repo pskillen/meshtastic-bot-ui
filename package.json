@@ -21,6 +21,7 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@deck.gl/geo-layers": "~9.2.0",
     "@deck.gl/layers": "^9.0.0",
     "@deck.gl/mapbox": "^9.0.0",
     "@dnd-kit/core": "^6.3.1",
@@ -54,6 +55,7 @@
     "d3": "^7.8.5",
     "date-fns": "^4.1.0",
     "deck.gl": "^9.0.0",
+    "h3-js": "^4.4.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.485.0",
     "mapbox-gl": "^3.8.0",

@@ -1,6 +1,8 @@
 import { Suspense } from 'react';
 import { TracerouteHistory } from '@/pages/traceroutes/TracerouteHistory';
 import { TracerouteHeatmapPage } from '@/pages/traceroutes/TracerouteHeatmapPage';
+import { FeederCoveragePage } from '@/pages/traceroutes/FeederCoveragePage';
+import { ConstellationCoveragePage } from '@/pages/traceroutes/ConstellationCoveragePage';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 import { ConfigProvider } from '@/providers/ConfigProvider';
@@ -60,6 +62,12 @@ function App() {
                   <Route path="/traceroutes/heatmap" element={<Navigate to="/traceroutes/map/heat" replace />} />
                   <Route path="/traceroutes/map/heat" element={<TracerouteHeatmapPage edgeMetric="packets" />} />
                   <Route path="/traceroutes/map/snr" element={<TracerouteHeatmapPage edgeMetric="snr" />} />
+                  <Route path="/traceroutes/map/coverage" element={<FeederCoveragePage />} />
+                  <Route
+                    path="/traceroutes/map/coverage/constellation/:constellationId"
+                    element={<ConstellationCoveragePage />}
+                  />
+                  <Route path="/traceroutes/map/coverage/constellation" element={<ConstellationCoveragePage />} />
                   <Route path="/user/nodes" element={<NodeSettings />} />
                   <Route path="/user/settings" element={<SettingsPage />} />
                   <Route path="/user/api-keys" element={<ApiKeysPage />} />
