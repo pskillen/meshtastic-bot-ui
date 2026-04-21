@@ -115,55 +115,104 @@ export function RfProfileModal({ open, onOpenChange, node }: RfProfileModalProps
     return { lat: 55.8642, lng: -4.2518 };
   }, [node.latest_position?.latitude, node.latest_position?.longitude]);
 
-  // Map mounts only after `!isLoading` so `mapRef` exists; tear down fully when dialog closes.
+  const destroyRfMap = () => {
+    markerRef.current?.remove();
+    markerRef.current = null;
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+    }
+    tileLayerRef.current = null;
+    if (mapRef.current) mapRef.current.innerHTML = '';
+  };
+
+  // Leaflet must not initialize while the dialog container has 0×0 size (Radix zoom animation),
+  // or tiles never paint. Wait for layout via ResizeObserver + invalidateSize after open.
   useEffect(() => {
     if (!open) {
-      markerRef.current?.remove();
-      markerRef.current = null;
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-      tileLayerRef.current = null;
-      if (mapRef.current) mapRef.current.innerHTML = '';
+      destroyRfMap();
       return;
     }
     if (isLoading || profile === undefined) return;
+
     const el = mapRef.current;
-    if (!el || mapInstanceRef.current) return;
+    if (!el) return;
 
-    const startLat = profile !== null && profile.rf_latitude != null ? profile.rf_latitude : initialCenter.lat;
-    const startLng = profile !== null && profile.rf_longitude != null ? profile.rf_longitude : initialCenter.lng;
+    let disposed = false;
 
-    const map = L.map(el).setView([startLat, startLng], 13);
-    const tileLayer = L.tileLayer(tileUrl, { attribution }).addTo(map);
-    tileLayerRef.current = tileLayer;
-    const marker = L.marker([startLat, startLng], { draggable: true }).addTo(map);
-    markerRef.current = marker;
-    marker.on('dragend', () => {
-      const p = marker.getLatLng();
-      setRfLat(String(p.lat));
-      setRfLng(String(p.lng));
+    const tryCreateMap = () => {
+      if (disposed || mapInstanceRef.current) return;
+      if (el.clientWidth < 8 || el.clientHeight < 8) return;
+
+      const startLat = profile !== null && profile.rf_latitude != null ? profile.rf_latitude : initialCenter.lat;
+      const startLng = profile !== null && profile.rf_longitude != null ? profile.rf_longitude : initialCenter.lng;
+
+      const map = L.map(el).setView([startLat, startLng], 13);
+      const tileLayer = L.tileLayer(tileUrl, { attribution }).addTo(map);
+      tileLayerRef.current = tileLayer;
+      const marker = L.marker([startLat, startLng], { draggable: true }).addTo(map);
+      markerRef.current = marker;
+      marker.on('dragend', () => {
+        const p = marker.getLatLng();
+        setRfLat(String(p.lat));
+        setRfLng(String(p.lng));
+      });
+      map.on('click', (e) => {
+        marker.setLatLng(e.latlng);
+        setRfLat(String(e.latlng.lat));
+        setRfLng(String(e.latlng.lng));
+      });
+      mapInstanceRef.current = map;
+
+      const bump = () => map.invalidateSize();
+      requestAnimationFrame(() => {
+        bump();
+        requestAnimationFrame(bump);
+      });
+      const timings = window.setTimeout(() => {
+        bump();
+      }, 220);
+      const timings2 = window.setTimeout(() => bump(), 600);
+
+      return () => {
+        window.clearTimeout(timings);
+        window.clearTimeout(timings2);
+      };
+    };
+
+    let timeoutCleanups: (() => void) | undefined;
+
+    const ro = new ResizeObserver(() => {
+      if (disposed) return;
+      const map = mapInstanceRef.current;
+      if (map) {
+        map.invalidateSize();
+      } else {
+        timeoutCleanups?.();
+        timeoutCleanups = tryCreateMap();
+      }
     });
-    map.on('click', (e) => {
-      marker.setLatLng(e.latlng);
-      setRfLat(String(e.latlng.lat));
-      setRfLng(String(e.latlng.lng));
-    });
-    mapInstanceRef.current = map;
+    ro.observe(el);
 
-    const t1 = window.setTimeout(() => map.invalidateSize(), 100);
-    const t2 = window.setTimeout(() => map.invalidateSize(), 400);
+    timeoutCleanups?.();
+    timeoutCleanups = tryCreateMap();
+
+    let pollUntil = 0;
+    const poll = window.setInterval(() => {
+      if (disposed || mapInstanceRef.current || pollUntil++ > 80) {
+        window.clearInterval(poll);
+        return;
+      }
+      timeoutCleanups?.();
+      timeoutCleanups = tryCreateMap();
+    }, 50);
 
     return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      markerRef.current?.remove();
-      markerRef.current = null;
-      map.remove();
-      mapInstanceRef.current = null;
-      tileLayerRef.current = null;
-      el.innerHTML = '';
+      disposed = true;
+      window.clearInterval(poll);
+      timeoutCleanups?.();
+      ro.disconnect();
+      destroyRfMap();
     };
   }, [open, isLoading, profile, initialCenter.lat, initialCenter.lng, tileUrl, attribution]);
 
@@ -297,8 +346,8 @@ export function RfProfileModal({ open, onOpenChange, node }: RfProfileModalProps
                   <div
                     ref={mapRef}
                     data-testid="rf-profile-map"
-                    className="map-container h-[220px] w-full min-h-[220px] rounded-md border border-slate-300 dark:border-slate-500"
-                    style={{ position: 'relative', zIndex: 0 }}
+                    className="map-container z-0 h-[220px] min-h-[220px] min-w-[200px] w-full rounded-md border border-slate-300 dark:border-slate-500"
+                    style={{ position: 'relative', isolation: 'isolate' }}
                   />
                 </div>
               </Card>
