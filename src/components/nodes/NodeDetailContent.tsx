@@ -20,18 +20,23 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { authService } from '@/lib/auth/authService';
 import { getRoleLabel, INFRASTRUCTURE_ROLE_IDS } from '@/lib/meshtastic';
-import type { EnvironmentExposureSlug, LatestEnvironmentMetrics, WeatherUseSlug } from '@/lib/models';
+import type { EnvironmentExposureSlug, LatestEnvironmentMetrics, ObservedNode, WeatherUseSlug } from '@/lib/models';
 import { NodeEnvironmentSettingsDialog } from '@/components/nodes/NodeEnvironmentSettingsDialog';
 import { NodeMeshMonitoringSection } from '@/components/nodes/NodeMeshMonitoringSection';
 import { NodeTracerouteHistorySection } from '@/components/nodes/NodeTracerouteHistorySection';
 import { RfPropagationSection } from '@/components/nodes/RfPropagationSection';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { STRATEGY_META, type TracerouteStrategyValue } from '@/lib/traceroute-strategy';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import type { NodeDetailTab } from '@/lib/node-detail-tab';
 
 interface NodeDetailContentProps {
   nodeId: number;
   /** When true, hide the "Back to Nodes" link (e.g. when shown in slide-over) */
   compact?: boolean;
+  /** Full page only — from `NodeDetails` reading `?tab=` */
+  activeTab?: NodeDetailTab;
+  onTabChange?: (tab: NodeDetailTab) => void;
 }
 
 type TracerouteTimeRange = '24h' | '7d' | '30d';
@@ -56,6 +61,93 @@ function hasEnvironmentSensorMetrics(env: LatestEnvironmentMetrics | null | unde
     const v = env[k];
     return v != null;
   });
+}
+
+function NodeLocationCard({
+  node,
+  nodeId,
+  compact,
+  mapTabLink,
+}: {
+  node: ObservedNode;
+  nodeId: number;
+  compact: boolean;
+  mapTabLink?: boolean;
+}) {
+  const pos = node.latest_position;
+  const hasPositions =
+    pos &&
+    typeof pos.latitude === 'number' &&
+    pos.latitude !== 0 &&
+    typeof pos.longitude === 'number' &&
+    pos.longitude !== 0;
+
+  return (
+    <Card data-testid="node-detail-location-card">
+      <CardHeader>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <CardTitle>Node Location</CardTitle>
+            {hasPositions ? (
+              <CardDescription>
+                GPS position broadcast by the node — last reported{' '}
+                {pos?.reported_time ? formatDistanceToNow(pos.reported_time, { addSuffix: true }) : '—'}
+              </CardDescription>
+            ) : (
+              <CardDescription>
+                No GPS position data. A node can be active (Last Heard) without broadcasting its location.
+              </CardDescription>
+            )}
+          </div>
+          {mapTabLink && (
+            <Link
+              to={`/nodes/${nodeId}?tab=map`}
+              className="shrink-0 text-sm text-teal-600 underline-offset-4 hover:underline dark:text-teal-400"
+              data-testid="node-detail-map-tab-link"
+            >
+              Open map view
+            </Link>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {hasPositions && pos ? (
+          <>
+            <div className="mb-2 flex flex-wrap items-end gap-4 md:flex-nowrap">
+              <div className="flex flex-col items-start">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Lat</span>
+                <span className="font-mono text-base">{pos.latitude!.toFixed(6)}°</span>
+              </div>
+              <span className="mx-2 hidden h-6 border-l border-slate-200 dark:border-slate-700 md:inline-block"></span>
+              <div className="flex flex-col items-start">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Long</span>
+                <span className="font-mono text-base">{pos.longitude!.toFixed(6)}°</span>
+              </div>
+              <span className="mx-2 hidden h-6 border-l border-slate-200 dark:border-slate-700 md:inline-block"></span>
+              <div className="flex flex-col items-start">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Alt</span>
+                <span className="font-mono text-base">
+                  {pos.altitude != null ? `${pos.altitude.toFixed(1)}m` : '—'}
+                </span>
+              </div>
+              {pos.location_source && (
+                <span className="ml-4 rounded border border-slate-200 bg-muted px-2 py-0.5 text-xs text-muted-foreground dark:border-slate-700">
+                  {pos.location_source}
+                </span>
+              )}
+            </div>
+            <div className={`w-full ${compact ? 'h-[200px]' : 'h-[400px]'}`}>
+              <NodesMap nodes={[node]} />
+            </div>
+          </>
+        ) : (
+          <div className="flex h-[200px] w-full items-center justify-center rounded-md bg-muted">
+            <p className="text-muted-foreground">No location data available</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 function TracerouteLinksSection({ nodeId, isManagedNode }: { nodeId: number; isManagedNode: boolean }) {
@@ -107,19 +199,19 @@ function TracerouteLinksSection({ nodeId, isManagedNode }: { nodeId: number; isM
         </CardHeader>
         <CardContent>
           {error && (
-            <div className="flex min-h-[200px] items-center justify-center text-destructive text-sm">
+            <div className="flex min-h-[200px] items-center justify-center text-sm text-destructive">
               Failed to load traceroute links: {error instanceof Error ? error.message : 'Unknown error'}
             </div>
           )}
           {isLoading && (
             <div className="flex min-h-[300px] items-center justify-center text-muted-foreground">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500" />
+              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-teal-500" />
             </div>
           )}
           {!error && !isLoading && !hasData && (
             <div className="flex min-h-[200px] flex-col items-center justify-center gap-2 text-muted-foreground">
               <p>No traceroute data for this node</p>
-              <Link to="/traceroutes/map/heat" className="text-sm text-teal-600 dark:text-teal-400 hover:underline">
+              <Link to="/traceroutes/map/heat" className="text-sm text-teal-600 hover:underline dark:text-teal-400">
                 View Traceroute Heatmap
               </Link>
             </div>
@@ -148,7 +240,7 @@ function TracerouteLinksSection({ nodeId, isManagedNode }: { nodeId: number; isM
   );
 }
 
-export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContentProps) {
+export function NodeDetailContent({ nodeId, compact = false, activeTab, onTabChange }: NodeDetailContentProps) {
   const node = useNodeSuspense(nodeId);
   const { recentNodes, addRecentNode } = useRecentNodes();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -171,31 +263,271 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
     }
   }, [nodeId, addRecentNode, node]);
 
-  const pos = node.latest_position;
-  const hasPositions =
-    pos &&
-    typeof pos.latitude === 'number' &&
-    pos.latitude !== 0 &&
-    typeof pos.longitude === 'number' &&
-    pos.longitude !== 0;
-
   const currentUser = authService.getCurrentUser();
   const roleLabel = getRoleLabel(node.role);
   const hasPendingClaim = node.claim && !node.claim.accepted_at;
   const hasApprovedClaim =
     (node.claim && node.claim.accepted_at) || (node.owner && currentUser && node.owner.id === currentUser.id);
 
-  const showRfPropagationBesideLocation = !compact && node.role != null && INFRASTRUCTURE_ROLE_IDS.has(node.role);
+  const fullPageTabs = !compact && activeTab !== undefined && onTabChange !== undefined;
+  const showRfPropagation = !compact && node.role != null && INFRASTRUCTURE_ROLE_IDS.has(node.role);
+
+  useEffect(() => {
+    if (fullPageTabs && activeTab === 'monitoring' && !currentUser) {
+      onTabChange('overview');
+    }
+  }, [fullPageTabs, activeTab, currentUser, onTabChange]);
+
+  const effectiveTab: NodeDetailTab =
+    fullPageTabs && activeTab === 'monitoring' && !currentUser ? 'overview' : (activeTab ?? 'overview');
+
+  const showMonitoringTab = Boolean(currentUser);
+
+  const renderFeederGeoCard = () =>
+    managedForThisNode?.geo_classification ? (
+      <Card className="mb-6" data-testid="node-detail-feeder-geo">
+        <CardHeader>
+          <CardTitle>Traceroute feeder classification</CardTitle>
+          <CardDescription>
+            Geometry vs constellation envelope — drives which automated target strategies apply.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">
+              {managedForThisNode.geo_classification.tier === 'perimeter'
+                ? `Perimeter${
+                    managedForThisNode.geo_classification.bearing_octant
+                      ? ` (${managedForThisNode.geo_classification.bearing_octant})`
+                      : ''
+                  }`
+                : 'Internal'}
+            </Badge>
+            <TooltipProvider delayDuration={200}>
+              {managedForThisNode.geo_classification.applicable_strategies.map((s) => (
+                <Tooltip key={s}>
+                  <TooltipTrigger asChild>
+                    <Badge variant="secondary" className="cursor-help">
+                      {STRATEGY_META[s as TracerouteStrategyValue]?.label ?? s}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-sm">
+                    {STRATEGY_META[s as TracerouteStrategyValue]?.shortDescription ?? s}
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </TooltipProvider>
+          </div>
+        </CardContent>
+      </Card>
+    ) : null;
+
+  const renderMetricsGrid = () => (
+    <div className={`mb-6 grid grid-cols-1 ${compact ? 'gap-4' : 'gap-6 md:grid-cols-2'}`}>
+      <Card>
+        <CardHeader>
+          <CardTitle>Basic Information</CardTitle>
+          <CardDescription>Static node details</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <p>
+              <span className="font-medium">Node ID:</span> <span className="font-mono">{node.node_id_str}</span>
+            </p>
+            <p>
+              <span className="font-medium">Hardware Model:</span> {node.hw_model ?? '—'}
+            </p>
+            {roleLabel && (
+              <p>
+                <span className="font-medium">Role:</span> {roleLabel}
+              </p>
+            )}
+            {node.mac_addr && (
+              <p>
+                <span className="font-medium">MAC Address:</span> <span className="font-mono">{node.mac_addr}</span>
+              </p>
+            )}
+            {node.public_key && (
+              <p className="flex flex-wrap items-center gap-2">
+                <span className="shrink-0 font-medium">Public Key:</span>
+                <span className="break-all font-mono text-sm">{node.public_key}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 shrink-0 px-2"
+                  onClick={() => handleCopyToClipboard(node.public_key!)}
+                  title="Copy public key"
+                >
+                  <Copy className="mr-1 h-3 w-3" />
+                  Copy
+                </Button>
+              </p>
+            )}
+            {(node.is_licensed === true || node.is_licensed === false) && (
+              <p>
+                <span className="font-medium">Licensed Operator:</span> {node.is_licensed ? 'Yes' : 'No'}
+              </p>
+            )}
+            {(node.is_unmessagable === true || node.is_unmessagable === false) && (
+              <p>
+                <span className="font-medium">Messagable:</span> {node.is_unmessagable ? 'No' : 'Yes'}
+              </p>
+            )}
+            <p>
+              <span className="font-medium">Last Heard:</span>{' '}
+              {node.last_heard ? formatDistanceToNow(node.last_heard, { addSuffix: true }) : 'Never'}
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                Last time any packet was received from this node (telemetry, messages, etc.)
+              </span>
+            </p>
+            {node.inferred_max_hops != null && (
+              <p>
+                <span className="font-medium">Inferred Max Hops:</span> {node.inferred_max_hops}
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  Inferred from packets; recommended is 7
+                </span>
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {node.latest_device_metrics && (
+        <Card>
+          <CardHeader>
+            <div>
+              <CardTitle>Device Metrics</CardTitle>
+              <CardDescription>
+                Battery, voltage, channel utilisation — last reported{' '}
+                {node.latest_device_metrics.reported_time
+                  ? formatDistanceToNow(node.latest_device_metrics.reported_time, { addSuffix: true })
+                  : '—'}
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <BatteryGauge
+                batteryLevel={node.latest_device_metrics.battery_level ?? null}
+                voltage={node.latest_device_metrics.voltage ?? null}
+              />
+              <PercentGauge
+                value={node.latest_device_metrics.channel_utilization ?? null}
+                label="Channel Utilization"
+              />
+              <PercentGauge value={node.latest_device_metrics.air_util_tx ?? null} label="Air Utilization" />
+              <p>
+                <span className="font-medium">Uptime:</span>{' '}
+                {node.latest_device_metrics.uptime_seconds != null
+                  ? formatUptimeSeconds(node.latest_device_metrics.uptime_seconds)
+                  : '—'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {hasEnvironmentSensorMetrics(node.latest_environment_metrics) && (
+        <>
+          <MetricsCard
+            title="Environment Metrics"
+            reportedTime={node.latest_environment_metrics?.reported_time}
+            headerActions={
+              node.environment_settings_editable ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label="Environment metrics settings"
+                  onClick={() => setSettingsOpen(true)}
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              ) : undefined
+            }
+            metrics={[
+              { label: 'Sensor placement', value: node.environment_exposure },
+              { label: 'Use for weather', value: node.weather_use },
+              ...(node.latest_environment_metrics
+                ? [
+                    { label: 'Temperature', value: node.latest_environment_metrics.temperature, unit: '°C' },
+                    {
+                      label: 'Relative Humidity',
+                      value: node.latest_environment_metrics.relative_humidity,
+                      unit: '%',
+                    },
+                    {
+                      label: 'Barometric Pressure',
+                      value: node.latest_environment_metrics.barometric_pressure,
+                      unit: 'hPa',
+                    },
+                    { label: 'Gas Resistance', value: node.latest_environment_metrics.gas_resistance, unit: 'Ω' },
+                    { label: 'IAQ', value: node.latest_environment_metrics.iaq },
+                    { label: 'Lux', value: node.latest_environment_metrics.lux, unit: 'lx' },
+                    { label: 'Wind Direction', value: node.latest_environment_metrics.wind_direction, unit: '°' },
+                    { label: 'Wind Speed', value: node.latest_environment_metrics.wind_speed, unit: 'm/s' },
+                    { label: 'Radiation', value: node.latest_environment_metrics.radiation },
+                    { label: 'Rainfall 1h', value: node.latest_environment_metrics.rainfall_1h, unit: 'mm' },
+                    { label: 'Rainfall 24h', value: node.latest_environment_metrics.rainfall_24h, unit: 'mm' },
+                  ]
+                : []),
+            ]}
+          />
+          {node.environment_settings_editable && (
+            <NodeEnvironmentSettingsDialog
+              open={settingsOpen}
+              onOpenChange={setSettingsOpen}
+              nodeId={nodeId}
+              initialEnvironmentExposure={(node.environment_exposure ?? 'unknown') as EnvironmentExposureSlug}
+              initialWeatherUse={(node.weather_use ?? 'unknown') as WeatherUseSlug}
+            />
+          )}
+        </>
+      )}
+
+      {node.latest_power_metrics &&
+        (() => {
+          const pm = node.latest_power_metrics;
+          const channelMetrics = [1, 2, 3, 4, 5, 6, 7, 8]
+            .map((n) => {
+              const v = (pm as Record<string, number | null | undefined>)[`ch${n}_voltage`];
+              const c = (pm as Record<string, number | null | undefined>)[`ch${n}_current`];
+              if (v != null || c != null) {
+                const parts = [];
+                if (v != null) parts.push(`${v.toFixed(2)}V`);
+                if (c != null) parts.push(`${c.toFixed(2)}A`);
+                return { label: `Ch${n}`, value: parts.join(' / ') };
+              }
+              return null;
+            })
+            .filter(Boolean) as { label: string; value: string }[];
+          return channelMetrics.length > 0 ? (
+            <MetricsCard
+              title="Power Metrics"
+              reportedTime={node.latest_power_metrics.reported_time}
+              metrics={channelMetrics}
+            />
+          ) : null;
+        })()}
+    </div>
+  );
+
+  const renderLegacyLocationBlock = () => (
+    <div className={showRfPropagation ? 'mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2' : 'mb-6'}>
+      <NodeLocationCard node={node} nodeId={nodeId} compact={compact} />
+      {showRfPropagation ? <RfPropagationSection node={node} className="mb-0" /> : null}
+    </div>
+  );
 
   return (
     <div className={compact ? 'px-2' : 'container mx-auto px-4 py-8'}>
       {!compact && (
-        <Link to="/nodes" replace={true} className="text-teal-600 dark:text-teal-400 hover:underline mb-4 inline-block">
+        <Link to="/nodes" replace={true} className="mb-4 inline-block text-teal-600 hover:underline dark:text-teal-400">
           ← Back to Nodes
         </Link>
       )}
 
-      <div className={`flex justify-between items-start ${compact ? 'mb-4' : 'mb-6'}`}>
+      <div className={`flex items-start justify-between ${compact ? 'mb-4' : 'mb-6'}`}>
         <div>
           <h1 className={`font-bold ${compact ? 'text-xl' : 'text-3xl'}`}>{node.short_name}</h1>
           <p className="text-slate-600 dark:text-slate-400">{node.long_name}</p>
@@ -222,11 +554,11 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
             </div>
           )}
         </div>
-        <div className="flex flex-shrink-0 items-start gap-2">
+        <div className="flex shrink-0 items-start gap-2">
           {(!node.owner || hasPendingClaim) && (
             <Link
               to={`/nodes/${nodeId}/claim`}
-              className="px-4 py-2 bg-teal-600 dark:bg-teal-500 text-white rounded-md hover:bg-teal-700 dark:hover:bg-teal-600 transition-colors text-sm whitespace-nowrap"
+              className="whitespace-nowrap rounded-md bg-teal-600 px-4 py-2 text-sm text-white transition-colors hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600"
             >
               {hasPendingClaim ? 'View Claim' : 'Claim Node'}
             </Link>
@@ -236,7 +568,7 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
 
       {!compact && recentNodes.length > 1 && (
         <div className="mb-6">
-          <div className="text-sm text-slate-500 dark:text-slate-400 mb-2">Recently viewed:</div>
+          <div className="mb-2 text-sm text-slate-500 dark:text-slate-400">Recently viewed:</div>
           <div className="flex flex-wrap gap-2">
             {recentNodes
               .filter((recentNode) => recentNode.node_id !== nodeId)
@@ -245,7 +577,7 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
                   key={recentNode.node_id}
                   to={`/nodes/${recentNode.node_id}`}
                   replace={true}
-                  className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-teal-600 dark:text-teal-400 rounded-full text-sm"
+                  className="rounded-full bg-slate-100 px-3 py-1 text-sm text-teal-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-teal-400 dark:hover:bg-slate-700"
                 >
                   {recentNode.short_name}
                 </Link>
@@ -254,308 +586,110 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
         </div>
       )}
 
-      {managedForThisNode?.geo_classification && (
-        <Card className="mb-6" data-testid="node-detail-feeder-geo">
-          <CardHeader>
-            <CardTitle>Traceroute feeder classification</CardTitle>
-            <CardDescription>
-              Geometry vs constellation envelope — drives which automated target strategies apply.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2 items-center">
-              <Badge variant="outline">
-                {managedForThisNode.geo_classification.tier === 'perimeter'
-                  ? `Perimeter${
-                      managedForThisNode.geo_classification.bearing_octant
-                        ? ` (${managedForThisNode.geo_classification.bearing_octant})`
-                        : ''
-                    }`
-                  : 'Internal'}
-              </Badge>
-              <TooltipProvider delayDuration={200}>
-                {managedForThisNode.geo_classification.applicable_strategies.map((s) => (
-                  <Tooltip key={s}>
-                    <TooltipTrigger asChild>
-                      <Badge variant="secondary" className="cursor-help">
-                        {STRATEGY_META[s as TracerouteStrategyValue]?.label ?? s}
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-xs text-sm">
-                      {STRATEGY_META[s as TracerouteStrategyValue]?.shortDescription ?? s}
-                    </TooltipContent>
-                  </Tooltip>
-                ))}
-              </TooltipProvider>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className={`grid grid-cols-1 ${compact ? 'gap-4' : 'md:grid-cols-2 gap-6'} mb-6`}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Basic Information</CardTitle>
-            <CardDescription>Static node details</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <p>
-                <span className="font-medium">Node ID:</span> <span className="font-mono">{node.node_id_str}</span>
-              </p>
-              <p>
-                <span className="font-medium">Hardware Model:</span> {node.hw_model ?? '—'}
-              </p>
-              {roleLabel && (
-                <p>
-                  <span className="font-medium">Role:</span> {roleLabel}
-                </p>
-              )}
-              {node.mac_addr && (
-                <p>
-                  <span className="font-medium">MAC Address:</span> <span className="font-mono">{node.mac_addr}</span>
-                </p>
-              )}
-              {node.public_key && (
-                <p className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium shrink-0">Public Key:</span>
-                  <span className="font-mono text-sm break-all">{node.public_key}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 shrink-0"
-                    onClick={() => handleCopyToClipboard(node.public_key!)}
-                    title="Copy public key"
-                  >
-                    <Copy className="h-3 w-3 mr-1" />
-                    Copy
-                  </Button>
-                </p>
-              )}
-              {(node.is_licensed === true || node.is_licensed === false) && (
-                <p>
-                  <span className="font-medium">Licensed Operator:</span> {node.is_licensed ? 'Yes' : 'No'}
-                </p>
-              )}
-              {(node.is_unmessagable === true || node.is_unmessagable === false) && (
-                <p>
-                  <span className="font-medium">Messagable:</span> {node.is_unmessagable ? 'No' : 'Yes'}
-                </p>
-              )}
-              <p>
-                <span className="font-medium">Last Heard:</span>{' '}
-                {node.last_heard ? formatDistanceToNow(node.last_heard, { addSuffix: true }) : 'Never'}
-                <span className="block text-xs text-muted-foreground mt-0.5">
-                  Last time any packet was received from this node (telemetry, messages, etc.)
-                </span>
-              </p>
-              {node.inferred_max_hops != null && (
-                <p>
-                  <span className="font-medium">Inferred Max Hops:</span> {node.inferred_max_hops}
-                  <span className="block text-xs text-muted-foreground mt-0.5">
-                    Inferred from packets; recommended is 7
-                  </span>
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {node.latest_device_metrics && (
-          <Card>
-            <CardHeader>
-              <div>
-                <CardTitle>Device Metrics</CardTitle>
-                <CardDescription>
-                  Battery, voltage, channel utilisation — last reported{' '}
-                  {node.latest_device_metrics.reported_time
-                    ? formatDistanceToNow(node.latest_device_metrics.reported_time, { addSuffix: true })
-                    : '—'}
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <BatteryGauge
-                  batteryLevel={node.latest_device_metrics.battery_level ?? null}
-                  voltage={node.latest_device_metrics.voltage ?? null}
-                />
-                <PercentGauge
-                  value={node.latest_device_metrics.channel_utilization ?? null}
-                  label="Channel Utilization"
-                />
-                <PercentGauge value={node.latest_device_metrics.air_util_tx ?? null} label="Air Utilization" />
-                <p>
-                  <span className="font-medium">Uptime:</span>{' '}
-                  {node.latest_device_metrics.uptime_seconds != null
-                    ? formatUptimeSeconds(node.latest_device_metrics.uptime_seconds)
-                    : '—'}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {hasEnvironmentSensorMetrics(node.latest_environment_metrics) && (
-          <>
-            <MetricsCard
-              title="Environment Metrics"
-              reportedTime={node.latest_environment_metrics?.reported_time}
-              headerActions={
-                node.environment_settings_editable ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    aria-label="Environment metrics settings"
-                    onClick={() => setSettingsOpen(true)}
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                ) : undefined
-              }
-              metrics={[
-                { label: 'Sensor placement', value: node.environment_exposure },
-                { label: 'Use for weather', value: node.weather_use },
-                ...(node.latest_environment_metrics
-                  ? [
-                      { label: 'Temperature', value: node.latest_environment_metrics.temperature, unit: '°C' },
-                      {
-                        label: 'Relative Humidity',
-                        value: node.latest_environment_metrics.relative_humidity,
-                        unit: '%',
-                      },
-                      {
-                        label: 'Barometric Pressure',
-                        value: node.latest_environment_metrics.barometric_pressure,
-                        unit: 'hPa',
-                      },
-                      { label: 'Gas Resistance', value: node.latest_environment_metrics.gas_resistance, unit: 'Ω' },
-                      { label: 'IAQ', value: node.latest_environment_metrics.iaq },
-                      { label: 'Lux', value: node.latest_environment_metrics.lux, unit: 'lx' },
-                      { label: 'Wind Direction', value: node.latest_environment_metrics.wind_direction, unit: '°' },
-                      { label: 'Wind Speed', value: node.latest_environment_metrics.wind_speed, unit: 'm/s' },
-                      { label: 'Radiation', value: node.latest_environment_metrics.radiation },
-                      { label: 'Rainfall 1h', value: node.latest_environment_metrics.rainfall_1h, unit: 'mm' },
-                      { label: 'Rainfall 24h', value: node.latest_environment_metrics.rainfall_24h, unit: 'mm' },
-                    ]
-                  : []),
-              ]}
-            />
-            {node.environment_settings_editable && (
-              <NodeEnvironmentSettingsDialog
-                open={settingsOpen}
-                onOpenChange={setSettingsOpen}
-                nodeId={nodeId}
-                initialEnvironmentExposure={(node.environment_exposure ?? 'unknown') as EnvironmentExposureSlug}
-                initialWeatherUse={(node.weather_use ?? 'unknown') as WeatherUseSlug}
-              />
-            )}
-          </>
-        )}
-
-        {node.latest_power_metrics &&
-          (() => {
-            const pm = node.latest_power_metrics;
-            const channelMetrics = [1, 2, 3, 4, 5, 6, 7, 8]
-              .map((n) => {
-                const v = (pm as Record<string, number | null | undefined>)[`ch${n}_voltage`];
-                const c = (pm as Record<string, number | null | undefined>)[`ch${n}_current`];
-                if (v != null || c != null) {
-                  const parts = [];
-                  if (v != null) parts.push(`${v.toFixed(2)}V`);
-                  if (c != null) parts.push(`${c.toFixed(2)}A`);
-                  return { label: `Ch${n}`, value: parts.join(' / ') };
-                }
-                return null;
-              })
-              .filter(Boolean) as { label: string; value: string }[];
-            return channelMetrics.length > 0 ? (
-              <MetricsCard
-                title="Power Metrics"
-                reportedTime={node.latest_power_metrics.reported_time}
-                metrics={channelMetrics}
-              />
-            ) : null;
-          })()}
-      </div>
-
-      <div className={showRfPropagationBesideLocation ? 'mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2' : 'mb-6'}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Node Location</CardTitle>
-            {hasPositions ? (
-              <CardDescription>
-                GPS position broadcast by the node — last reported{' '}
-                {pos?.reported_time ? formatDistanceToNow(pos.reported_time, { addSuffix: true }) : '—'}
-              </CardDescription>
-            ) : (
-              <CardDescription>
-                No GPS position data. A node can be active (Last Heard) without broadcasting its location.
-              </CardDescription>
-            )}
-          </CardHeader>
-          <CardContent>
-            {hasPositions && pos ? (
-              <>
-                <div className="flex flex-wrap md:flex-nowrap gap-4 mb-2 items-end">
-                  <div className="flex flex-col items-start">
-                    <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Lat</span>
-                    <span className="text-base font-mono">{pos.latitude!.toFixed(6)}°</span>
-                  </div>
-                  <span className="hidden md:inline-block h-6 border-l border-slate-200 dark:border-slate-700 mx-2"></span>
-                  <div className="flex flex-col items-start">
-                    <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Long</span>
-                    <span className="text-base font-mono">{pos.longitude!.toFixed(6)}°</span>
-                  </div>
-                  <span className="hidden md:inline-block h-6 border-l border-slate-200 dark:border-slate-700 mx-2"></span>
-                  <div className="flex flex-col items-start">
-                    <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Alt</span>
-                    <span className="text-base font-mono">
-                      {pos.altitude != null ? `${pos.altitude.toFixed(1)}m` : '—'}
-                    </span>
-                  </div>
-                  {pos.location_source && (
-                    <span className="ml-4 px-2 py-0.5 rounded bg-muted text-xs text-muted-foreground border border-slate-200 dark:border-slate-700">
-                      {pos.location_source}
-                    </span>
-                  )}
-                </div>
-                <div className={`w-full ${compact ? 'h-[200px]' : 'h-[400px]'}`}>
-                  <NodesMap nodes={[node]} />
-                </div>
-              </>
-            ) : (
-              <div className="h-[200px] w-full flex items-center justify-center bg-muted rounded-md">
-                <p className="text-muted-foreground">No location data available</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        {showRfPropagationBesideLocation ? <RfPropagationSection node={node} className="mb-0" /> : null}
-      </div>
-
-      {!compact && (
+      {fullPageTabs && onTabChange ? (
         <>
-          <NodeMeshMonitoringSection node={node} />
-          <TracerouteLinksSection nodeId={nodeId} isManagedNode={isManagedNode} />
-          <Suspense
-            fallback={
-              <div className="mb-6 flex min-h-[120px] items-center justify-center text-muted-foreground">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500" />
-              </div>
-            }
+          <Tabs
+            value={effectiveTab}
+            onValueChange={(v) => onTabChange(v as NodeDetailTab)}
+            className="mb-6"
+            data-testid="node-detail-tabs"
           >
-            <NodeTracerouteHistorySection nodeId={nodeId} observedNode={node} />
-          </Suspense>
-          <NodeStatsSection nodeId={nodeId} node={node} isManagedNode={isManagedNode} />
-        </>
-      )}
+            <TabsList className="mb-4 flex h-auto min-h-9 w-full flex-wrap justify-start gap-1">
+              <TabsTrigger value="overview" data-testid="node-detail-tab-overview">
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="map" data-testid="node-detail-tab-map">
+                Map
+              </TabsTrigger>
+              <TabsTrigger value="traceroutes" data-testid="node-detail-tab-traceroutes">
+                Traceroutes
+              </TabsTrigger>
+              <TabsTrigger value="statistics" data-testid="node-detail-tab-statistics">
+                Statistics
+              </TabsTrigger>
+              {showMonitoringTab && (
+                <TabsTrigger value="monitoring" data-testid="node-detail-tab-monitoring">
+                  Monitoring
+                </TabsTrigger>
+              )}
+            </TabsList>
 
-      {compact && (
-        <Link to={`/nodes/${nodeId}`} className="text-teal-600 dark:text-teal-400 hover:underline text-sm">
-          View full details →
-        </Link>
+            {effectiveTab === 'overview' && (
+              <div data-testid="node-detail-panel-overview">
+                {renderFeederGeoCard()}
+                {renderMetricsGrid()}
+                <div className="mb-6">
+                  <NodeLocationCard node={node} nodeId={nodeId} compact={false} mapTabLink />
+                </div>
+              </div>
+            )}
+
+            {effectiveTab === 'map' && (
+              <div data-testid="node-detail-panel-map">
+                <div className={showRfPropagation ? 'mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2' : 'mb-6'}>
+                  <NodeLocationCard node={node} nodeId={nodeId} compact={false} />
+                  {showRfPropagation ? <RfPropagationSection node={node} className="mb-0" /> : null}
+                </div>
+              </div>
+            )}
+
+            {effectiveTab === 'traceroutes' && (
+              <div data-testid="node-detail-panel-traceroutes">
+                <TracerouteLinksSection nodeId={nodeId} isManagedNode={isManagedNode} />
+                <Suspense
+                  fallback={
+                    <div className="mb-6 flex min-h-[120px] items-center justify-center text-muted-foreground">
+                      <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-teal-500" />
+                    </div>
+                  }
+                >
+                  <NodeTracerouteHistorySection nodeId={nodeId} observedNode={node} />
+                </Suspense>
+              </div>
+            )}
+
+            {effectiveTab === 'statistics' && (
+              <div data-testid="node-detail-panel-statistics">
+                <NodeStatsSection nodeId={nodeId} node={node} isManagedNode={isManagedNode} />
+              </div>
+            )}
+
+            {effectiveTab === 'monitoring' && showMonitoringTab && (
+              <div data-testid="node-detail-panel-monitoring">
+                <NodeMeshMonitoringSection node={node} />
+              </div>
+            )}
+          </Tabs>
+        </>
+      ) : (
+        <>
+          {renderFeederGeoCard()}
+          {renderMetricsGrid()}
+          {renderLegacyLocationBlock()}
+
+          {!compact && (
+            <>
+              <NodeMeshMonitoringSection node={node} />
+              <TracerouteLinksSection nodeId={nodeId} isManagedNode={isManagedNode} />
+              <Suspense
+                fallback={
+                  <div className="mb-6 flex min-h-[120px] items-center justify-center text-muted-foreground">
+                    <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-teal-500" />
+                  </div>
+                }
+              >
+                <NodeTracerouteHistorySection nodeId={nodeId} observedNode={node} />
+              </Suspense>
+              <NodeStatsSection nodeId={nodeId} node={node} isManagedNode={isManagedNode} />
+            </>
+          )}
+
+          {compact && (
+            <Link to={`/nodes/${nodeId}`} className="text-sm text-teal-600 hover:underline dark:text-teal-400">
+              View full details →
+            </Link>
+          )}
+        </>
       )}
     </div>
   );
