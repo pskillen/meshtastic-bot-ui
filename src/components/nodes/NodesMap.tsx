@@ -136,22 +136,25 @@ export function NodesMap({ nodes }: NodesMapProps) {
 
     const bounds = L.latLngBounds([]);
 
-    nodes.forEach((node) => {
-      if (node.latest_position?.latitude && node.latest_position?.longitude) {
-        const position: L.LatLngExpression = [node.latest_position.latitude, node.latest_position.longitude];
+    const nodesWithPosition = nodes.filter((n) => n.latest_position?.latitude && n.latest_position?.longitude);
 
-        const marker = L.marker(position, {
-          icon: createNodeIcon(node.short_name || node.node_id_str.toString(), getRoleColor(node.role), false),
-        })
-          .bindPopup(buildNodePopupHtml(node))
-          .addTo(map);
+    nodesWithPosition.forEach((node) => {
+      const position: L.LatLngExpression = [node.latest_position!.latitude!, node.latest_position!.longitude!];
 
-        markersRef.current.push(marker);
-        bounds.extend(position);
-      }
+      const marker = L.marker(position, {
+        icon: createNodeIcon(node.short_name || node.node_id_str.toString(), getRoleColor(node.role), false),
+      })
+        .bindPopup(buildNodePopupHtml(node))
+        .addTo(map);
+
+      markersRef.current.push(marker);
+      bounds.extend(position);
     });
 
-    if (bounds.isValid()) {
+    if (nodesWithPosition.length === 1) {
+      const only = nodesWithPosition[0];
+      map.setView([only.latest_position!.latitude!, only.latest_position!.longitude!], 12);
+    } else if (bounds.isValid()) {
       map.fitBounds(bounds, {
         padding: [50, 50],
         maxZoom: 15,

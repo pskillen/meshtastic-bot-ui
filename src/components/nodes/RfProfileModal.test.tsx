@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
@@ -85,6 +85,91 @@ describe('RfProfileModal', () => {
     expect(latInput.value).toContain('12.34');
     expect(lngInput.value).toContain('56.78');
     expect(altInput.value).toContain('90');
+  });
+
+  it('closes profile dialog after save and opens re-render confirm when coords changed', async () => {
+    const onOpenChange = vi.fn();
+    const mutateAsync = vi.fn().mockResolvedValue({});
+    useUpdateRfProfile.mockReturnValue({ mutateAsync, isPending: false });
+    useRfProfile.mockReturnValue({
+      data: {
+        antenna_pattern: 'omni',
+        rf_latitude: 1,
+        rf_longitude: 2,
+        rf_altitude_m: 3,
+        rf_frequency_mhz: 868,
+      },
+      isLoading: false,
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <RfProfileModal open node={makeNode()} onOpenChange={onOpenChange} />
+      </QueryClientProvider>
+    );
+    const latInput = screen.getByLabelText(/latitude/i);
+    await userEvent.clear(latInput);
+    await userEvent.type(latInput, '9.5');
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalled());
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(screen.getByRole('heading', { name: /re-render propagation map/i })).toBeInTheDocument();
+  });
+
+  it('does not open re-render confirm when coords unchanged', async () => {
+    const onOpenChange = vi.fn();
+    const mutateAsync = vi.fn().mockResolvedValue({});
+    useUpdateRfProfile.mockReturnValue({ mutateAsync, isPending: false });
+    useRfProfile.mockReturnValue({
+      data: {
+        antenna_pattern: 'omni',
+        rf_latitude: 12.34,
+        rf_longitude: 56.78,
+        rf_altitude_m: 90,
+        rf_frequency_mhz: 868,
+      },
+      isLoading: false,
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <RfProfileModal open node={makeNode()} onOpenChange={onOpenChange} />
+      </QueryClientProvider>
+    );
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalled());
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(screen.queryByRole('heading', { name: /re-render propagation map/i })).not.toBeInTheDocument();
+  });
+
+  it('queues render when confirm Yes is clicked', async () => {
+    const onOpenChange = vi.fn();
+    const mutateAsync = vi.fn().mockResolvedValue({});
+    const recomputeAsync = vi.fn().mockResolvedValue({});
+    useUpdateRfProfile.mockReturnValue({ mutateAsync, isPending: false });
+    useRecomputeRfPropagation.mockReturnValue({ mutateAsync: recomputeAsync, isPending: false });
+    useRfProfile.mockReturnValue({
+      data: {
+        antenna_pattern: 'omni',
+        rf_latitude: 1,
+        rf_longitude: 2,
+        rf_altitude_m: 3,
+        rf_frequency_mhz: 868,
+      },
+      isLoading: false,
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <RfProfileModal open node={makeNode()} onOpenChange={onOpenChange} />
+      </QueryClientProvider>
+    );
+    await userEvent.clear(screen.getByLabelText(/latitude/i));
+    await userEvent.type(screen.getByLabelText(/latitude/i), '9.5');
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalled());
+    await userEvent.click(screen.getByRole('button', { name: /yes, queue render/i }));
+    await waitFor(() => expect(recomputeAsync).toHaveBeenCalled());
   });
 
   it('shows frequency band selector and map container (omni-only UI)', async () => {

@@ -71,12 +71,16 @@ export function RfProfileModal({ open, onOpenChange, node }: RfProfileModalProps
   const [rfLng, setRfLng] = useState('');
   const [rfAlt, setRfAlt] = useState('');
   const [coordSnapshot, setCoordSnapshot] = useState<{ lat: string; lng: string; alt: string } | null>(null);
-  const [showRerenderPrompt, setShowRerenderPrompt] = useState(false);
+  const [confirmRerenderOpen, setConfirmRerenderOpen] = useState(false);
 
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
+
+  useEffect(() => {
+    if (open) setConfirmRerenderOpen(false);
+  }, [open]);
 
   useEffect(() => {
     if (!open || profile === undefined) return;
@@ -102,7 +106,6 @@ export function RfProfileModal({ open, onOpenChange, node }: RfProfileModalProps
     setRfLng(lngS);
     setRfAlt(altS);
     setCoordSnapshot({ lat: latS, lng: lngS, alt: altS });
-    setShowRerenderPrompt(false);
   }, [open, profile]);
 
   const initialCenter = useMemo(() => {
@@ -219,163 +222,189 @@ export function RfProfileModal({ open, onOpenChange, node }: RfProfileModalProps
     try {
       await updateMutation.mutateAsync(buildBody());
       toast.success('RF profile saved');
-      if (coordsChangedVsSnapshot()) {
-        setShowRerenderPrompt(true);
-      } else {
-        onOpenChange(false);
-      }
+      const needsRerender = coordsChangedVsSnapshot();
+      onOpenChange(false);
+      if (needsRerender) setConfirmRerenderOpen(true);
     } catch {
       toast.error('Could not save RF profile.');
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>RF propagation profile</DialogTitle>
-          <DialogDescription>
-            Private map location is visible only to you and staff. Antenna parameters are public on the node page.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>RF propagation profile</DialogTitle>
+            <DialogDescription>
+              Private map location is visible only to you and staff. Antenna parameters are public on the node page.
+            </DialogDescription>
+          </DialogHeader>
 
-        {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+          {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
 
-        {!isLoading && (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Private location (only you and staff)</CardTitle>
-                <CardDescription>Used for propagation modelling, not the same as live GPS.</CardDescription>
-              </CardHeader>
-              <div className="space-y-3 px-6 pb-6">
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="secondary" size="sm" onClick={copyFromGps}>
-                    Copy from GPS
-                  </Button>
-                </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <div>
-                    <Label htmlFor="rf-lat">Latitude</Label>
-                    <Input
-                      id="rf-lat"
-                      className={inputSurfaceClass}
-                      value={rfLat}
-                      onChange={(e) => setRfLat(e.target.value)}
-                    />
+          {!isLoading && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Private location (only you and staff)</CardTitle>
+                  <CardDescription>Used for propagation modelling, not the same as live GPS.</CardDescription>
+                </CardHeader>
+                <div className="space-y-3 px-6 pb-6">
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="secondary" size="sm" onClick={copyFromGps}>
+                      Copy from GPS
+                    </Button>
                   </div>
-                  <div>
-                    <Label htmlFor="rf-lng">Longitude</Label>
-                    <Input
-                      id="rf-lng"
-                      className={inputSurfaceClass}
-                      value={rfLng}
-                      onChange={(e) => setRfLng(e.target.value)}
-                    />
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div>
+                      <Label htmlFor="rf-lat">Latitude</Label>
+                      <Input
+                        id="rf-lat"
+                        type="number"
+                        inputMode="decimal"
+                        step="any"
+                        className={inputSurfaceClass}
+                        value={rfLat}
+                        onChange={(e) => setRfLat(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="rf-lng">Longitude</Label>
+                      <Input
+                        id="rf-lng"
+                        type="number"
+                        inputMode="decimal"
+                        step="any"
+                        className={inputSurfaceClass}
+                        value={rfLng}
+                        onChange={(e) => setRfLng(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="rf-alt">Altitude (m)</Label>
+                      <Input
+                        id="rf-alt"
+                        type="number"
+                        inputMode="decimal"
+                        step="any"
+                        className={inputSurfaceClass}
+                        value={rfAlt}
+                        onChange={(e) => setRfAlt(e.target.value)}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="rf-alt">Altitude (m)</Label>
-                    <Input
-                      id="rf-alt"
-                      className={inputSurfaceClass}
-                      value={rfAlt}
-                      onChange={(e) => setRfAlt(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div
-                  ref={mapRef}
-                  data-testid="rf-profile-map"
-                  className="map-container h-[220px] w-full min-h-[220px] rounded-md border border-slate-300 dark:border-slate-500"
-                  style={{ position: 'relative', zIndex: 0 }}
-                />
-              </div>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Antenna</CardTitle>
-              </CardHeader>
-              <div className="grid grid-cols-1 gap-3 px-6 pb-6 sm:grid-cols-2">
-                <div>
-                  <Label>Height AGL (m)</Label>
-                  <Input
-                    className={inputSurfaceClass}
-                    value={antennaHeight}
-                    onChange={(e) => setAntennaHeight(e.target.value)}
+                  <div
+                    ref={mapRef}
+                    data-testid="rf-profile-map"
+                    className="map-container h-[220px] w-full min-h-[220px] rounded-md border border-slate-300 dark:border-slate-500"
+                    style={{ position: 'relative', zIndex: 0 }}
                   />
                 </div>
-                <div>
-                  <Label>Gain (dBi)</Label>
-                  <Input
-                    className={inputSurfaceClass}
-                    value={antennaGain}
-                    onChange={(e) => setAntennaGain(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>TX power (dBm)</Label>
-                  <Input className={inputSurfaceClass} value={txPower} onChange={(e) => setTxPower(e.target.value)} />
-                </div>
-                <div className="sm:col-span-2">
-                  <Label htmlFor="rf-frequency-band">Frequency</Label>
-                  <Select
-                    value={freqBand === '' ? FREQ_BAND_UNSET : freqBand}
-                    onValueChange={(v) => setFreqBand(v === FREQ_BAND_UNSET ? '' : v)}
-                  >
-                    <SelectTrigger id="rf-frequency-band" className={inputSurfaceClass}>
-                      <SelectValue placeholder="Select band" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={FREQ_BAND_UNSET}>Select band</SelectItem>
-                      {RF_FREQUENCY_BANDS.map((mhz) => (
-                        <SelectItem key={mhz} value={String(mhz)}>
-                          {mhz} MHz
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="mt-1 text-xs text-muted-foreground">ISM bands supported for propagation today.</p>
-                </div>
-              </div>
-            </Card>
+              </Card>
 
-            {showRerenderPrompt && (
-              <div className="rounded-md border bg-muted/40 p-3 text-sm">
-                <p className="mb-2 font-medium">Re-render propagation map now?</p>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => {
-                      void recomputeMutation.mutateAsync().then(() => {
-                        toast.success('Render queued');
-                        setShowRerenderPrompt(false);
-                        onOpenChange(false);
-                      });
-                    }}
-                    disabled={recomputeMutation.isPending}
-                  >
-                    Yes
-                  </Button>
-                  <Button type="button" size="sm" variant="outline" onClick={() => onOpenChange(false)}>
-                    No
-                  </Button>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Antenna</CardTitle>
+                </CardHeader>
+                <div className="grid grid-cols-1 gap-3 px-6 pb-6 sm:grid-cols-2">
+                  <div>
+                    <Label>Height AGL (m)</Label>
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      step="any"
+                      className={inputSurfaceClass}
+                      value={antennaHeight}
+                      onChange={(e) => setAntennaHeight(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>Gain (dBi)</Label>
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      step="any"
+                      className={inputSurfaceClass}
+                      value={antennaGain}
+                      onChange={(e) => setAntennaGain(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>TX power (dBm)</Label>
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      step="any"
+                      className={inputSurfaceClass}
+                      value={txPower}
+                      onChange={(e) => setTxPower(e.target.value)}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="rf-frequency-band">Frequency</Label>
+                    <Select
+                      value={freqBand === '' ? FREQ_BAND_UNSET : freqBand}
+                      onValueChange={(v) => setFreqBand(v === FREQ_BAND_UNSET ? '' : v)}
+                    >
+                      <SelectTrigger id="rf-frequency-band" className={inputSurfaceClass}>
+                        <SelectValue placeholder="Select band" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={FREQ_BAND_UNSET}>Select band</SelectItem>
+                        {RF_FREQUENCY_BANDS.map((mhz) => (
+                          <SelectItem key={mhz} value={String(mhz)}>
+                            {mhz} MHz
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="mt-1 text-xs text-muted-foreground">ISM bands supported for propagation today.</p>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              </Card>
+            </div>
+          )}
 
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button type="button" onClick={() => void handleSave()} disabled={updateMutation.isPending || isLoading}>
-            Save
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={() => void handleSave()} disabled={updateMutation.isPending || isLoading}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmRerenderOpen} onOpenChange={setConfirmRerenderOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Re-render propagation map?</DialogTitle>
+            <DialogDescription>
+              You changed the private map location. Queue a new coverage render now, or skip and render later from the
+              node page.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => setConfirmRerenderOpen(false)}>
+              Not now
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                void recomputeMutation.mutateAsync().then(() => {
+                  toast.success('Render queued');
+                  setConfirmRerenderOpen(false);
+                });
+              }}
+              disabled={recomputeMutation.isPending}
+            >
+              Yes, queue render
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

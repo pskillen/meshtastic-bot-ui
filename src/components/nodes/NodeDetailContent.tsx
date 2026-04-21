@@ -185,6 +185,8 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
   const hasApprovedClaim =
     (node.claim && node.claim.accepted_at) || (node.owner && currentUser && node.owner.id === currentUser.id);
 
+  const showRfPropagationBesideLocation = !compact && node.role != null && INFRASTRUCTURE_ROLE_IDS.has(node.role);
+
   return (
     <div className={compact ? 'px-2' : 'container mx-auto px-4 py-8'}>
       {!compact && (
@@ -478,7 +480,7 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
           })()}
       </div>
 
-      <div className="mb-6">
+      <div className={showRfPropagationBesideLocation ? 'mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2' : 'mb-6'}>
         <Card>
           <CardHeader>
             <CardTitle>Node Location</CardTitle>
@@ -530,13 +532,13 @@ export function NodeDetailContent({ nodeId, compact = false }: NodeDetailContent
             )}
           </CardContent>
         </Card>
+        {showRfPropagationBesideLocation ? <RfPropagationSection node={node} className="mb-0" /> : null}
       </div>
 
       {!compact && (
         <>
           <NodeMeshMonitoringSection node={node} />
           <TracerouteLinksSection nodeId={nodeId} isManagedNode={isManagedNode} />
-          {node.role != null && INFRASTRUCTURE_ROLE_IDS.has(node.role) && <RfPropagationSection node={node} />}
           <Suspense
             fallback={
               <div className="mb-6 flex min-h-[120px] items-center justify-center text-muted-foreground">
