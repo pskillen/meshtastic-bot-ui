@@ -10,16 +10,8 @@ import { useConfig } from '@/providers/ConfigProvider';
 import { useMapboxStyle } from '@/hooks/useMapboxStyle';
 import { cn } from '@/lib/utils';
 
-/**
- * react-map-gl allows `bounds` + `fitBoundsOptions` on initial view state; DeckGL's typings
- * only list lon/lat/zoom. The Map child still applies bounds correctly at runtime.
- */
-export type DeckMapboxInitialViewState =
-  | NonNullable<DeckGLProps['initialViewState']>
-  | {
-      bounds: [number, number, number, number];
-      fitBoundsOptions?: { padding?: number; maxZoom?: number; minZoom?: number };
-    };
+/** DeckGL `initialViewState` (longitude, latitude, zoom, etc.). */
+export type DeckMapboxInitialViewState = NonNullable<DeckGLProps['initialViewState']>;
 
 export type DeckMapboxMapProps = {
   layers: Layer[];
@@ -62,7 +54,7 @@ export function DeckMapboxMap({
       <DeckGL
         controller
         layers={layers}
-        initialViewState={initialViewState as DeckGLProps['initialViewState']}
+        initialViewState={initialViewState}
         onClick={onClick}
         getTooltip={getTooltip}
         style={{ width: '100%', height: '100%', minHeight: '200px', minWidth: '0' }}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings } from 'lucide-react';
+import { Maximize2, Settings } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { ObservedNode } from '@/lib/models';
@@ -12,6 +12,7 @@ import {
 } from '@/hooks/api/useRfPropagation';
 import { RfProfileModal } from '@/components/nodes/RfProfileModal';
 import { RfPropagationMap } from '@/components/nodes/RfPropagationMap';
+import { RfPropagationMapModal } from '@/components/nodes/RfPropagationMapModal';
 
 export interface RfPropagationSectionProps {
   node: ObservedNode;
@@ -26,6 +27,7 @@ export function RfPropagationSection({ node, className = 'mb-6' }: RfPropagation
   const showSection = canEdit || hasProfile;
 
   const [profileOpen, setProfileOpen] = useState(false);
+  const [maximiseOpen, setMaximiseOpen] = useState(false);
   const { data: profile } = useRfProfile(nodeId, { enabled: showSection });
   const { data: propagation, isLoading: propLoading } = useRfPropagation(nodeId, { enabled: showSection });
   const recompute = useRecomputeRfPropagation(nodeId);
@@ -49,6 +51,18 @@ export function RfPropagationSection({ node, className = 'mb-6' }: RfPropagation
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {readyRow?.asset_url && readyRow.bounds && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setMaximiseOpen(true)}
+                title="Open propagation map in a large view"
+              >
+                <Maximize2 className="mr-1.5 h-3.5 w-3.5" />
+                Maximise
+              </Button>
+            )}
             {canEdit && (
               <>
                 <Button
@@ -181,6 +195,17 @@ export function RfPropagationSection({ node, className = 'mb-6' }: RfPropagation
       </Card>
 
       {canEdit && <RfProfileModal open={profileOpen} onOpenChange={setProfileOpen} node={node} />}
+
+      {readyRow?.asset_url && readyRow.bounds && (
+        <RfPropagationMapModal
+          open={maximiseOpen}
+          onOpenChange={setMaximiseOpen}
+          assetUrl={readyRow.asset_url}
+          bounds={readyRow.bounds}
+          shortLabel={node.short_name ?? node.long_name}
+          layout="maximised"
+        />
+      )}
     </div>
   );
 }
