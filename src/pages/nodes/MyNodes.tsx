@@ -11,11 +11,17 @@ import { BotSetupInstructions, type BotDefaults } from '@/components/nodes/BotSe
 import { ObservedNode, type NodeWatch } from '@/lib/models';
 import type { NodeApiKeyConstellation } from '@/lib/models';
 import { SetupManagedNode } from '@/components/nodes/SetupManagedNode';
-import { NodesAndConstellationsMap } from '@/components/nodes/NodesAndConstellationsMap';
+import { NodesMap } from '@/components/nodes/NodesMap';
 import { MonitoredNodesBatteryChart } from '@/components/nodes/MonitoredNodesBatteryChart';
 import { MyNodeCard } from '@/components/nodes/MyNodeCard';
 import { useQuery } from '@tanstack/react-query';
 import { useMeshtasticApi } from '@/hooks/api/useApi';
+import {
+  buildNodesForMap,
+  getManagedLiveness,
+  groupClaimedNodes,
+  observedNodeForManagedRow,
+} from '@/lib/my-nodes-grouping';
 import {
   Dialog,
   DialogContent,
@@ -24,6 +30,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+
+function hasMapPosition(node: ObservedNode): boolean {
+  const lat = node.latest_position?.latitude;
+  const lon = node.latest_position?.longitude;
+  return lat != null && lon != null && lat !== 0 && lon !== 0;
+}
 
 function MyNodesContent() {
   const navigate = useNavigate();
@@ -50,7 +62,28 @@ function MyNodesContent() {
     return m;
   }, [watchesQuery.data]);
 
-  const managedNodeIds = new Set(myManagedNodes.map((n) => n.node_id));
+  const managedNodeIds = useMemo(() => new Set(myManagedNodes.map((n) => n.node_id)), [myManagedNodes]);
+
+  const claimedByNodeId = useMemo(() => {
+    const m = new Map<number, ObservedNode>();
+    for (const c of myClaimedNodes) {
+      m.set(c.node_id, c);
+    }
+    return m;
+  }, [myClaimedNodes]);
+
+  const claimedOnlyNodes = useMemo(
+    () => myClaimedNodes.filter((n) => !managedNodeIds.has(n.node_id)),
+    [myClaimedNodes, managedNodeIds]
+  );
+
+  const connectivityBuckets = useMemo(() => groupClaimedNodes(claimedOnlyNodes), [claimedOnlyNodes]);
+
+  const mapNodes = useMemo(() => buildNodesForMap(myClaimedNodes, myManagedNodes), [myClaimedNodes, myManagedNodes]);
+
+  const mapNodesWithPosition = useMemo(() => mapNodes.filter(hasMapPosition), [mapNodes]);
+
+  const hasAnyNodes = myManagedNodes.length > 0 || myClaimedNodes.length > 0;
 
   const handleRunAsManagedNode = (node: ObservedNode) => {
     setSelectedNode(node);
@@ -61,14 +94,6 @@ function MyNodesContent() {
     setIsSetupDialogOpen(false);
     setSelectedNode(null);
   };
-
-  const allNodes = [...myClaimedNodes];
-
-  myManagedNodes.forEach((managedNode) => {
-    if (!allNodes.some((node) => node.node_id === managedNode.node_id)) {
-      allNodes.push(managedNode as unknown as ObservedNode);
-    }
-  });
 
   const renderInstructionsModal = () => {
     if (!showInstructionsNode) return null;
@@ -165,53 +190,165 @@ function MyNodesContent() {
 
       {renderInstructionsModal()}
 
-      {allNodes.length > 0 ? (
+      {hasAnyNodes ? (
         <>
-          <Card>
-            <CardHeader>
-              <CardTitle>Your nodes</CardTitle>
-              <CardDescription>
-                Claimed and managed radios in a compact layout. Open a node for full telemetry, position, and settings.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                {allNodes.map((node) => {
-                  const isManaged = managedNodeIds.has(node.node_id);
-                  const isClaimed = node.owner?.id !== undefined;
-                  const watch = watchesByNodeIdStr.get(node.node_id_str);
-                  return (
-                    <MyNodeCard
-                      key={node.node_id}
-                      node={node}
-                      isManaged={isManaged}
-                      isClaimed={isClaimed}
-                      watch={watch}
-                      watchesQuery={watchesQuery}
-                      onConvert={() => handleRunAsManagedNode(node)}
-                      onShowSetupInstructions={() => {
-                        setShowInstructionsNode(node);
-                        setInstructionsModalOpen(true);
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+          {myManagedNodes.length > 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Managed nodes</CardTitle>
+                <CardDescription>
+                  Radios reporting into Meshflow as managed feeders. Open a node for full telemetry, position, and
+                  settings.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {myManagedNodes.map((managed) => {
+                    const node = observedNodeForManagedRow(managed, claimedByNodeId.get(managed.node_id));
+                    const watch = watchesByNodeIdStr.get(node.node_id_str);
+                    const liveness = getManagedLiveness(managed);
+                    return (
+                      <MyNodeCard
+                        key={`managed-${managed.node_id}`}
+                        node={node}
+                        isManaged
+                        isClaimed={node.owner?.id !== undefined}
+                        showClaimedBadge={false}
+                        managedLiveness={liveness}
+                        watch={watch}
+                        watchesQuery={watchesQuery}
+                        onConvert={() => handleRunAsManagedNode(node)}
+                        onShowSetupInstructions={() => {
+                          setShowInstructionsNode(node);
+                          setInstructionsModalOpen(true);
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {claimedOnlyNodes.length > 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Claimed nodes</CardTitle>
+                <CardDescription>
+                  Radios you own that are not in the managed list above. Grouped by how recently the mesh last heard
+                  them.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-8">
+                <section className="space-y-3" aria-labelledby="my-nodes-online-heading">
+                  <h2 id="my-nodes-online-heading" className="text-base font-semibold">
+                    Online
+                  </h2>
+                  {connectivityBuckets.online.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {connectivityBuckets.online.map((node) => {
+                        const watch = watchesByNodeIdStr.get(node.node_id_str);
+                        return (
+                          <MyNodeCard
+                            key={node.node_id}
+                            node={node}
+                            isManaged={false}
+                            isClaimed={node.owner?.id !== undefined}
+                            showClaimedBadge={false}
+                            watch={watch}
+                            watchesQuery={watchesQuery}
+                            onConvert={() => handleRunAsManagedNode(node)}
+                            onShowSetupInstructions={() => {
+                              setShowInstructionsNode(node);
+                              setInstructionsModalOpen(true);
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground rounded-md border border-dashed px-4 py-6 text-center">
+                      No nodes online right now.
+                    </p>
+                  )}
+                </section>
+
+                {connectivityBuckets.recent.length > 0 ? (
+                  <section className="space-y-3" aria-labelledby="my-nodes-recent-heading">
+                    <h2 id="my-nodes-recent-heading" className="text-base font-semibold">
+                      Last heard recently
+                    </h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {connectivityBuckets.recent.map((node) => {
+                        const watch = watchesByNodeIdStr.get(node.node_id_str);
+                        return (
+                          <MyNodeCard
+                            key={node.node_id}
+                            node={node}
+                            isManaged={false}
+                            isClaimed={node.owner?.id !== undefined}
+                            showClaimedBadge={false}
+                            watch={watch}
+                            watchesQuery={watchesQuery}
+                            onConvert={() => handleRunAsManagedNode(node)}
+                            onShowSetupInstructions={() => {
+                              setShowInstructionsNode(node);
+                              setInstructionsModalOpen(true);
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                  </section>
+                ) : null}
+
+                {connectivityBuckets.offline.length > 0 ? (
+                  <section className="space-y-3" aria-labelledby="my-nodes-offline-heading">
+                    <h2 id="my-nodes-offline-heading" className="text-base font-semibold">
+                      Offline
+                    </h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {connectivityBuckets.offline.map((node) => {
+                        const watch = watchesByNodeIdStr.get(node.node_id_str);
+                        return (
+                          <MyNodeCard
+                            key={node.node_id}
+                            node={node}
+                            isManaged={false}
+                            isClaimed={node.owner?.id !== undefined}
+                            showClaimedBadge={false}
+                            watch={watch}
+                            watchesQuery={watchesQuery}
+                            onConvert={() => handleRunAsManagedNode(node)}
+                            onShowSetupInstructions={() => {
+                              setShowInstructionsNode(node);
+                              setInstructionsModalOpen(true);
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                  </section>
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
 
           <section className="space-y-2" aria-labelledby="my-nodes-map-heading">
             <h2 id="my-nodes-map-heading" className="text-lg font-semibold">
-              Constellation map
+              Your nodes on the map
             </h2>
             <CollapsibleSection title="Map" defaultOpen={false}>
-              <div className="h-[min(600px,70vh)] min-h-[320px] bg-background rounded-lg border">
-                <NodesAndConstellationsMap
-                  managedNodes={myManagedNodes}
-                  observedNodes={myClaimedNodes}
-                  showConstellation={true}
-                  showUnmanagedNodes={true}
-                />
+              <div className="space-y-2">
+                {mapNodesWithPosition.length === 0 ? (
+                  <p className="text-sm text-muted-foreground px-1">
+                    None of your nodes have a valid GPS position yet. Open a node’s details after it reports position to
+                    see it here.
+                  </p>
+                ) : null}
+                <div className="h-[min(600px,70vh)] min-h-[320px] bg-background rounded-lg border">
+                  <NodesMap nodes={mapNodes} />
+                </div>
               </div>
             </CollapsibleSection>
           </section>
@@ -222,7 +359,7 @@ function MyNodesContent() {
             </h2>
             <CollapsibleSection title="Battery chart" defaultOpen={false}>
               <div className="bg-background rounded-lg border">
-                <MonitoredNodesBatteryChart nodes={allNodes} />
+                <MonitoredNodesBatteryChart nodes={mapNodes} />
               </div>
             </CollapsibleSection>
           </section>

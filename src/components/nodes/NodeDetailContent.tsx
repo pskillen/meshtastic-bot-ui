@@ -24,9 +24,8 @@ import type { EnvironmentExposureSlug, LatestEnvironmentMetrics, ObservedNode, W
 import { NodeEnvironmentSettingsDialog } from '@/components/nodes/NodeEnvironmentSettingsDialog';
 import { NodeMeshMonitoringSection } from '@/components/nodes/NodeMeshMonitoringSection';
 import { NodeTracerouteHistorySection } from '@/components/nodes/NodeTracerouteHistorySection';
+import { NodeOutgoingTraceroutesSection } from '@/components/nodes/NodeOutgoingTraceroutesSection';
 import { RfPropagationSection } from '@/components/nodes/RfPropagationSection';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { STRATEGY_META, type TracerouteStrategyValue } from '@/lib/traceroute-strategy';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { NodeDetailTab } from '@/lib/node-detail-tab';
 
@@ -281,45 +280,6 @@ export function NodeDetailContent({ nodeId, compact = false, activeTab, onTabCha
     fullPageTabs && activeTab === 'monitoring' && !currentUser ? 'overview' : (activeTab ?? 'overview');
 
   const showMonitoringTab = Boolean(currentUser);
-
-  const renderFeederGeoCard = () =>
-    managedForThisNode?.geo_classification ? (
-      <Card className="mb-6" data-testid="node-detail-feeder-geo">
-        <CardHeader>
-          <CardTitle>Traceroute feeder classification</CardTitle>
-          <CardDescription>
-            Geometry vs constellation envelope — drives which automated target strategies apply.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">
-              {managedForThisNode.geo_classification.tier === 'perimeter'
-                ? `Perimeter${
-                    managedForThisNode.geo_classification.bearing_octant
-                      ? ` (${managedForThisNode.geo_classification.bearing_octant})`
-                      : ''
-                  }`
-                : 'Internal'}
-            </Badge>
-            <TooltipProvider delayDuration={200}>
-              {managedForThisNode.geo_classification.applicable_strategies.map((s) => (
-                <Tooltip key={s}>
-                  <TooltipTrigger asChild>
-                    <Badge variant="secondary" className="cursor-help">
-                      {STRATEGY_META[s as TracerouteStrategyValue]?.label ?? s}
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-xs text-sm">
-                    {STRATEGY_META[s as TracerouteStrategyValue]?.shortDescription ?? s}
-                  </TooltipContent>
-                </Tooltip>
-              ))}
-            </TooltipProvider>
-          </div>
-        </CardContent>
-      </Card>
-    ) : null;
 
   const renderMetricsGrid = () => (
     <div className={`mb-6 grid grid-cols-1 ${compact ? 'gap-4' : 'gap-6 md:grid-cols-2'}`}>
@@ -613,7 +573,6 @@ export function NodeDetailContent({ nodeId, compact = false, activeTab, onTabCha
 
             {effectiveTab === 'overview' && (
               <div data-testid="node-detail-panel-overview">
-                {renderFeederGeoCard()}
                 {renderMetricsGrid()}
                 <div className="mb-6">
                   <NodeLocationCard node={node} nodeId={nodeId} compact={false} mapTabLink />
@@ -640,6 +599,9 @@ export function NodeDetailContent({ nodeId, compact = false, activeTab, onTabCha
                     </div>
                   }
                 >
+                  {isManagedNode && managedForThisNode ? (
+                    <NodeOutgoingTraceroutesSection nodeId={nodeId} managed={managedForThisNode} />
+                  ) : null}
                   <NodeTracerouteHistorySection nodeId={nodeId} observedNode={node} />
                 </Suspense>
               </div>
@@ -660,7 +622,6 @@ export function NodeDetailContent({ nodeId, compact = false, activeTab, onTabCha
         </>
       ) : (
         <>
-          {renderFeederGeoCard()}
           {renderMetricsGrid()}
           {renderLegacyLocationBlock()}
 
@@ -675,6 +636,9 @@ export function NodeDetailContent({ nodeId, compact = false, activeTab, onTabCha
                   </div>
                 }
               >
+                {isManagedNode && managedForThisNode ? (
+                  <NodeOutgoingTraceroutesSection nodeId={nodeId} managed={managedForThisNode} />
+                ) : null}
                 <NodeTracerouteHistorySection nodeId={nodeId} observedNode={node} />
               </Suspense>
               <NodeStatsSection nodeId={nodeId} node={node} isManagedNode={isManagedNode} />
