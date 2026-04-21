@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Package manager caches (omit installed trees / store blobs)
+.npm/
+.pnpm-store/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# Bundler / transpiler output
+dist/
+dist-ssr/
+build/
+out/
+.vite/
+.parcel-cache/
+.turbo/
+*.tsbuildinfo
+
+# Test & browser runner output
+coverage/
+playwright-report/
+test-results/
+blob-report/
+reports/
+.vitest/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Tooling caches
+.eslintcache
+.stylelintcache
+*.local
+
+# Local scratch
+tmp/
