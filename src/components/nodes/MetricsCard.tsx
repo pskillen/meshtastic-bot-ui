@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { formatDistanceToNow } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { StaleReportedTime } from '@/components/nodes/StaleReportedTime';
 
 export interface MetricItem {
   label: string;
@@ -31,7 +31,7 @@ export function MetricsCard({ title, reportedTime, metrics, headerActions }: Met
         <div className="min-w-0 flex-1 space-y-1.5">
           <CardTitle>{title}</CardTitle>
           <CardDescription>
-            {reportedTime ? formatDistanceToNow(new Date(reportedTime), { addSuffix: true }) : '—'}
+            <StaleReportedTime at={reportedTime} />
           </CardDescription>
         </div>
         {headerActions ? <div className="shrink-0 pt-0.5">{headerActions}</div> : null}

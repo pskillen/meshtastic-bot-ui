@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 import { useNodeSuspense, useManagedNodesSuspense } from '@/hooks/api/useNodes';
 import { useNodeTracerouteLinks } from '@/hooks/api/useNodeTracerouteLinks';
 import { useRecentNodes } from '@/hooks/useRecentNodes';
-import { formatDistanceToNow } from 'date-fns';
 import { subDays, subHours } from 'date-fns';
 import { formatUptimeSeconds } from '@/lib/utils';
 import { NodeStatsSection } from '@/components/nodes/NodeStatsSection';
@@ -12,6 +11,7 @@ import { LinkSNRCharts } from '@/components/nodes/LinkSNRCharts';
 import { BatteryGauge } from '@/components/nodes/BatteryGauge';
 import { MetricsCard } from '@/components/nodes/MetricsCard';
 import { PercentGauge } from '@/components/nodes/PercentGauge';
+import { StaleReportedTime } from '@/components/nodes/StaleReportedTime';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -90,8 +90,7 @@ function NodeLocationCard({
             <CardTitle>Node Location</CardTitle>
             {hasPositions ? (
               <CardDescription>
-                GPS position broadcast by the node — last reported{' '}
-                {pos?.reported_time ? formatDistanceToNow(pos.reported_time, { addSuffix: true }) : '—'}
+                GPS position broadcast by the node — last reported <StaleReportedTime at={pos?.reported_time} />
               </CardDescription>
             ) : (
               <CardDescription>
@@ -375,7 +374,7 @@ export function NodeDetailContent({ nodeId, compact = false, activeTab, onTabCha
             )}
             <p>
               <span className="font-medium">Last Heard:</span>{' '}
-              {node.last_heard ? formatDistanceToNow(node.last_heard, { addSuffix: true }) : 'Never'}
+              <StaleReportedTime at={node.last_heard ?? null} fallback="Never" />
               <span className="mt-0.5 block text-xs text-muted-foreground">
                 Last time any packet was received from this node (telemetry, messages, etc.)
               </span>
@@ -399,9 +398,7 @@ export function NodeDetailContent({ nodeId, compact = false, activeTab, onTabCha
               <CardTitle>Device Metrics</CardTitle>
               <CardDescription>
                 Battery, voltage, channel utilisation — last reported{' '}
-                {node.latest_device_metrics.reported_time
-                  ? formatDistanceToNow(node.latest_device_metrics.reported_time, { addSuffix: true })
-                  : '—'}
+                <StaleReportedTime at={node.latest_device_metrics.reported_time} />
               </CardDescription>
             </div>
           </CardHeader>
