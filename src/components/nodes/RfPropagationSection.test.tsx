@@ -161,4 +161,33 @@ describe('RfPropagationSection', () => {
     );
     expect(document.querySelector('.leaflet-container')).not.toBeNull();
   });
+
+  it('opens maximised propagation dialog with map when Maximise is clicked', () => {
+    useRfProfile.mockReturnValue({
+      data: { antenna_pattern: 'omni' },
+      isLoading: false,
+    });
+    useRfPropagation.mockReturnValue({
+      data: {
+        status: 'ready',
+        asset_url: 'https://example.com/x.png',
+        bounds: { west: -5, south: 54, east: -3, north: 56 },
+        created_at: '2026-01-01T00:00:00Z',
+      },
+      isLoading: false,
+    });
+    renderWithClient(
+      <RfPropagationSection
+        node={makeNode({
+          rf_profile_editable: true,
+          has_rf_profile: true,
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /maximise/i }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(dialog.querySelector('.map-container')).not.toBeNull();
+  });
 });

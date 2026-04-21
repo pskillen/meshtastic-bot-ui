@@ -25,4 +25,28 @@ describe('RfPropagationMapModal', () => {
     );
     expect(screen.getByText(/map not rendered yet/i)).toBeInTheDocument();
   });
+
+  it('does not enable propagation fetch when assetUrl and bounds are passed', () => {
+    useRfPropagation.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+    });
+    const client = new QueryClient();
+    render(
+      <QueryClientProvider client={client}>
+        <RfPropagationMapModal
+          open
+          onOpenChange={() => {}}
+          assetUrl="https://example.com/m.png"
+          bounds={{ west: -1, south: 50, east: 1, north: 52 }}
+          layout="maximised"
+        />
+      </QueryClientProvider>
+    );
+    expect(useRfPropagation).toHaveBeenCalledWith(
+      0,
+      expect.objectContaining({ enabled: false })
+    );
+    expect(screen.getByRole('dialog').querySelector('.map-container')).not.toBeNull();
+  });
 });
