@@ -15,9 +15,11 @@ import { RfPropagationMap } from '@/components/nodes/RfPropagationMap';
 
 export interface RfPropagationSectionProps {
   node: ObservedNode;
+  /** Outer wrapper classes (default `mb-6`). Use `mb-0` when nested in a layout grid. */
+  className?: string;
 }
 
-export function RfPropagationSection({ node }: RfPropagationSectionProps) {
+export function RfPropagationSection({ node, className = 'mb-6' }: RfPropagationSectionProps) {
   const nodeId = node.node_id;
   const canEdit = node.rf_profile_editable === true;
   const hasProfile = node.has_rf_profile === true;
@@ -33,12 +35,11 @@ export function RfPropagationSection({ node }: RfPropagationSectionProps) {
     return null;
   }
 
-  const canSeeMap = node.has_ready_rf_render === true;
   const readyRow =
     propagation && !isRfPropagationNone(propagation) && propagation.status === 'ready' ? propagation : null;
 
   return (
-    <div className="mb-6">
+    <div className={className}>
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4">
           <div>
@@ -173,7 +174,7 @@ export function RfPropagationSection({ node }: RfPropagationSectionProps) {
             </div>
           )}
 
-          {!propLoading && canSeeMap && readyRow?.asset_url && readyRow.bounds && (
+          {!propLoading && readyRow?.asset_url && readyRow.bounds && (
             <RfPropagationMap assetUrl={readyRow.asset_url} bounds={readyRow.bounds} minHeight={300} />
           )}
         </CardContent>

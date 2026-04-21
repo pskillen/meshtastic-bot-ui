@@ -136,7 +136,7 @@ describe('RfPropagationSection', () => {
     expect(screen.queryByRole('button', { name: /^dismiss$/i })).not.toBeInTheDocument();
   });
 
-  it('renders Leaflet container when render is ready and node flags allow map', () => {
+  it('renders Leaflet container when render is ready (without has_ready_rf_render on node)', () => {
     useRfProfile.mockReturnValue({
       data: { antenna_pattern: 'omni' },
       isLoading: false,
@@ -152,7 +152,11 @@ describe('RfPropagationSection', () => {
     });
     renderWithClient(
       <RfPropagationSection
-        node={makeNode({ rf_profile_editable: true, has_rf_profile: true, has_ready_rf_render: true })}
+        node={makeNode({
+          rf_profile_editable: true,
+          has_rf_profile: true,
+          has_ready_rf_render: false,
+        })}
       />
     );
     expect(document.querySelector('.leaflet-container')).not.toBeNull();

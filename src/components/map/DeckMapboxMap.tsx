@@ -65,9 +65,14 @@ export function DeckMapboxMap({
         initialViewState={initialViewState as DeckGLProps['initialViewState']}
         onClick={onClick}
         getTooltip={getTooltip}
-        style={{ width: '100%', height: '100%' }}
+        style={{ width: '100%', height: '100%', minHeight: '200px', minWidth: '0' }}
       >
-        <Map reuseMaps mapboxAccessToken={mapboxToken} mapStyle={mapStyle} style={{ width: '100%', height: '100%' }}>
+        <Map
+          reuseMaps={false}
+          mapboxAccessToken={mapboxToken}
+          mapStyle={mapStyle}
+          style={{ width: '100%', height: '100%', minHeight: '200px', minWidth: '0' }}
+        >
           {children}
         </Map>
       </DeckGL>
