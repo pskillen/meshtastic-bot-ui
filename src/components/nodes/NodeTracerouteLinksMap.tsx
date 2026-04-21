@@ -7,6 +7,7 @@ import { X } from 'lucide-react';
 import type { NodeTracerouteLinkEdge, NodeTracerouteLinkNode } from '@/hooks/api/useNodeTracerouteLinks';
 
 import { DeckMapboxMap } from '@/components/map/DeckMapboxMap';
+import { viewStateFromLngLatBBox } from '@/lib/deck-fit-bounds';
 
 const DEFAULT_CENTER = { longitude: -4.2518, latitude: 55.8642, zoom: 8 };
 const FOCUS_NODE_COLOR: [number, number, number, number] = [34, 197, 94, 255]; // green - focus
@@ -126,14 +127,14 @@ export function NodeTracerouteLinksMap({ edges, nodes, focusNodeId, showLabels =
     const lats = nodes.map((n) => n.lat).filter((v) => typeof v === 'number');
     const lngs = nodes.map((n) => n.lng).filter((v) => typeof v === 'number');
     if (lats.length > 0 && lngs.length > 0) {
-      const padding = 0.02;
-      const bounds: [number, number, number, number] = [
-        Math.min(...lngs) - padding,
-        Math.min(...lats) - padding,
-        Math.max(...lngs) + padding,
-        Math.max(...lats) + padding,
+      const paddingDeg = 0.02;
+      const bbox: [number, number, number, number] = [
+        Math.min(...lngs) - paddingDeg,
+        Math.min(...lats) - paddingDeg,
+        Math.max(...lngs) + paddingDeg,
+        Math.max(...lats) + paddingDeg,
       ];
-      return { bounds, fitBoundsOptions: { padding: 40, maxZoom: 14 } };
+      return viewStateFromLngLatBBox(bbox, { padding: 40, maxZoom: 14 });
     }
     const focusNode = nodes.find((n) => n.node_id === focusNodeId);
     if (focusNode && focusNode.lat != null && focusNode.lng != null) {
