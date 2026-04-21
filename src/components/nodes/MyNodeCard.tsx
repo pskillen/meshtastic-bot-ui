@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { formatDistanceToNow, subDays } from 'date-fns';
-import { MoreVertical, Radio, Settings, ChevronRight, FileText } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { MoreVertical, Radio, Settings, ChevronRight, FileText, AlertTriangle, AlertCircle } from 'lucide-react';
 import type { UseQueryResult } from '@tanstack/react-query';
 
 import { MeshWatchControls } from '@/components/nodes/MeshWatchControls';
@@ -8,6 +8,7 @@ import { BatteryGauge } from '@/components/nodes/BatteryGauge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,29 +17,17 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ObservedNode, NodeWatch, PaginatedResponse } from '@/lib/models';
-
-const POSITION_STALE_DAYS = 7;
-
-function getPositionHint(node: ObservedNode): string {
-  const pos = node.latest_position as {
-    latitude?: number;
-    longitude?: number;
-    reported_time?: Date | string;
-  } | null;
-  if (!pos) return 'No fix';
-  const lat = pos.latitude;
-  const lon = pos.longitude;
-  if (lat == null || lon == null || lat === 0 || lon === 0) return 'No fix';
-  const reported = pos.reported_time ? new Date(pos.reported_time) : null;
-  if (!reported) return 'Has fix';
-  const cutoff = subDays(new Date(), POSITION_STALE_DAYS);
-  return reported >= cutoff ? 'Recent fix' : 'Stale fix';
-}
+import type { ManagedLiveness } from '@/lib/my-nodes-grouping';
+import { getPositionHint } from '@/lib/my-nodes-grouping';
 
 export interface MyNodeCardProps {
   node: ObservedNode;
   isManaged: boolean;
   isClaimed: boolean;
+  /** When false, hides the Claimed badge (e.g. on My Nodes where every card is the user’s). Default true. */
+  showClaimedBadge?: boolean;
+  /** When set and not `ok`, shows a prominent liveness warning (managed nodes on My Nodes). */
+  managedLiveness?: Pick<ManagedLiveness, 'severity' | 'message'> | null;
   watch: NodeWatch | undefined;
   watchesQuery: Pick<UseQueryResult<PaginatedResponse<NodeWatch>>, 'isLoading' | 'isError'>;
   onConvert: () => void;
@@ -49,6 +38,8 @@ export function MyNodeCard({
   node,
   isManaged,
   isClaimed,
+  showClaimedBadge = true,
+  managedLiveness = null,
   watch,
   watchesQuery,
   onConvert,
@@ -60,9 +51,13 @@ export function MyNodeCard({
   const metricsReported = metrics?.reported_time ? new Date(metrics.reported_time) : null;
   const positionHint = getPositionHint(node);
   const displayName = node.short_name || node.node_id_str;
+  const liveness =
+    managedLiveness != null && managedLiveness.severity !== 'ok' && managedLiveness.message != null
+      ? managedLiveness
+      : null;
 
   return (
-    <Card className="min-w-0 flex flex-col h-full border bg-card shadow-sm">
+    <Card className="min-w-0 flex flex-col h-full border bg-card shadow-sm dark:border-border/80 dark:border-2 dark:shadow-md">
       <CardHeader className="pb-2 space-y-0">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
@@ -100,20 +95,53 @@ export function MyNodeCard({
         </div>
       </CardHeader>
       <CardContent className="flex-1 space-y-3 pt-0">
+        {liveness ? (
+          <Alert
+            variant={liveness.severity === 'destructive' ? 'destructive' : 'default'}
+            className={
+              liveness.severity === 'destructive'
+                ? undefined
+                : 'border-amber-500/70 bg-amber-50 text-amber-950 dark:border-amber-500/50 dark:bg-amber-950/35 dark:text-amber-50 [&>svg]:text-amber-700 dark:[&>svg]:text-amber-400'
+            }
+          >
+            {liveness.severity === 'destructive' ? (
+              <AlertCircle className="h-4 w-4" />
+            ) : (
+              <AlertTriangle className="h-4 w-4" />
+            )}
+            <AlertTitle className="leading-snug">
+              {liveness.severity === 'destructive' ? 'Connectivity issue' : 'Attention'}
+            </AlertTitle>
+            <AlertDescription>{liveness.message}</AlertDescription>
+          </Alert>
+        ) : null}
         <div className="flex flex-wrap gap-1.5">
           {isManaged ? (
             <Badge variant="outline" className="text-xs">
               Managed
             </Badge>
           ) : null}
-          {isClaimed ? (
+          {isClaimed && showClaimedBadge ? (
             <Badge variant="outline" className="text-xs">
               Claimed
             </Badge>
           ) : null}
-          <Badge variant="secondary" className="text-xs">
-            {positionHint}
-          </Badge>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex max-w-full">
+                  <Badge variant="secondary" className="text-xs cursor-default">
+                    {positionHint.label}
+                  </Badge>
+                </span>
+              </TooltipTrigger>
+              {positionHint.tooltip ? (
+                <TooltipContent side="bottom" className="max-w-xs">
+                  {positionHint.tooltip}
+                </TooltipContent>
+              ) : null}
+            </Tooltip>
+          </TooltipProvider>
         </div>
         <p className="text-sm text-muted-foreground">
           Last heard{' '}
