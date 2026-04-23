@@ -20,7 +20,7 @@ export const STRATEGY_META: Record<
   intra_zone: {
     label: 'Intra-zone',
     shortDescription: 'Target inside the constellation envelope — tests intra-mesh continuity.',
-    badgeVariant: 'default',
+    badgeVariant: 'secondary',
   },
   dx_across: {
     label: 'DX across',
@@ -30,17 +30,17 @@ export const STRATEGY_META: Record<
   dx_same_side: {
     label: 'DX same side',
     shortDescription: 'Distant target outside the envelope on your side — tests outreach past the perimeter.',
-    badgeVariant: 'outline',
+    badgeVariant: 'secondary',
   },
   legacy: {
     label: 'Legacy',
     shortDescription: 'Recorded before strategy tracking or unspecified.',
-    badgeVariant: 'outline',
+    badgeVariant: 'secondary',
   },
   manual: {
     label: 'Manual target',
     shortDescription: 'User picked an explicit target node; no automated hypothesis selection.',
-    badgeVariant: 'outline',
+    badgeVariant: 'secondary',
   },
 };
 
