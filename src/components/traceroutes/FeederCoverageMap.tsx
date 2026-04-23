@@ -19,8 +19,9 @@ import {
 } from '@/components/map/coverageStyling';
 import { DeckMapboxMap } from '@/components/map/DeckMapboxMap';
 import type { FeederReachFeeder, FeederReachTarget } from '@/lib/api/meshtastic-api';
+import type { CoverageHeardGhost } from '@/lib/coverageHeardGhosts';
 
-export type CoverageLayerKey = 'dots' | 'hex' | 'polygon';
+export type CoverageLayerKey = 'dots' | 'hex' | 'polygon' | 'heard';
 
 const DEFAULT_CENTER = { longitude: -4.2518, latitude: 55.8642, zoom: 8 };
 const POLYGON_FILL: [number, number, number, number] = [99, 102, 241, 50];
@@ -45,13 +46,25 @@ interface HexBin {
 export interface FeederCoverageMapProps {
   feeder: FeederReachFeeder;
   targets: FeederReachTarget[];
+  heardGhosts: CoverageHeardGhost[];
   enabledLayers: CoverageLayerKey[];
   minAttempts: number;
 }
 
-export function FeederCoverageMap({ feeder, targets, enabledLayers, minAttempts }: FeederCoverageMapProps) {
+function ghostLabel(g: CoverageHeardGhost): string {
+  return g.short_name || g.long_name || g.node_id_str || `!${g.node_id.toString(16)}`;
+}
+
+export function FeederCoverageMap({
+  feeder,
+  targets,
+  heardGhosts,
+  enabledLayers,
+  minAttempts,
+}: FeederCoverageMapProps) {
   const [selectedTarget, setSelectedTarget] = useState<FeederReachTarget | null>(null);
   const [selectedFeederMarker, setSelectedFeederMarker] = useState<FeederReachFeeder | null>(null);
+  const [selectedHeardGhost, setSelectedHeardGhost] = useState<CoverageHeardGhost | null>(null);
 
   const enabledSet = useMemo(() => new Set(enabledLayers), [enabledLayers]);
 
@@ -144,6 +157,22 @@ export function FeederCoverageMap({ feeder, targets, enabledLayers, minAttempts 
     });
   }, [polygonFeature]);
 
+  const heardGhostsLayer = useMemo(() => {
+    if (!enabledSet.has('heard') || heardGhosts.length === 0) return null;
+    return new ScatterplotLayer<CoverageHeardGhost>({
+      id: 'feeder-coverage-heard-ghosts',
+      data: heardGhosts,
+      getPosition: (d) => [d.lng, d.lat],
+      getRadius: 4,
+      radiusUnits: 'pixels',
+      filled: false,
+      stroked: true,
+      lineWidthMinPixels: 1.5,
+      getLineColor: [100, 116, 139, 220],
+      pickable: true,
+    });
+  }, [enabledSet, heardGhosts]);
+
   const feederIconLayer = useMemo(() => {
     if (feeder.lat == null || feeder.lng == null) return null;
     return buildFeederIconLayer([{ ...feeder, lat: feeder.lat, lng: feeder.lng }], {
@@ -154,23 +183,33 @@ export function FeederCoverageMap({ feeder, targets, enabledLayers, minAttempts 
   }, [feeder]);
 
   const layers = useMemo(
-    () => [polygonLayer, hexLayer, dotsLayer, feederIconLayer].filter(Boolean) as Layer[],
-    [polygonLayer, hexLayer, dotsLayer, feederIconLayer]
+    () => [polygonLayer, hexLayer, heardGhostsLayer, dotsLayer, feederIconLayer].filter(Boolean) as Layer[],
+    [polygonLayer, hexLayer, heardGhostsLayer, dotsLayer, feederIconLayer]
   );
 
   const handleClick = useCallback((info: PickingInfo) => {
-    if (info.layer?.id === 'feeder-coverage-feeder-icons' && info.object) {
+    const lid = info.layer?.id;
+    if (lid === 'feeder-coverage-feeder-icons' && info.object) {
       setSelectedFeederMarker(info.object as FeederReachFeeder);
       setSelectedTarget(null);
+      setSelectedHeardGhost(null);
       return;
     }
-    if (info.object && info.layer?.id === 'feeder-coverage-dots') {
+    if (lid === 'feeder-coverage-dots' && info.object) {
       setSelectedTarget(info.object as FeederReachTarget);
       setSelectedFeederMarker(null);
-    } else {
+      setSelectedHeardGhost(null);
+      return;
+    }
+    if (lid === 'feeder-coverage-heard-ghosts' && info.object) {
+      setSelectedHeardGhost(info.object as CoverageHeardGhost);
       setSelectedTarget(null);
       setSelectedFeederMarker(null);
+      return;
     }
+    setSelectedTarget(null);
+    setSelectedFeederMarker(null);
+    setSelectedHeardGhost(null);
   }, []);
 
   const initialView = useMemo(() => {
@@ -228,6 +267,44 @@ export function FeederCoverageMap({ feeder, targets, enabledLayers, minAttempts 
               </div>
               <Link
                 to={`/nodes/${selectedTarget.node_id}`}
+                className="mt-1 inline-block text-xs text-emerald-400 hover:text-emerald-300 hover:underline"
+              >
+                Open details
+              </Link>
+            </div>
+          </div>
+        </Popup>
+      )}
+      {selectedHeardGhost && (
+        <Popup
+          longitude={selectedHeardGhost.lng}
+          latitude={selectedHeardGhost.lat}
+          anchor="bottom"
+          closeButton={false}
+          closeOnClick={false}
+          onClose={() => setSelectedHeardGhost(null)}
+          maxWidth="320px"
+          className="meshflow-map-popup"
+        >
+          <div className="relative min-w-[180px] rounded-md border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100 shadow-lg">
+            <button
+              type="button"
+              onClick={() => setSelectedHeardGhost(null)}
+              className="absolute right-1 top-1 rounded p-0.5 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
+              aria-label="Close"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden />
+            </button>
+            <div className="pr-5">
+              <div className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                Heard (no traceroute row)
+              </div>
+              <div className="mt-0.5 font-semibold">{ghostLabel(selectedHeardGhost)}</div>
+              <div className="mt-0.5 text-xs text-slate-400">
+                {selectedHeardGhost.node_id_str || `!${selectedHeardGhost.node_id.toString(16)}`}
+              </div>
+              <Link
+                to={`/nodes/${selectedHeardGhost.node_id}`}
                 className="mt-1 inline-block text-xs text-emerald-400 hover:text-emerald-300 hover:underline"
               >
                 Open details

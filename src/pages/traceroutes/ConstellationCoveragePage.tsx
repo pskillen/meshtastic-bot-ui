@@ -16,6 +16,9 @@ import { smoothedRate } from '@/components/map/coverageStyling';
 import type { FeederIconDatum } from '@/components/map/FeederIconLayer';
 import { useConstellations } from '@/hooks/api/useConstellations';
 import { useConstellationCoverage } from '@/hooks/api/useConstellationCoverage';
+import { useNodes } from '@/hooks/api/useNodes';
+import { useObservedNodesHeard } from '@/hooks/api/useObservedNodesHeard';
+import { observedNodesToCoverageGhosts } from '@/lib/coverageHeardGhosts';
 import { cn } from '@/lib/utils';
 import {
   TRACEROUTE_STRATEGIES,
@@ -27,11 +30,12 @@ import {
 
 type TimeRange = '24h' | '7d' | '30d';
 
-const CONSTELLATION_LAYERS: ConstellationMapLayerKey[] = ['hex', 'dots', 'feeders'];
+const CONSTELLATION_LAYERS: ConstellationMapLayerKey[] = ['hex', 'dots', 'feeders', 'heard'];
 const CONSTELLATION_LAYER_LABEL: Record<ConstellationMapLayerKey, string> = {
   hex: 'Hex',
   dots: 'Dots',
   feeders: 'Feeders',
+  heard: 'Heard',
 };
 
 function StatsCard({
@@ -43,6 +47,7 @@ function StatsCard({
   strategySummary,
   dotCount,
   feederMarkerCount,
+  heardGhostCount,
   className,
 }: {
   hexCount: number;
@@ -53,6 +58,7 @@ function StatsCard({
   strategySummary?: string;
   dotCount?: number;
   feederMarkerCount?: number;
+  heardGhostCount?: number;
   className?: string;
 }) {
   return (
@@ -74,6 +80,12 @@ function StatsCard({
           </div>
         )}
         {feederMarkerCount != null && <div>{feederMarkerCount.toLocaleString()} managed nodes (tower markers)</div>}
+        {heardGhostCount != null && (
+          <div>
+            {heardGhostCount.toLocaleString()} heard-only nodes{' '}
+            <span className="text-xs text-muted-foreground">(hollow markers)</span>
+          </div>
+        )}
         <div>
           {totalSuccesses.toLocaleString()} / {totalAttempts.toLocaleString()} attempts succeeded
         </div>
@@ -96,7 +108,9 @@ function StatsCard({
         <div className="border-t border-border pt-2 text-xs text-muted-foreground">
           <strong className="text-foreground">Hex</strong>: H3 aggregate.{' '}
           <strong className="text-foreground">Dots</strong>: each probed target (size = attempts, colour = reliability).{' '}
-          <strong className="text-foreground">Tower</strong>: managed feeder position.
+          <strong className="text-foreground">Tower</strong>: managed feeder position.{' '}
+          <strong className="text-foreground">Heard</strong>: nodes with last_heard in the window and a position, not in
+          the traceroute target list or constellation managed-node set for this view.
         </div>
       </CardContent>
     </Card>
@@ -114,10 +128,12 @@ export function ConstellationCoveragePage() {
     hex: true,
     dots: true,
     feeders: true,
+    heard: false,
   });
   const [strategies, setStrategies] = useState(() => createCoverageStrategiesAllSelected());
 
   const { constellations, isLoading: constellationsLoading } = useConstellations(100, true);
+  const { managedNodes } = useNodes({ pageSize: 500 });
 
   const constellationIdNum = constellationIdParam ? Number.parseInt(constellationIdParam, 10) : undefined;
 
@@ -148,6 +164,29 @@ export function ConstellationCoveragePage() {
     targetStrategy: targetStrategyParam,
   });
 
+  const { nodes: heardObservedNodes } = useObservedNodesHeard({
+    lastHeardAfter: triggeredAtAfter,
+    pageSize: 500,
+    enabled: mapLayers.heard && Number.isFinite(constellationIdNum),
+  });
+
+  const representedForHeard = useMemo(() => {
+    const s = new Set<number>();
+    for (const t of data?.targets ?? []) s.add(t.node_id);
+    for (const f of data?.feeders ?? []) s.add(f.node_id);
+    if (Number.isFinite(constellationIdNum)) {
+      for (const m of managedNodes ?? []) {
+        if (m.constellation?.id === constellationIdNum && m.node_id != null) s.add(m.node_id);
+      }
+    }
+    return s;
+  }, [data?.targets, data?.feeders, managedNodes, constellationIdNum]);
+
+  const heardGhosts = useMemo(() => {
+    if (!mapLayers.heard) return [];
+    return observedNodesToCoverageGhosts(heardObservedNodes, representedForHeard);
+  }, [mapLayers.heard, heardObservedNodes, representedForHeard]);
+
   const filteredHexes = useMemo(
     () => (data?.hexes ?? []).filter((h) => h.attempts >= minAttempts),
     [data, minAttempts]
@@ -173,6 +212,7 @@ export function ConstellationCoveragePage() {
 
   const feederMarkerCount = includeTargets ? positionedFeeders.length : undefined;
   const dotCount = includeTargets ? filteredTargets.length : undefined;
+  const heardGhostCount = mapLayers.heard ? heardGhosts.length : undefined;
 
   const enabledMapLayers = CONSTELLATION_LAYERS.filter((k) => mapLayers[k]);
 
@@ -323,6 +363,7 @@ export function ConstellationCoveragePage() {
           strategySummary={strategySummary}
           dotCount={dotCount}
           feederMarkerCount={feederMarkerCount}
+          heardGhostCount={heardGhostCount}
         />
       </div>
 
@@ -347,6 +388,7 @@ export function ConstellationCoveragePage() {
                 hexes={filteredHexes}
                 targets={filteredTargets}
                 feeders={positionedFeeders}
+                heardGhosts={heardGhosts}
                 enabledLayers={enabledMapLayers}
                 minAttempts={minAttempts}
               />
@@ -365,6 +407,7 @@ export function ConstellationCoveragePage() {
             strategySummary={strategySummary}
             dotCount={dotCount}
             feederMarkerCount={feederMarkerCount}
+            heardGhostCount={heardGhostCount}
           />
         </div>
       </div>

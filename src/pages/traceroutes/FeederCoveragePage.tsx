@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useNodes } from '@/hooks/api/useNodes';
 import { useFeederReach } from '@/hooks/api/useFeederReach';
+import { useObservedNodesHeard } from '@/hooks/api/useObservedNodesHeard';
+import { observedNodesToCoverageGhosts } from '@/lib/coverageHeardGhosts';
 import { FeederCoverageMap, type CoverageLayerKey } from '@/components/traceroutes/FeederCoverageMap';
 import {
   TRACEROUTE_STRATEGIES,
@@ -23,11 +25,12 @@ import {
 
 type TimeRange = '24h' | '7d' | '30d';
 
-const ALL_LAYERS: CoverageLayerKey[] = ['dots', 'hex', 'polygon'];
+const ALL_LAYERS: CoverageLayerKey[] = ['dots', 'hex', 'polygon', 'heard'];
 const LAYER_LABEL: Record<CoverageLayerKey, string> = {
   dots: 'Dots',
   hex: 'Hex',
   polygon: 'Polygon',
+  heard: 'Heard',
 };
 
 function smoothedRate(successes: number, attempts: number): number {
@@ -42,6 +45,7 @@ function StatsCard({
   meanSmoothed,
   minAttempts,
   strategySummary,
+  heardGhostCount,
   className,
 }: {
   feederLabel: string;
@@ -51,6 +55,7 @@ function StatsCard({
   meanSmoothed: number | null;
   minAttempts: number;
   strategySummary?: string;
+  heardGhostCount?: number;
   className?: string;
 }) {
   return (
@@ -66,6 +71,12 @@ function StatsCard({
         )}
         <div className="text-xs text-muted-foreground">{feederLabel}</div>
         <div>{targetCount.toLocaleString()} targets reached</div>
+        {heardGhostCount != null && (
+          <div>
+            {heardGhostCount.toLocaleString()} heard-only nodes{' '}
+            <span className="text-xs text-muted-foreground">(hollow markers)</span>
+          </div>
+        )}
         <div>
           {totalSuccesses.toLocaleString()} / {totalAttempts.toLocaleString()} attempts succeeded
         </div>
@@ -87,7 +98,9 @@ function StatsCard({
         </div>
         <div className="border-t border-border pt-2 text-xs text-muted-foreground">
           <strong className="text-foreground">Dots</strong>: probed targets (size = attempts).{' '}
-          <strong className="text-foreground">Tower</strong>: this managed feeder (source node).
+          <strong className="text-foreground">Tower</strong>: this managed feeder (source node).{' '}
+          <strong className="text-foreground">Heard</strong>: other nodes with a position and last_heard in the window,
+          not in this feeder&apos;s traceroute target list for the current strategy filter.
         </div>
       </CardContent>
     </Card>
@@ -102,6 +115,7 @@ export function FeederCoveragePage() {
     dots: true,
     hex: false,
     polygon: false,
+    heard: false,
   });
   const [strategies, setStrategies] = useState(() => createCoverageStrategiesAllSelected());
 
@@ -156,6 +170,24 @@ export function FeederCoveragePage() {
     triggeredAtAfter,
     targetStrategy: targetStrategyParam,
   });
+
+  const { nodes: heardObservedNodes } = useObservedNodesHeard({
+    lastHeardAfter: triggeredAtAfter,
+    pageSize: 500,
+    enabled: layers.heard && selectedFeederId != null,
+  });
+
+  const representedForHeard = useMemo(() => {
+    const s = new Set<number>();
+    if (data?.feeder?.node_id != null) s.add(data.feeder.node_id);
+    for (const t of data?.targets ?? []) s.add(t.node_id);
+    return s;
+  }, [data]);
+
+  const heardGhosts = useMemo(() => {
+    if (!layers.heard) return [];
+    return observedNodesToCoverageGhosts(heardObservedNodes, representedForHeard);
+  }, [layers.heard, heardObservedNodes, representedForHeard]);
 
   const filteredTargets = useMemo(
     () => (data?.targets ?? []).filter((t) => t.attempts >= minAttempts),
@@ -296,6 +328,7 @@ export function FeederCoveragePage() {
           meanSmoothed={meanSmoothed}
           minAttempts={minAttempts}
           strategySummary={strategySummary}
+          heardGhostCount={layers.heard ? heardGhosts.length : undefined}
         />
       </div>
 
@@ -321,6 +354,7 @@ export function FeederCoveragePage() {
               <FeederCoverageMap
                 feeder={data.feeder}
                 targets={filteredTargets}
+                heardGhosts={heardGhosts}
                 enabledLayers={enabledLayers}
                 minAttempts={minAttempts}
               />
@@ -338,6 +372,7 @@ export function FeederCoveragePage() {
             meanSmoothed={meanSmoothed}
             minAttempts={minAttempts}
             strategySummary={strategySummary}
+            heardGhostCount={layers.heard ? heardGhosts.length : undefined}
           />
         </div>
       </div>
