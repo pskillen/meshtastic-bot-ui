@@ -4,18 +4,35 @@ import { subDays, subHours } from 'date-fns';
 import { CircleDashedIcon } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  ConstellationCoverageMap,
+  type ConstellationMapLayerKey,
+} from '@/components/traceroutes/ConstellationCoverageMap';
+import { smoothedRate } from '@/components/map/coverageStyling';
+import type { FeederIconDatum } from '@/components/map/FeederIconLayer';
 import { useConstellations } from '@/hooks/api/useConstellations';
 import { useConstellationCoverage } from '@/hooks/api/useConstellationCoverage';
-import { ConstellationCoverageMap } from '@/components/traceroutes/ConstellationCoverageMap';
+import { cn } from '@/lib/utils';
+import {
+  TRACEROUTE_STRATEGIES,
+  STRATEGY_META,
+  createCoverageStrategiesAllSelected,
+  coverageTargetStrategyQueryParam,
+  coverageTargetStrategySummary,
+} from '@/lib/traceroute-strategy';
 
 type TimeRange = '24h' | '7d' | '30d';
 
-function smoothedRate(successes: number, attempts: number): number {
-  return (successes + 1) / (attempts + 2);
-}
+const CONSTELLATION_LAYERS: ConstellationMapLayerKey[] = ['hex', 'dots', 'feeders'];
+const CONSTELLATION_LAYER_LABEL: Record<ConstellationMapLayerKey, string> = {
+  hex: 'Hex',
+  dots: 'Dots',
+  feeders: 'Feeders',
+};
 
 function StatsCard({
   hexCount,
@@ -23,6 +40,9 @@ function StatsCard({
   totalSuccesses,
   meanSmoothed,
   minAttempts,
+  strategySummary,
+  dotCount,
+  feederMarkerCount,
   className,
 }: {
   hexCount: number;
@@ -30,6 +50,9 @@ function StatsCard({
   totalSuccesses: number;
   meanSmoothed: number | null;
   minAttempts: number;
+  strategySummary?: string;
+  dotCount?: number;
+  feederMarkerCount?: number;
   className?: string;
 }) {
   return (
@@ -38,14 +61,26 @@ function StatsCard({
         <CardTitle className="text-sm">Coverage stats</CardTitle>
       </CardHeader>
       <CardContent className="space-y-1.5 text-sm">
+        {strategySummary != null && (
+          <div className="text-xs text-muted-foreground">
+            Strategies: <span className="text-foreground">{strategySummary}</span>
+          </div>
+        )}
         <div>{hexCount.toLocaleString()} hexes</div>
+        {dotCount != null && (
+          <div>
+            {dotCount.toLocaleString()} target dots{' '}
+            <span className="text-xs text-muted-foreground">(min attempts)</span>
+          </div>
+        )}
+        {feederMarkerCount != null && <div>{feederMarkerCount.toLocaleString()} managed nodes (tower markers)</div>}
         <div>
           {totalSuccesses.toLocaleString()} / {totalAttempts.toLocaleString()} attempts succeeded
         </div>
         {meanSmoothed != null && <div>Mean smoothed reliability: {(meanSmoothed * 100).toFixed(1)}%</div>}
         <div className="pt-2 text-xs text-muted-foreground">Min attempts floor: {minAttempts}</div>
         <div className="pt-2">
-          <div className="mb-1 text-xs text-muted-foreground">Smoothed reliability</div>
+          <div className="mb-1 text-xs text-muted-foreground">Smoothed reliability (hex / dots)</div>
           <div
             className="h-2 w-full rounded"
             style={{
@@ -57,6 +92,11 @@ function StatsCard({
             <span>50%</span>
             <span>100%</span>
           </div>
+        </div>
+        <div className="border-t border-border pt-2 text-xs text-muted-foreground">
+          <strong className="text-foreground">Hex</strong>: H3 aggregate.{' '}
+          <strong className="text-foreground">Dots</strong>: each probed target (size = attempts, colour = reliability).{' '}
+          <strong className="text-foreground">Tower</strong>: managed feeder position.
         </div>
       </CardContent>
     </Card>
@@ -70,12 +110,17 @@ export function ConstellationCoveragePage() {
   const [timeRange, setTimeRange] = useState<TimeRange>('7d');
   const [minAttempts, setMinAttempts] = useState<number>(3);
   const [h3Resolution, setH3Resolution] = useState<number>(6);
+  const [mapLayers, setMapLayers] = useState<Record<ConstellationMapLayerKey, boolean>>({
+    hex: true,
+    dots: true,
+    feeders: true,
+  });
+  const [strategies, setStrategies] = useState(() => createCoverageStrategiesAllSelected());
 
   const { constellations, isLoading: constellationsLoading } = useConstellations(100, true);
 
   const constellationIdNum = constellationIdParam ? Number.parseInt(constellationIdParam, 10) : undefined;
 
-  // If no constellation in URL, redirect to the first one we can see (mirrors Dashboard behaviour).
   useEffect(() => {
     if (constellationIdParam) return;
     if (constellationsLoading) return;
@@ -90,14 +135,26 @@ export function ConstellationCoveragePage() {
     return subDays(new Date(), 30);
   }, [timeRange]);
 
+  const includeTargets = mapLayers.dots || mapLayers.feeders;
+
+  const targetStrategyParam = useMemo(() => coverageTargetStrategyQueryParam(strategies), [strategies]);
+  const strategySummary = useMemo(() => coverageTargetStrategySummary(strategies), [strategies]);
+
   const { data, isLoading, error } = useConstellationCoverage({
     constellationId: Number.isFinite(constellationIdNum) ? constellationIdNum : undefined,
     triggeredAtAfter,
     h3Resolution,
+    includeTargets,
+    targetStrategy: targetStrategyParam,
   });
 
   const filteredHexes = useMemo(
     () => (data?.hexes ?? []).filter((h) => h.attempts >= minAttempts),
+    [data, minAttempts]
+  );
+
+  const filteredTargets = useMemo(
+    () => (data?.targets ?? []).filter((t) => t.attempts >= minAttempts),
     [data, minAttempts]
   );
 
@@ -106,6 +163,18 @@ export function ConstellationCoveragePage() {
   const meanSmoothed = filteredHexes.length
     ? filteredHexes.reduce((acc, h) => acc + smoothedRate(h.successes, h.attempts), 0) / filteredHexes.length
     : null;
+
+  const positionedFeeders: FeederIconDatum[] = useMemo(() => {
+    const list = data?.feeders ?? [];
+    return list
+      .filter((f) => f.lat != null && f.lng != null)
+      .map((f) => ({ ...f, lat: f.lat as number, lng: f.lng as number }));
+  }, [data?.feeders]);
+
+  const feederMarkerCount = includeTargets ? positionedFeeders.length : undefined;
+  const dotCount = includeTargets ? filteredTargets.length : undefined;
+
+  const enabledMapLayers = CONSTELLATION_LAYERS.filter((k) => mapLayers[k]);
 
   return (
     <div className="flex min-h-[50vh] flex-col gap-4 px-4 py-4 md:px-6 md:py-6">
@@ -116,86 +185,130 @@ export function ConstellationCoveragePage() {
             <h1 className="text-xl font-semibold sm:text-2xl">Constellation coverage</h1>
           </div>
           <p className="max-w-2xl text-sm text-muted-foreground">
-            Combines traceroute attempts from every managed node in the selected constellation, grouped into map hex
-            cells. Each cell shows aggregate successes and failures toward targets in that area (smoothing and
-            minimum-attempt filters apply below).
+            Combines traceroute attempts from every managed node in the selected constellation. <strong>Hexes</strong>{' '}
+            group targets into H3 cells; <strong>dots</strong> show each probed target (size = attempts, colour =
+            smoothed reliability). <strong>Tower markers</strong> show managed feeder positions. Filter by
+            target-selection strategy to debug scheduler behaviour.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3" data-testid="constellation-coverage-filters">
-          <div className="flex items-center gap-2">
-            <Label className="text-xs text-muted-foreground" htmlFor="constellation-coverage-constellation">
-              Constellation
-            </Label>
-            <Select
-              value={constellationIdParam}
-              onValueChange={(v) => navigate(`/traceroutes/map/coverage/constellation/${v}`)}
-              disabled={constellationsLoading || constellations.length === 0}
+        <div className="flex flex-col gap-3" data-testid="constellation-coverage-filters">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground" htmlFor="constellation-coverage-constellation">
+                Constellation
+              </Label>
+              <Select
+                value={constellationIdParam}
+                onValueChange={(v) => navigate(`/traceroutes/map/coverage/constellation/${v}`)}
+                disabled={constellationsLoading || constellations.length === 0}
+              >
+                <SelectTrigger
+                  id="constellation-coverage-constellation"
+                  className="min-w-[200px]"
+                  aria-label="Select constellation"
+                >
+                  <SelectValue placeholder="Select constellation" />
+                </SelectTrigger>
+                <SelectContent>
+                  {constellations.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground" htmlFor="constellation-coverage-window">
+                Window
+              </Label>
+              <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
+                <SelectTrigger id="constellation-coverage-window" className="min-w-[140px]" aria-label="Time window">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="24h">Last 24 hours</SelectItem>
+                  <SelectItem value="7d">Last 7 days</SelectItem>
+                  <SelectItem value="30d">Last 30 days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground" htmlFor="constellation-coverage-resolution">
+                H3 resolution
+              </Label>
+              <Select value={String(h3Resolution)} onValueChange={(v) => setH3Resolution(Number.parseInt(v, 10))}>
+                <SelectTrigger
+                  id="constellation-coverage-resolution"
+                  className="min-w-[100px]"
+                  aria-label="H3 resolution"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5 (~9km)</SelectItem>
+                  <SelectItem value="6">6 (~3km)</SelectItem>
+                  <SelectItem value="7">7 (~1.2km)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground" htmlFor="constellation-coverage-min-attempts">
+                Min attempts
+              </Label>
+              <Input
+                id="constellation-coverage-min-attempts"
+                type="number"
+                min={1}
+                value={minAttempts}
+                onChange={(e) => {
+                  const v = Number.parseInt(e.target.value, 10);
+                  setMinAttempts(Number.isFinite(v) && v >= 1 ? v : 1);
+                }}
+                className="w-20"
+              />
+            </div>
+            <div
+              className="flex rounded-md border border-input bg-muted/50 p-0.5"
+              data-testid="constellation-layer-pills"
             >
-              <SelectTrigger
-                id="constellation-coverage-constellation"
-                className="min-w-[200px]"
-                aria-label="Select constellation"
-              >
-                <SelectValue placeholder="Select constellation" />
-              </SelectTrigger>
-              <SelectContent>
-                {constellations.map((c) => (
-                  <SelectItem key={c.id} value={String(c.id)}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              {CONSTELLATION_LAYERS.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={mapLayers[key]}
+                  aria-label={`Toggle ${CONSTELLATION_LAYER_LABEL[key]} layer`}
+                  onClick={() => setMapLayers((s) => ({ ...s, [key]: !s[key] }))}
+                  className={cn(
+                    'rounded px-3 py-1.5 text-sm font-medium transition-colors',
+                    mapLayers[key]
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {CONSTELLATION_LAYER_LABEL[key]}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Label className="text-xs text-muted-foreground" htmlFor="constellation-coverage-window">
-              Window
-            </Label>
-            <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
-              <SelectTrigger id="constellation-coverage-window" className="min-w-[140px]" aria-label="Time window">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="24h">Last 24 hours</SelectItem>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <Label className="text-xs text-muted-foreground" htmlFor="constellation-coverage-resolution">
-              H3 resolution
-            </Label>
-            <Select value={String(h3Resolution)} onValueChange={(v) => setH3Resolution(Number.parseInt(v, 10))}>
-              <SelectTrigger
-                id="constellation-coverage-resolution"
-                className="min-w-[100px]"
-                aria-label="H3 resolution"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5">5 (~9km)</SelectItem>
-                <SelectItem value="6">6 (~3km)</SelectItem>
-                <SelectItem value="7">7 (~1.2km)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <Label className="text-xs text-muted-foreground" htmlFor="constellation-coverage-min-attempts">
-              Min attempts
-            </Label>
-            <Input
-              id="constellation-coverage-min-attempts"
-              type="number"
-              min={1}
-              value={minAttempts}
-              onChange={(e) => {
-                const v = Number.parseInt(e.target.value, 10);
-                setMinAttempts(Number.isFinite(v) && v >= 1 ? v : 1);
-              }}
-              className="w-20"
-            />
+          <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/30 px-3 py-2">
+            <span className="text-xs font-medium text-muted-foreground">Target selection strategies</span>
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
+              {TRACEROUTE_STRATEGIES.map((opt) => (
+                <label
+                  key={opt}
+                  htmlFor={`constellation-strategy-${opt}`}
+                  className="flex cursor-pointer items-center gap-2 text-sm"
+                >
+                  <Checkbox
+                    id={`constellation-strategy-${opt}`}
+                    checked={strategies[opt] ?? false}
+                    onCheckedChange={(c) => setStrategies((s) => ({ ...s, [opt]: c === true }))}
+                  />
+                  <span className="leading-none">{STRATEGY_META[opt].label}</span>
+                </label>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -207,6 +320,9 @@ export function ConstellationCoveragePage() {
           totalSuccesses={totalSuccesses}
           meanSmoothed={meanSmoothed}
           minAttempts={minAttempts}
+          strategySummary={strategySummary}
+          dotCount={dotCount}
+          feederMarkerCount={feederMarkerCount}
         />
       </div>
 
@@ -227,19 +343,28 @@ export function ConstellationCoveragePage() {
               </div>
             )}
             {!error && !isLoading && data && (
-              <ConstellationCoverageMap hexes={filteredHexes} minAttempts={minAttempts} />
+              <ConstellationCoverageMap
+                hexes={filteredHexes}
+                targets={filteredTargets}
+                feeders={positionedFeeders}
+                enabledLayers={enabledMapLayers}
+                minAttempts={minAttempts}
+              />
             )}
           </CardContent>
         </Card>
 
         <div className="absolute right-4 top-4 z-10 hidden md:block">
           <StatsCard
-            className="w-64"
+            className="w-72"
             hexCount={filteredHexes.length}
             totalAttempts={totalAttempts}
             totalSuccesses={totalSuccesses}
             meanSmoothed={meanSmoothed}
             minAttempts={minAttempts}
+            strategySummary={strategySummary}
+            dotCount={dotCount}
+            feederMarkerCount={feederMarkerCount}
           />
         </div>
       </div>

@@ -1,49 +1,57 @@
 import { useCallback, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Popup } from 'react-map-gl';
+import { ScatterplotLayer } from '@deck.gl/layers';
 import { H3HexagonLayer } from '@deck.gl/geo-layers';
 import type { Layer, PickingInfo } from '@deck.gl/core';
 import { X } from 'lucide-react';
 
+import { buildFeederIconLayer, type FeederIconDatum } from '@/components/map/FeederIconLayer';
+import {
+  attemptsToRadius,
+  LOW_CONFIDENCE_COLOR,
+  reliabilityColor,
+  smoothedRate,
+} from '@/components/map/coverageStyling';
 import { DeckMapboxMap } from '@/components/map/DeckMapboxMap';
-import type { ConstellationCoverageHex } from '@/lib/api/meshtastic-api';
+import type { ConstellationCoverageHex, ConstellationCoverageTarget } from '@/lib/api/meshtastic-api';
 
 const DEFAULT_CENTER = { longitude: -4.2518, latitude: 55.8642, zoom: 7 };
-const LOW_CONFIDENCE_COLOR: [number, number, number, number] = [148, 163, 184, 140];
+
+export type ConstellationMapLayerKey = 'hex' | 'dots' | 'feeders';
 
 export interface SmoothedHex extends ConstellationCoverageHex {
   smoothed: number;
 }
 
-function smoothedRate(successes: number, attempts: number): number {
-  return (successes + 1) / (attempts + 2);
+function getTargetLabel(t: ConstellationCoverageTarget): string {
+  return t.short_name || t.long_name || t.node_id_str || `!${t.node_id.toString(16)}`;
 }
 
-function reliabilityColor(rate: number, alpha = 160): [number, number, number, number] {
-  const t = Math.max(0, Math.min(1, rate));
-  let r: number;
-  let g: number;
-  let b: number;
-  if (t < 0.7) {
-    const k = t / 0.7;
-    r = Math.round(239 + (245 - 239) * k);
-    g = Math.round(68 + (158 - 68) * k);
-    b = Math.round(68 + (11 - 68) * k);
-  } else {
-    const k = Math.min(1, (t - 0.7) / 0.2);
-    r = Math.round(245 + (34 - 245) * k);
-    g = Math.round(158 + (197 - 158) * k);
-    b = Math.round(11 + (94 - 11) * k);
-  }
-  return [r, g, b, alpha];
+function feederLabel(f: FeederIconDatum): string {
+  return f.short_name || f.long_name || f.node_id_str || `!${f.node_id.toString(16)}`;
 }
 
 export interface ConstellationCoverageMapProps {
   hexes: ConstellationCoverageHex[];
+  targets?: ConstellationCoverageTarget[];
+  feeders?: FeederIconDatum[];
+  enabledLayers: ConstellationMapLayerKey[];
   minAttempts: number;
 }
 
-export function ConstellationCoverageMap({ hexes, minAttempts }: ConstellationCoverageMapProps) {
+export function ConstellationCoverageMap({
+  hexes,
+  targets = [],
+  feeders = [],
+  enabledLayers,
+  minAttempts,
+}: ConstellationCoverageMapProps) {
   const [selectedHex, setSelectedHex] = useState<SmoothedHex | null>(null);
+  const [selectedTarget, setSelectedTarget] = useState<ConstellationCoverageTarget | null>(null);
+  const [selectedFeeder, setSelectedFeeder] = useState<FeederIconDatum | null>(null);
+
+  const enabledSet = useMemo(() => new Set(enabledLayers), [enabledLayers]);
 
   const smoothedHexes: SmoothedHex[] = useMemo(
     () =>
@@ -54,8 +62,8 @@ export function ConstellationCoverageMap({ hexes, minAttempts }: ConstellationCo
     [hexes]
   );
 
-  const layer = useMemo(() => {
-    if (smoothedHexes.length === 0) return null;
+  const hexLayer = useMemo(() => {
+    if (!enabledSet.has('hex') || smoothedHexes.length === 0) return null;
     return new H3HexagonLayer<SmoothedHex>({
       id: 'constellation-coverage-hex',
       data: smoothedHexes,
@@ -63,21 +71,69 @@ export function ConstellationCoverageMap({ hexes, minAttempts }: ConstellationCo
       extruded: false,
       stroked: true,
       filled: true,
-      getFillColor: (d) => (d.attempts < minAttempts ? LOW_CONFIDENCE_COLOR : reliabilityColor(d.smoothed)),
+      getFillColor: (d) => (d.attempts < minAttempts ? LOW_CONFIDENCE_COLOR : reliabilityColor(d.smoothed, 160)),
       getLineColor: [15, 23, 42, 180],
       lineWidthMinPixels: 1,
       pickable: true,
     });
-  }, [smoothedHexes, minAttempts]);
+  }, [smoothedHexes, minAttempts, enabledSet]);
 
-  const layers = useMemo(() => [layer].filter(Boolean) as Layer[], [layer]);
+  const dotsLayer = useMemo(() => {
+    if (!enabledSet.has('dots') || targets.length === 0) return null;
+    return new ScatterplotLayer<ConstellationCoverageTarget>({
+      id: 'constellation-coverage-dots',
+      data: targets,
+      getPosition: (d) => [d.lng, d.lat],
+      getFillColor: (d) =>
+        d.attempts < minAttempts ? LOW_CONFIDENCE_COLOR : reliabilityColor(smoothedRate(d.successes, d.attempts)),
+      getRadius: (d) => attemptsToRadius(d.attempts),
+      radiusUnits: 'pixels',
+      stroked: true,
+      lineWidthMinPixels: 1,
+      getLineColor: [15, 23, 42, 200],
+      pickable: true,
+    });
+  }, [enabledSet, targets, minAttempts]);
+
+  const feederIconLayer = useMemo(() => {
+    if (!enabledSet.has('feeders') || feeders.length === 0) return null;
+    const positioned = feeders.filter((f) => f.lat != null && f.lng != null);
+    if (positioned.length === 0) return null;
+    return buildFeederIconLayer(positioned, {
+      id: 'constellation-feeder-tower-icons',
+      size: 38,
+      pickable: true,
+    });
+  }, [enabledSet, feeders]);
+
+  const layers = useMemo(
+    () => [hexLayer, dotsLayer, feederIconLayer].filter(Boolean) as Layer[],
+    [hexLayer, dotsLayer, feederIconLayer]
+  );
 
   const handleClick = useCallback((info: PickingInfo) => {
-    if (info.object && info.layer?.id === 'constellation-coverage-hex') {
-      setSelectedHex(info.object as SmoothedHex);
-    } else {
+    const lid = info.layer?.id;
+    if (lid === 'constellation-feeder-tower-icons' && info.object) {
+      setSelectedFeeder(info.object as FeederIconDatum);
       setSelectedHex(null);
+      setSelectedTarget(null);
+      return;
     }
+    if (lid === 'constellation-coverage-dots' && info.object) {
+      setSelectedTarget(info.object as ConstellationCoverageTarget);
+      setSelectedHex(null);
+      setSelectedFeeder(null);
+      return;
+    }
+    if (lid === 'constellation-coverage-hex' && info.object) {
+      setSelectedHex(info.object as SmoothedHex);
+      setSelectedTarget(null);
+      setSelectedFeeder(null);
+      return;
+    }
+    setSelectedHex(null);
+    setSelectedTarget(null);
+    setSelectedFeeder(null);
   }, []);
 
   return (
@@ -118,6 +174,95 @@ export function ConstellationCoverageMap({ hexes, minAttempts }: ConstellationCo
                 {selectedHex.contributing_feeders} feeder{selectedHex.contributing_feeders === 1 ? '' : 's'},{' '}
                 {selectedHex.contributing_targets} target{selectedHex.contributing_targets === 1 ? '' : 's'}
               </div>
+            </div>
+          </div>
+        </Popup>
+      )}
+      {selectedTarget && (
+        <Popup
+          longitude={selectedTarget.lng}
+          latitude={selectedTarget.lat}
+          anchor="bottom"
+          closeButton={false}
+          closeOnClick={false}
+          onClose={() => setSelectedTarget(null)}
+          maxWidth="320px"
+          className="meshflow-map-popup"
+        >
+          <div className="relative min-w-[180px] rounded-md border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100 shadow-lg">
+            <button
+              type="button"
+              onClick={() => setSelectedTarget(null)}
+              className="absolute right-1 top-1 rounded p-0.5 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
+              aria-label="Close"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden />
+            </button>
+            <div className="pr-5">
+              <div className="font-semibold">
+                {selectedTarget.long_name && selectedTarget.short_name
+                  ? `${selectedTarget.long_name} (${selectedTarget.short_name})`
+                  : getTargetLabel(selectedTarget)}
+              </div>
+              <div className="mt-0.5 text-xs text-slate-400">
+                {selectedTarget.node_id_str || `!${selectedTarget.node_id.toString(16)}`}
+              </div>
+              <div className="mt-1 text-xs">
+                {selectedTarget.successes} / {selectedTarget.attempts} (
+                {selectedTarget.attempts > 0
+                  ? ((selectedTarget.successes / selectedTarget.attempts) * 100).toFixed(0)
+                  : '0'}
+                % raw)
+              </div>
+              <div className="text-xs">
+                Smoothed: {(smoothedRate(selectedTarget.successes, selectedTarget.attempts) * 100).toFixed(0)}%
+              </div>
+              <div className="text-xs text-slate-400">
+                {selectedTarget.contributing_feeders} contributing feeder
+                {selectedTarget.contributing_feeders === 1 ? '' : 's'}
+              </div>
+              <Link
+                to={`/nodes/${selectedTarget.node_id}`}
+                className="mt-1 inline-block text-xs text-emerald-400 hover:text-emerald-300 hover:underline"
+              >
+                Open details
+              </Link>
+            </div>
+          </div>
+        </Popup>
+      )}
+      {selectedFeeder && (
+        <Popup
+          longitude={selectedFeeder.lng}
+          latitude={selectedFeeder.lat}
+          anchor="bottom"
+          closeButton={false}
+          closeOnClick={false}
+          onClose={() => setSelectedFeeder(null)}
+          maxWidth="320px"
+          className="meshflow-map-popup"
+        >
+          <div className="relative min-w-[180px] rounded-md border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100 shadow-lg">
+            <button
+              type="button"
+              onClick={() => setSelectedFeeder(null)}
+              className="absolute right-1 top-1 rounded p-0.5 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
+              aria-label="Close"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden />
+            </button>
+            <div className="pr-5">
+              <div className="text-xs font-medium uppercase tracking-wide text-amber-400">Managed node (feeder)</div>
+              <div className="mt-0.5 font-semibold">{feederLabel(selectedFeeder)}</div>
+              <div className="mt-0.5 text-xs text-slate-400">
+                {selectedFeeder.node_id_str || `!${selectedFeeder.node_id.toString(16)}`}
+              </div>
+              <Link
+                to={`/nodes/${selectedFeeder.node_id}`}
+                className="mt-1 inline-block text-xs text-emerald-400 hover:text-emerald-300 hover:underline"
+              >
+                Open details
+              </Link>
             </div>
           </div>
         </Popup>

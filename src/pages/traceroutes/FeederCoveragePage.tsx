@@ -4,6 +4,7 @@ import { subDays, subHours } from 'date-fns';
 import { CircleDashedIcon, RouteIcon } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,6 +13,13 @@ import { cn } from '@/lib/utils';
 import { useNodes } from '@/hooks/api/useNodes';
 import { useFeederReach } from '@/hooks/api/useFeederReach';
 import { FeederCoverageMap, type CoverageLayerKey } from '@/components/traceroutes/FeederCoverageMap';
+import {
+  TRACEROUTE_STRATEGIES,
+  STRATEGY_META,
+  createCoverageStrategiesAllSelected,
+  coverageTargetStrategyQueryParam,
+  coverageTargetStrategySummary,
+} from '@/lib/traceroute-strategy';
 
 type TimeRange = '24h' | '7d' | '30d';
 
@@ -33,6 +41,7 @@ function StatsCard({
   totalSuccesses,
   meanSmoothed,
   minAttempts,
+  strategySummary,
   className,
 }: {
   feederLabel: string;
@@ -41,6 +50,7 @@ function StatsCard({
   totalSuccesses: number;
   meanSmoothed: number | null;
   minAttempts: number;
+  strategySummary?: string;
   className?: string;
 }) {
   return (
@@ -49,6 +59,11 @@ function StatsCard({
         <CardTitle className="text-sm">Coverage stats</CardTitle>
       </CardHeader>
       <CardContent className="space-y-1.5 text-sm">
+        {strategySummary != null && (
+          <div className="text-xs text-muted-foreground">
+            Strategies: <span className="text-foreground">{strategySummary}</span>
+          </div>
+        )}
         <div className="text-xs text-muted-foreground">{feederLabel}</div>
         <div>{targetCount.toLocaleString()} targets reached</div>
         <div>
@@ -70,6 +85,10 @@ function StatsCard({
             <span>100%</span>
           </div>
         </div>
+        <div className="border-t border-border pt-2 text-xs text-muted-foreground">
+          <strong className="text-foreground">Dots</strong>: probed targets (size = attempts).{' '}
+          <strong className="text-foreground">Tower</strong>: this managed feeder (source node).
+        </div>
       </CardContent>
     </Card>
   );
@@ -84,6 +103,7 @@ export function FeederCoveragePage() {
     hex: false,
     polygon: false,
   });
+  const [strategies, setStrategies] = useState(() => createCoverageStrategiesAllSelected());
 
   const { managedNodes, isLoadingManagedNodes: feedersLoading } = useNodes({ pageSize: 500 });
 
@@ -128,9 +148,13 @@ export function FeederCoveragePage() {
     return subDays(new Date(), 30);
   }, [timeRange]);
 
+  const targetStrategyParam = useMemo(() => coverageTargetStrategyQueryParam(strategies), [strategies]);
+  const strategySummary = useMemo(() => coverageTargetStrategySummary(strategies), [strategies]);
+
   const { data, isLoading, error } = useFeederReach({
     feederId: selectedFeederId,
     triggeredAtAfter,
+    targetStrategy: targetStrategyParam,
   });
 
   const filteredTargets = useMemo(
@@ -162,80 +186,103 @@ export function FeederCoveragePage() {
           <p className="max-w-2xl text-sm text-muted-foreground">
             Maps completed and failed auto-traceroutes from one managed node to each probed target over the time window.
             Dots show per-target reliability; hex bins summarise nearby targets; the polygon outlines where at least one
-            successful route was observed (not a guarantee of RF coverage).
+            successful route was observed (not a guarantee of RF coverage). The selected managed node appears as an
+            orange tower marker (distinct from the heatmap dots). Use the strategy checkboxes to include only
+            traceroutes recorded under specific target-selection hypotheses.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3" data-testid="coverage-filters">
-          <div className="flex w-full items-center gap-2 sm:w-auto">
-            <Label className="text-xs text-muted-foreground" htmlFor="feeder-coverage-feeder">
-              Feeder
-            </Label>
-            <Select
-              value={selectedFeederId != null ? String(selectedFeederId) : undefined}
-              onValueChange={(v) => setSelectedFeederId(Number.parseInt(v, 10))}
-              disabled={feedersLoading || feederOptions.length === 0}
-            >
-              <SelectTrigger id="feeder-coverage-feeder" className="min-w-[200px]" aria-label="Select feeder">
-                <SelectValue placeholder="Select feeder" />
-              </SelectTrigger>
-              <SelectContent>
-                {feederOptions.map((n) => (
-                  <SelectItem key={n.node_id} value={String(n.node_id)}>
-                    {n.short_name || n.long_name || n.node_id_str}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <Label className="text-xs text-muted-foreground" htmlFor="feeder-coverage-window">
-              Window
-            </Label>
-            <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
-              <SelectTrigger id="feeder-coverage-window" className="min-w-[140px]" aria-label="Time window">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="24h">Last 24 hours</SelectItem>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <Label className="text-xs text-muted-foreground" htmlFor="feeder-coverage-min-attempts">
-              Min attempts
-            </Label>
-            <Input
-              id="feeder-coverage-min-attempts"
-              type="number"
-              min={1}
-              value={minAttempts}
-              onChange={(e) => {
-                const v = Number.parseInt(e.target.value, 10);
-                setMinAttempts(Number.isFinite(v) && v >= 1 ? v : 1);
-              }}
-              className="w-20"
-            />
-          </div>
-          <div className="flex rounded-md border border-input bg-muted/50 p-0.5" data-testid="layer-pills">
-            {ALL_LAYERS.map((key) => (
-              <button
-                key={key}
-                type="button"
-                aria-pressed={layers[key]}
-                aria-label={`Toggle ${LAYER_LABEL[key]} layer`}
-                onClick={() => setLayers((s) => ({ ...s, [key]: !s[key] }))}
-                className={cn(
-                  'rounded px-3 py-1.5 text-sm font-medium transition-colors',
-                  layers[key]
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
+        <div className="flex flex-col gap-3" data-testid="coverage-filters">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex w-full items-center gap-2 sm:w-auto">
+              <Label className="text-xs text-muted-foreground" htmlFor="feeder-coverage-feeder">
+                Feeder
+              </Label>
+              <Select
+                value={selectedFeederId != null ? String(selectedFeederId) : undefined}
+                onValueChange={(v) => setSelectedFeederId(Number.parseInt(v, 10))}
+                disabled={feedersLoading || feederOptions.length === 0}
               >
-                {LAYER_LABEL[key]}
-              </button>
-            ))}
+                <SelectTrigger id="feeder-coverage-feeder" className="min-w-[200px]" aria-label="Select feeder">
+                  <SelectValue placeholder="Select feeder" />
+                </SelectTrigger>
+                <SelectContent>
+                  {feederOptions.map((n) => (
+                    <SelectItem key={n.node_id} value={String(n.node_id)}>
+                      {n.short_name || n.long_name || n.node_id_str}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground" htmlFor="feeder-coverage-window">
+                Window
+              </Label>
+              <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
+                <SelectTrigger id="feeder-coverage-window" className="min-w-[140px]" aria-label="Time window">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="24h">Last 24 hours</SelectItem>
+                  <SelectItem value="7d">Last 7 days</SelectItem>
+                  <SelectItem value="30d">Last 30 days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground" htmlFor="feeder-coverage-min-attempts">
+                Min attempts
+              </Label>
+              <Input
+                id="feeder-coverage-min-attempts"
+                type="number"
+                min={1}
+                value={minAttempts}
+                onChange={(e) => {
+                  const v = Number.parseInt(e.target.value, 10);
+                  setMinAttempts(Number.isFinite(v) && v >= 1 ? v : 1);
+                }}
+                className="w-20"
+              />
+            </div>
+            <div className="flex rounded-md border border-input bg-muted/50 p-0.5" data-testid="layer-pills">
+              {ALL_LAYERS.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={layers[key]}
+                  aria-label={`Toggle ${LAYER_LABEL[key]} layer`}
+                  onClick={() => setLayers((s) => ({ ...s, [key]: !s[key] }))}
+                  className={cn(
+                    'rounded px-3 py-1.5 text-sm font-medium transition-colors',
+                    layers[key]
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {LAYER_LABEL[key]}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/30 px-3 py-2">
+            <span className="text-xs font-medium text-muted-foreground">Target selection strategies</span>
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
+              {TRACEROUTE_STRATEGIES.map((opt) => (
+                <label
+                  key={opt}
+                  htmlFor={`feeder-coverage-strategy-${opt}`}
+                  className="flex cursor-pointer items-center gap-2 text-sm"
+                >
+                  <Checkbox
+                    id={`feeder-coverage-strategy-${opt}`}
+                    checked={strategies[opt] ?? false}
+                    onCheckedChange={(c) => setStrategies((s) => ({ ...s, [opt]: c === true }))}
+                  />
+                  <span className="leading-none">{STRATEGY_META[opt].label}</span>
+                </label>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -248,6 +295,7 @@ export function FeederCoveragePage() {
           totalSuccesses={totalSuccesses}
           meanSmoothed={meanSmoothed}
           minAttempts={minAttempts}
+          strategySummary={strategySummary}
         />
       </div>
 
@@ -282,13 +330,14 @@ export function FeederCoveragePage() {
 
         <div className="absolute right-4 top-4 z-10 hidden md:block">
           <StatsCard
-            className="w-64"
+            className="w-72"
             feederLabel={feederLabel}
             targetCount={filteredTargets.length}
             totalAttempts={totalAttempts}
             totalSuccesses={totalSuccesses}
             meanSmoothed={meanSmoothed}
             minAttempts={minAttempts}
+            strategySummary={strategySummary}
           />
         </div>
       </div>

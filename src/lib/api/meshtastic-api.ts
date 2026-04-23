@@ -77,11 +77,28 @@ export interface ConstellationCoverageHex {
   contributing_targets: number;
 }
 
+/** Per-target aggregate across all feeders (when `include_targets=1`). */
+export interface ConstellationCoverageTarget {
+  node_id: number;
+  node_id_str: string;
+  short_name: string | null;
+  long_name: string | null;
+  lat: number;
+  lng: number;
+  attempts: number;
+  successes: number;
+  contributing_feeders: number;
+}
+
 export interface ConstellationCoverageData {
   constellation_id: number;
   h3_resolution: number;
   hexes: ConstellationCoverageHex[];
   meta: { window: CoverageWindow };
+  /** Present when the request used `include_targets=1`. */
+  targets?: ConstellationCoverageTarget[];
+  /** Managed nodes in the constellation with a map position (same shape as feeder-reach `feeder`). */
+  feeders?: FeederReachFeeder[];
 }
 
 export class MeshtasticApi extends BaseApi {
@@ -870,6 +887,8 @@ export class MeshtasticApi extends BaseApi {
     feeder_id: number;
     triggered_at_after?: string;
     triggered_at_before?: string;
+    /** Comma-separated strategy tokens (intra_zone, dx_across, dx_same_side, legacy). */
+    target_strategy?: string;
   }): Promise<FeederReachData> {
     const searchParams = new URLSearchParams();
     searchParams.append('feeder_id', params.feeder_id.toString());
@@ -878,6 +897,9 @@ export class MeshtasticApi extends BaseApi {
     }
     if (params.triggered_at_before) {
       searchParams.append('triggered_at_before', params.triggered_at_before);
+    }
+    if (params.target_strategy) {
+      searchParams.append('target_strategy', params.target_strategy);
     }
     return this.get('/traceroutes/feeder-reach/', searchParams);
   }
@@ -890,6 +912,10 @@ export class MeshtasticApi extends BaseApi {
     triggered_at_after?: string;
     triggered_at_before?: string;
     h3_resolution?: number;
+    /** When true, response includes `targets` and `feeders` for map layers. */
+    include_targets?: boolean;
+    /** Comma-separated strategy tokens (same as feeder-reach). */
+    target_strategy?: string;
   }): Promise<ConstellationCoverageData> {
     const searchParams = new URLSearchParams();
     searchParams.append('constellation_id', params.constellation_id.toString());
@@ -901,6 +927,12 @@ export class MeshtasticApi extends BaseApi {
     }
     if (params.h3_resolution != null) {
       searchParams.append('h3_resolution', params.h3_resolution.toString());
+    }
+    if (params.include_targets) {
+      searchParams.append('include_targets', '1');
+    }
+    if (params.target_strategy) {
+      searchParams.append('target_strategy', params.target_strategy);
     }
     return this.get('/traceroutes/constellation-coverage/', searchParams);
   }

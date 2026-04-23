@@ -9,6 +9,10 @@ export interface UseConstellationCoverageParams {
   triggeredAtAfter?: Date;
   triggeredAtBefore?: Date;
   h3Resolution?: number;
+  /** When true, request per-target rows and feeder markers from the API. */
+  includeTargets?: boolean;
+  /** Comma-separated target_strategy tokens (omit when all strategies). */
+  targetStrategy?: string;
 }
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
@@ -33,6 +37,8 @@ export function useConstellationCoverage(params: UseConstellationCoverageParams)
         triggeredAtAfterKey,
         triggeredAtBeforeKey,
         h3Resolution: params.h3Resolution,
+        includeTargets: params.includeTargets,
+        targetStrategy: params.targetStrategy,
       },
     ],
     enabled: params.constellationId != null,
@@ -43,6 +49,8 @@ export function useConstellationCoverage(params: UseConstellationCoverageParams)
         triggered_at_after: triggeredAtAfter,
         triggered_at_before: triggeredAtBefore,
         h3_resolution: params.h3Resolution,
+        include_targets: params.includeTargets,
+        target_strategy: params.targetStrategy,
       }),
   });
 }
