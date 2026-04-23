@@ -371,6 +371,8 @@ export interface NodeSearchResult {
   node_id_str: string;
   short_name: string | null;
   long_name: string | null;
+  /** ISO string from API when present; used for recency filters in search UI. */
+  last_heard?: string | null;
   owner?: NodeOwnerInfo | null;
 }
 

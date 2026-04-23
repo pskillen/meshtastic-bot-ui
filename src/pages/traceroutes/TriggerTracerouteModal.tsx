@@ -16,6 +16,7 @@ import { NodesAndConstellationsMap, MapNode } from '@/components/nodes/NodesAndC
 import { AutoTargetPreviewMap } from '@/components/traceroutes/AutoTargetPreviewMap';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ManagedNode, ObservedNode } from '@/lib/models';
+import { observedNodeHeardOnOrAfter, pickTargetLastHeardCutoff } from '@/lib/observed-node-recency';
 import type { TargetPreviewStrategy } from '@/lib/tracerouteTargetGeometry';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info } from 'lucide-react';
@@ -86,6 +87,18 @@ export function TriggerTracerouteModal({
   const canIntraZone = geo?.applicable_strategies?.includes('intra_zone') ?? false;
 
   const managedNodeIdSet = useMemo(() => new Set(managedNodes.map((m) => m.node_id)), [managedNodes]);
+
+  const [pickTargetLastHeardAfter, setPickTargetLastHeardAfter] = useState(() => pickTargetLastHeardCutoff());
+
+  useEffect(() => {
+    if (!open) return;
+    setPickTargetLastHeardAfter(pickTargetLastHeardCutoff());
+  }, [open]);
+
+  const pickTargetObservedNodes = useMemo(
+    () => observedNodes.filter((n) => observedNodeHeardOnOrAfter(n, pickTargetLastHeardAfter)),
+    [observedNodes, pickTargetLastHeardAfter]
+  );
 
   const previewStrategy: TargetPreviewStrategy =
     strategyChoice === 'auto' ? 'auto' : strategyChoice === 'intra_zone' && !canIntraZone ? 'auto' : strategyChoice;
@@ -294,6 +307,7 @@ export function TriggerTracerouteModal({
               <div className="grid gap-2">
                 <Label htmlFor="target-node">Target node</Label>
                 <NodeSearch
+                  lastHeardAfter={pickTargetLastHeardAfter}
                   onNodeSelect={(id, node) => {
                     setTargetNodeId(id);
                     setTargetNodeLabel(node ? `${node.short_name ?? node.node_id_str} (${node.node_id_str})` : null);
@@ -307,10 +321,13 @@ export function TriggerTracerouteModal({
               </div>
               <div className="grid gap-2">
                 <Label>Or click on the map</Label>
+                <p className="text-xs text-muted-foreground">
+                  Only nodes heard in the last 48 hours are listed and shown on the map.
+                </p>
                 <div className="h-[300px] rounded-md border overflow-hidden">
                   <NodesAndConstellationsMap
                     managedNodes={managedNodes}
-                    observedNodes={observedNodes}
+                    observedNodes={pickTargetObservedNodes}
                     showConstellation={true}
                     showUnmanagedNodes={true}
                     drawBoundingBox={false}
