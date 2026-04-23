@@ -113,6 +113,17 @@ export interface GeoClassification {
   tier: 'perimeter' | 'internal';
   bearing_octant: 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW' | null;
   applicable_strategies: ('intra_zone' | 'dx_across' | 'dx_same_side')[];
+  /** Circular envelope (centroid + p90 radius); null when fewer than three positioned managed nodes. */
+  envelope?: { centroid_lat: number; centroid_lon: number; radius_km: number } | null;
+  /** Centroid used for bearings and wedges (matches envelope centroid when defined, else constellation mean). */
+  selection_centroid?: { lat: number; lon: number } | null;
+  /** Bearing from selection centroid toward the feeder, degrees 0–360; null when feeder position unknown. */
+  source_bearing_deg?: number | null;
+  selector_params?: {
+    last_heard_within_hours: number;
+    dx_half_window_sweep_deg: number[];
+    perimeter_distance_fraction: number;
+  };
 }
 
 // ManagedNode from Meshflow API v2

@@ -11,6 +11,27 @@ class ResizeObserver {
 }
 window.ResizeObserver = ResizeObserver;
 
+// Radix Select uses pointer capture; jsdom omits these on Element.
+{
+  const proto = Element.prototype as unknown as {
+    hasPointerCapture?: (id: number) => boolean;
+    setPointerCapture?: (id: number) => void;
+    releasePointerCapture?: (id: number) => void;
+  };
+  if (typeof proto.hasPointerCapture !== 'function') {
+    proto.hasPointerCapture = () => false;
+  }
+  if (typeof proto.setPointerCapture !== 'function') {
+    proto.setPointerCapture = () => {};
+  }
+  if (typeof proto.releasePointerCapture !== 'function') {
+    proto.releasePointerCapture = () => {};
+  }
+}
+
+// Radix Select scrolls the active item into view.
+window.HTMLElement.prototype.scrollIntoView = function () {};
+
 // Mock matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
