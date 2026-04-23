@@ -209,7 +209,8 @@ export function TriggerTracerouteModal({
                   </TooltipTrigger>
                   <TooltipContent side="right" className="max-w-xs text-xs">
                     In auto mode, chooses how the API picks a target. In pick-target mode, records the hypothesis with
-                    an explicit target. Intra-zone only applies to perimeter feeders.
+                    an explicit target. Intra-zone needs a constellation envelope (enough positioned managed nodes);
+                    the perimeter/internal badge is geometry only.
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
