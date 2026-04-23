@@ -55,16 +55,16 @@ function renderSection(managed: ManagedNode) {
 }
 
 describe('NodeOutgoingTraceroutesSection', () => {
-  it('renders outgoing heading and feeder classification when geo is present', () => {
+  it('renders outgoing heading and recent runs (no feeder strategy pills)', () => {
     renderSection(makeManaged());
     expect(screen.getByTestId('node-detail-outgoing-traceroutes')).toBeInTheDocument();
-    expect(screen.getByTestId('node-detail-feeder-geo')).toBeInTheDocument();
-    expect(screen.getByText('Traceroute feeder classification')).toBeInTheDocument();
-    expect(screen.getByText('Internal')).toBeInTheDocument();
+    expect(screen.queryByTestId('node-detail-feeder-geo')).not.toBeInTheDocument();
+    expect(screen.queryByText('Traceroute feeder classification')).not.toBeInTheDocument();
+    expect(screen.getByText('Recent runs')).toBeInTheDocument();
     expect(screen.getByText(/No outgoing traceroutes/)).toBeInTheDocument();
   });
 
-  it('omits classification block when geo_classification is missing', () => {
+  it('renders recent runs when geo_classification is missing', () => {
     renderSection(makeManaged({ geo_classification: null }));
     expect(screen.queryByTestId('node-detail-feeder-geo')).not.toBeInTheDocument();
     expect(screen.getByText('Recent runs')).toBeInTheDocument();

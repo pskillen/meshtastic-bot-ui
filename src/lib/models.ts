@@ -205,7 +205,7 @@ export interface AutoTraceRoute {
   target_node: ObservedNode;
   trigger_type: 'auto' | 'user' | 'external' | 'monitor';
   /** Hypothesis-driven selector; null means legacy / unspecified */
-  target_strategy?: 'intra_zone' | 'dx_across' | 'dx_same_side' | 'legacy' | null;
+  target_strategy?: 'intra_zone' | 'dx_across' | 'dx_same_side' | 'legacy' | 'manual' | null;
   triggered_by: number | null;
   triggered_by_username: string | null;
   trigger_source: string | null;
@@ -371,6 +371,8 @@ export interface NodeSearchResult {
   node_id_str: string;
   short_name: string | null;
   long_name: string | null;
+  /** ISO string from API when present; used for recency filters in search UI. */
+  last_heard?: string | null;
   owner?: NodeOwnerInfo | null;
 }
 

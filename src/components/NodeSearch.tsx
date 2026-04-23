@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useNodes } from '@/hooks/api/useNodes';
 import { SearchIcon, X } from 'lucide-react';
@@ -14,13 +14,30 @@ interface NodeSearchProps {
   displayValue?: string | null;
   /** Called when user clears the selection */
   onClearSelection?: () => void;
+  /**
+   * When set, search hits must have `last_heard` on or after this instant (nodes without last_heard are hidden).
+   */
+  lastHeardAfter?: Date;
 }
 
-export function NodeSearch({ onNodeSelect, displayValue, onClearSelection }: NodeSearchProps) {
+function searchResultHeardOnOrAfter(node: { last_heard?: string | null }, cutoff: Date): boolean {
+  if (node.last_heard == null || node.last_heard === '') return false;
+  const t = new Date(node.last_heard);
+  if (Number.isNaN(t.getTime())) return false;
+  return t.getTime() >= cutoff.getTime();
+}
+
+export function NodeSearch({ onNodeSelect, displayValue, onClearSelection, lastHeardAfter }: NodeSearchProps) {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const { searchNodes, searchResults, isSearching } = useNodes();
+
+  const filteredSearchResults = useMemo(() => {
+    const raw = searchResults ?? [];
+    if (lastHeardAfter == null) return raw;
+    return raw.filter((n) => searchResultHeardOnOrAfter(n, lastHeardAfter));
+  }, [searchResults, lastHeardAfter]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -86,11 +103,15 @@ export function NodeSearch({ onNodeSelect, displayValue, onClearSelection }: Nod
             <div className="p-2 text-center">
               <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary mx-auto"></div>
             </div>
-          ) : searchResults?.length === 0 ? (
-            <div className="p-2 text-muted-foreground">No nodes found</div>
+          ) : filteredSearchResults.length === 0 ? (
+            <div className="p-2 text-muted-foreground">
+              {(searchResults?.length ?? 0) > 0 && lastHeardAfter != null
+                ? 'No matching nodes heard recently.'
+                : 'No nodes found'}
+            </div>
           ) : (
             <ul className="py-1">
-              {searchResults?.map((node) => (
+              {filteredSearchResults.map((node) => (
                 <li key={node.internal_id}>
                   <Link
                     to={onNodeSelect ? '#' : `/nodes/${node.node_id}`}

@@ -3,8 +3,10 @@ import { applicableStrategiesFromGeo, strategyLabel } from '@/lib/traceroute-str
 
 describe('traceroute-strategy', () => {
   it('strategyLabel maps known keys and falls back', () => {
-    expect(strategyLabel(null)).toBe('Legacy');
+    expect(strategyLabel(null)).toBe('—');
+    expect(strategyLabel('')).toBe('—');
     expect(strategyLabel('dx_across')).toBe('DX across');
+    expect(strategyLabel('manual')).toBe('Manual target');
     expect(strategyLabel('unknown_xyz')).toBe('unknown_xyz');
   });
 

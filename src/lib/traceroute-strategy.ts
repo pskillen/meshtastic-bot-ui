@@ -1,6 +1,10 @@
 /** Target selection strategy (`AutoTraceRoute.target_strategy`). */
 
+/** Hypothesis + legacy tokens used in filters and coverage (not `manual`). */
 export type TracerouteStrategyValue = 'intra_zone' | 'dx_across' | 'dx_same_side' | 'legacy';
+
+/** Full set including server-persisted manual target runs. */
+export type TracerouteStrategyDisplayValue = TracerouteStrategyValue | 'manual';
 
 export const TRACEROUTE_STRATEGIES = [
   'intra_zone',
@@ -10,13 +14,13 @@ export const TRACEROUTE_STRATEGIES = [
 ] as const satisfies readonly TracerouteStrategyValue[];
 
 export const STRATEGY_META: Record<
-  TracerouteStrategyValue,
+  TracerouteStrategyDisplayValue,
   { label: string; shortDescription: string; badgeVariant: 'default' | 'secondary' | 'outline' }
 > = {
   intra_zone: {
     label: 'Intra-zone',
     shortDescription: 'Target inside the constellation envelope — tests intra-mesh continuity.',
-    badgeVariant: 'default',
+    badgeVariant: 'secondary',
   },
   dx_across: {
     label: 'DX across',
@@ -26,18 +30,23 @@ export const STRATEGY_META: Record<
   dx_same_side: {
     label: 'DX same side',
     shortDescription: 'Distant target outside the envelope on your side — tests outreach past the perimeter.',
-    badgeVariant: 'outline',
+    badgeVariant: 'secondary',
   },
   legacy: {
     label: 'Legacy',
     shortDescription: 'Recorded before strategy tracking or unspecified.',
-    badgeVariant: 'outline',
+    badgeVariant: 'secondary',
+  },
+  manual: {
+    label: 'Manual target',
+    shortDescription: 'User picked an explicit target node; no automated hypothesis selection.',
+    badgeVariant: 'secondary',
   },
 };
 
-export function strategyLabel(value: TracerouteStrategyValue | string | null | undefined): string {
-  if (value == null || value === '') return STRATEGY_META.legacy.label;
-  const k = value as TracerouteStrategyValue;
+export function strategyLabel(value: TracerouteStrategyDisplayValue | string | null | undefined): string {
+  if (value == null || value === '') return '—';
+  const k = value as TracerouteStrategyDisplayValue;
   return STRATEGY_META[k]?.label ?? String(value);
 }
 
