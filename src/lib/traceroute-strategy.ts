@@ -52,3 +52,27 @@ export function applicableStrategiesFromGeo(
   const raw = geo?.applicable_strategies ?? [];
   return raw.filter((s): s is TracerouteStrategyValue => TRACEROUTE_STRATEGIES.includes(s as TracerouteStrategyValue));
 }
+
+/** Initial coverage UI state: every strategy checked (= no `target_strategy` filter on the API). */
+export function createCoverageStrategiesAllSelected(): Record<TracerouteStrategyValue, boolean> {
+  return Object.fromEntries(TRACEROUTE_STRATEGIES.map((k) => [k, true])) as Record<TracerouteStrategyValue, boolean>;
+}
+
+/**
+ * Comma-separated `target_strategy` query value, or `undefined` when all or none are selected
+ * (backend treats omitted param as all strategies).
+ */
+export function coverageTargetStrategyQueryParam(strategies: Record<string, boolean>): string | undefined {
+  const selected = TRACEROUTE_STRATEGIES.filter((k) => strategies[k]);
+  if (selected.length === 0 || selected.length === TRACEROUTE_STRATEGIES.length) {
+    return undefined;
+  }
+  return selected.join(',');
+}
+
+/** Human-readable line for coverage stats cards. */
+export function coverageTargetStrategySummary(strategies: Record<string, boolean>): string {
+  const selected = TRACEROUTE_STRATEGIES.filter((k) => strategies[k]);
+  if (selected.length === 0 || selected.length === TRACEROUTE_STRATEGIES.length) return 'All strategies';
+  return selected.map((k) => STRATEGY_META[k].label).join(', ');
+}

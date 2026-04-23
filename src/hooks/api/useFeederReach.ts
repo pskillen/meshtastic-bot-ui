@@ -8,6 +8,8 @@ export interface UseFeederReachParams {
   feederId?: number;
   triggeredAtAfter?: Date;
   triggeredAtBefore?: Date;
+  /** Comma-separated strategy tokens for `target_strategy` (omit when all strategies). */
+  targetStrategy?: string;
 }
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
@@ -34,6 +36,7 @@ export function useFeederReach(params: UseFeederReachParams) {
         feederId: params.feederId,
         triggeredAtAfterKey,
         triggeredAtBeforeKey,
+        targetStrategy: params.targetStrategy,
       },
     ],
     enabled: params.feederId != null,
@@ -43,6 +46,7 @@ export function useFeederReach(params: UseFeederReachParams) {
         feeder_id: params.feederId as number,
         triggered_at_after: triggeredAtAfter,
         triggered_at_before: triggeredAtBefore,
+        target_strategy: params.targetStrategy,
       }),
   });
 }

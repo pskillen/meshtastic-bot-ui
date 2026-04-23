@@ -10,17 +10,28 @@ vi.mock('@/hooks/api/useConstellationCoverage', () => ({
   useConstellationCoverage: vi.fn(),
 }));
 
+vi.mock('@/hooks/api/useNodes', () => ({
+  useNodes: vi.fn(() => ({ managedNodes: [], isLoadingManagedNodes: false })),
+}));
+
+vi.mock('@/hooks/api/useObservedNodesHeard', () => ({
+  useObservedNodesHeard: vi.fn(() => ({ nodes: [], isLoading: false, isFetching: false })),
+}));
+
 vi.mock('@/components/traceroutes/ConstellationCoverageMap', () => ({
   ConstellationCoverageMap: ({
     hexes,
+    heardGhosts,
     minAttempts,
   }: {
     hexes: { cell: string }[];
+    heardGhosts: unknown[];
     minAttempts: number;
   }) => (
     <div
       data-testid="constellation-coverage-map-mock"
       data-hex-count={hexes.length}
+      data-heard-ghost-count={heardGhosts.length}
       data-min-attempts={minAttempts}
     />
   ),

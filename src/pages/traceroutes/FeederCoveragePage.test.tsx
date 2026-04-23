@@ -11,15 +11,21 @@ vi.mock('@/hooks/api/useFeederReach', () => ({
   useFeederReach: vi.fn(),
 }));
 
+vi.mock('@/hooks/api/useObservedNodesHeard', () => ({
+  useObservedNodesHeard: vi.fn(() => ({ nodes: [], isLoading: false, isFetching: false })),
+}));
+
 vi.mock('@/components/traceroutes/FeederCoverageMap', () => ({
   FeederCoverageMap: ({
     feeder,
     targets,
+    heardGhosts,
     enabledLayers,
     minAttempts,
   }: {
     feeder: { node_id: number };
     targets: { node_id: number }[];
+    heardGhosts: unknown[];
     enabledLayers: string[];
     minAttempts: number;
   }) => (
@@ -27,6 +33,7 @@ vi.mock('@/components/traceroutes/FeederCoverageMap', () => ({
       data-testid="feeder-coverage-map-mock"
       data-feeder={feeder.node_id}
       data-target-count={targets.length}
+      data-heard-ghost-count={heardGhosts.length}
       data-enabled-layers={enabledLayers.join(',')}
       data-min-attempts={minAttempts}
     />
