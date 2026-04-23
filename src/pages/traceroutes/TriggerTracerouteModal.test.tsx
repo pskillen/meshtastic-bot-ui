@@ -1,7 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import { render, screen } from '@testing-library/react';
 import { TriggerTracerouteModal } from './TriggerTracerouteModal';
-import type { ManagedNode, ObservedNode } from '@/lib/models';
+import type { GeoClassification, ManagedNode, ObservedNode } from '@/lib/models';
+
+vi.mock('@/components/traceroutes/AutoTargetPreviewMap', () => ({
+  AutoTargetPreviewMap: () => <div data-testid="auto-target-preview-stub" />,
+}));
 
 function makeObservedNode(overrides: Partial<ObservedNode> = {}): ObservedNode {
   return {
@@ -14,6 +19,22 @@ function makeObservedNode(overrides: Partial<ObservedNode> = {}): ObservedNode {
     hw_model: null,
     public_key: null,
     ...overrides,
+  };
+}
+
+function sampleGeo(): GeoClassification {
+  return {
+    tier: 'perimeter',
+    bearing_octant: 'N',
+    applicable_strategies: ['intra_zone', 'dx_across', 'dx_same_side'],
+    envelope: { centroid_lat: 55.0, centroid_lon: -4.25, radius_km: 10 },
+    selection_centroid: { lat: 55.0, lon: -4.25 },
+    source_bearing_deg: 90,
+    selector_params: {
+      last_heard_within_hours: 3,
+      dx_half_window_sweep_deg: [45, 60, 75, 90],
+      perimeter_distance_fraction: 0.6,
+    },
   };
 }
 
@@ -91,6 +112,30 @@ describe('TriggerTracerouteModal with fixedTargetNode', () => {
       />
     );
     expect(screen.getByTestId('trigger-traceroute-strategy')).toBeInTheDocument();
+  });
+
+  it('shows auto-target preview after selecting a source in auto mode', async () => {
+    const user = userEvent.setup();
+    const managed = makeManagedNode({
+      position: { latitude: 55.2, longitude: -4.25 },
+      geo_classification: sampleGeo(),
+    });
+    render(
+      <TriggerTracerouteModal
+        open={true}
+        onOpenChange={vi.fn()}
+        mode="auto"
+        managedNodes={[managed]}
+        observedNodes={[]}
+        onTrigger={vi.fn()}
+        isSubmitting={false}
+      />
+    );
+    await user.click(screen.getByLabelText('Source node'));
+    const opt = await screen.findByRole('option', { name: /SRC/, hidden: true });
+    await user.click(opt);
+    expect(screen.getByTestId('auto-target-preview-stub')).toBeInTheDocument();
+    expect(screen.getByText(/DX half-window/i)).toBeInTheDocument();
   });
 
   it('does not render the fixed-target row when fixedTargetNode is omitted', () => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -13,7 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NodeSearch } from '@/components/NodeSearch';
 import { NodesAndConstellationsMap, MapNode } from '@/components/nodes/NodesAndConstellationsMap';
+import { AutoTargetPreviewMap } from '@/components/traceroutes/AutoTargetPreviewMap';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ManagedNode, ObservedNode } from '@/lib/models';
+import type { TargetPreviewStrategy } from '@/lib/tracerouteTargetGeometry';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Info } from 'lucide-react';
@@ -61,6 +64,7 @@ export function TriggerTracerouteModal({
   const [targetNodeId, setTargetNodeId] = useState<number | null>(null);
   const [targetNodeLabel, setTargetNodeLabel] = useState<string | null>(null);
   const [strategyChoice, setStrategyChoice] = useState<ManualTargetStrategyChoice>('auto');
+  const [halfWindowDeg, setHalfWindowDeg] = useState(45);
 
   const hasFixedTarget = fixedTargetNode != null;
 
@@ -69,6 +73,7 @@ export function TriggerTracerouteModal({
     if (!open) return;
     setMode(hasFixedTarget ? 'user' : initialMode);
     setStrategyChoice('auto');
+    setHalfWindowDeg(45);
   }, [open, initialMode, hasFixedTarget]);
 
   useEffect(() => {
@@ -80,6 +85,11 @@ export function TriggerTracerouteModal({
   const selectedManaged = managedNodes.find((m) => m.node_id === managedNodeId);
   const geo = selectedManaged?.geo_classification;
   const canIntraZone = geo?.applicable_strategies?.includes('intra_zone') ?? false;
+
+  const managedNodeIdSet = useMemo(() => new Set(managedNodes.map((m) => m.node_id)), [managedNodes]);
+
+  const previewStrategy: TargetPreviewStrategy =
+    strategyChoice === 'auto' ? 'auto' : strategyChoice === 'intra_zone' && !canIntraZone ? 'auto' : strategyChoice;
 
   const strategyForApi: 'intra_zone' | 'dx_across' | 'dx_same_side' | undefined =
     strategyChoice === 'auto'
@@ -134,7 +144,7 @@ export function TriggerTracerouteModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={mode === 'user' ? 'max-w-4xl' : undefined}>
+      <DialogContent className={!hasFixedTarget ? 'max-w-4xl' : undefined}>
         <DialogHeader>
           <DialogTitle>Trigger Traceroute</DialogTitle>
           <DialogDescription>{dialogDescription}</DialogDescription>
@@ -218,6 +228,39 @@ export function TriggerTracerouteModal({
               </SelectContent>
             </Select>
           </div>
+
+          {mode === 'auto' && !hasFixedTarget && managedNodeId != null && selectedManaged && (
+            <div className="grid gap-2">
+              <Label>DX half-window (bearing ±°)</Label>
+              <ToggleGroup
+                type="single"
+                value={String(halfWindowDeg)}
+                onValueChange={(v) => {
+                  if (v) setHalfWindowDeg(parseInt(v, 10));
+                }}
+                variant="outline"
+                size="sm"
+                className="w-fit flex-wrap"
+              >
+                {[45, 60, 75, 90].map((d) => (
+                  <ToggleGroupItem key={d} value={String(d)} className="text-xs">
+                    {d}°
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+              <p className="text-xs text-muted-foreground">
+                Shaded regions approximate API target pools (client-side). Hollow dots are excluded for the selected
+                strategy.
+              </p>
+              <AutoTargetPreviewMap
+                feeder={selectedManaged}
+                candidates={observedNodes}
+                managedNodeIds={managedNodeIdSet}
+                strategy={previewStrategy}
+                halfWindowDeg={halfWindowDeg}
+              />
+            </div>
+          )}
 
           {mode === 'user' && hasFixedTarget && fixedTargetNode && (
             <>
