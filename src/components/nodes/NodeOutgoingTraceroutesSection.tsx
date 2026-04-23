@@ -8,13 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useTracerouteTriggerableNodesSuspense, useTriggerTraceroute } from '@/hooks/api/useTraceroutes';
 import { useTraceroutesWithWebSocket } from '@/hooks/useTraceroutesWithWebSocket';
 import { TracerouteDetailModal } from '@/pages/traceroutes/TracerouteDetailModal';
 import { getTracerouteErrorMessage } from '@/pages/traceroutes/tracerouteErrors';
 import type { AutoTraceRoute, ManagedNode } from '@/lib/models';
-import { STRATEGY_META, type TracerouteStrategyValue } from '@/lib/traceroute-strategy';
 
 const PAGE_SIZE = 10;
 
@@ -47,6 +45,7 @@ export interface NodeOutgoingTraceroutesSectionProps {
 }
 
 export function NodeOutgoingTraceroutesSection({ nodeId, managed }: NodeOutgoingTraceroutesSectionProps) {
+  void managed; // Prop kept for call-site stability; feeder geo pills removed (#197).
   const [selectedTracerouteId, setSelectedTracerouteId] = useState<number | null>(null);
 
   const { data, isLoading, error } = useTraceroutesWithWebSocket({
@@ -57,7 +56,6 @@ export function NodeOutgoingTraceroutesSection({ nodeId, managed }: NodeOutgoing
   const triggerMutation = useTriggerTraceroute();
 
   const traceroutes = data?.results ?? [];
-  const geo = managed.geo_classification;
 
   const handleRepeat = (tr: AutoTraceRoute) => {
     triggerMutation.mutate(
@@ -95,39 +93,7 @@ export function NodeOutgoingTraceroutesSection({ nodeId, managed }: NodeOutgoing
             Traceroutes initiated by this managed feeder toward other nodes. Click a row for the full path and map.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-8">
-          {geo ? (
-            <div className="space-y-3" data-testid="node-detail-feeder-geo">
-              <h3 className="text-sm font-semibold leading-none">Traceroute feeder classification</h3>
-              <p className="text-sm text-muted-foreground">
-                Geometry vs constellation envelope — drives which automated target strategies apply.
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline">
-                  {geo.tier === 'perimeter'
-                    ? `Perimeter${geo.bearing_octant ? ` (${geo.bearing_octant})` : ''}`
-                    : 'Internal'}
-                </Badge>
-                <TooltipProvider delayDuration={200}>
-                  {geo.applicable_strategies.map((s) => (
-                    <Tooltip key={s}>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex">
-                          <Badge variant="secondary" className="cursor-help">
-                            {STRATEGY_META[s as TracerouteStrategyValue]?.label ?? s}
-                          </Badge>
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="max-w-xs text-sm">
-                        {STRATEGY_META[s as TracerouteStrategyValue]?.shortDescription ?? s}
-                      </TooltipContent>
-                    </Tooltip>
-                  ))}
-                </TooltipProvider>
-              </div>
-            </div>
-          ) : null}
-
+        <CardContent className="space-y-3">
           <div className="space-y-3">
             <h3 className="text-sm font-semibold leading-none">Recent runs</h3>
             {isLoading && <div className="py-6 text-center text-muted-foreground">Loading…</div>}

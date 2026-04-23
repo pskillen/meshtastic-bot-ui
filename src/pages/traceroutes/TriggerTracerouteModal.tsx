@@ -18,7 +18,6 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ManagedNode, ObservedNode } from '@/lib/models';
 import type { TargetPreviewStrategy } from '@/lib/tracerouteTargetGeometry';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Badge } from '@/components/ui/badge';
 import { Info } from 'lucide-react';
 export type ManualTargetStrategyChoice = 'auto' | 'intra_zone' | 'dx_across' | 'dx_same_side';
 
@@ -91,12 +90,15 @@ export function TriggerTracerouteModal({
   const previewStrategy: TargetPreviewStrategy =
     strategyChoice === 'auto' ? 'auto' : strategyChoice === 'intra_zone' && !canIntraZone ? 'auto' : strategyChoice;
 
+  /** Omit for manual target (API stores `manual`) or auto + "pick automatically" (API resolves strategy). */
   const strategyForApi: 'intra_zone' | 'dx_across' | 'dx_same_side' | undefined =
-    strategyChoice === 'auto'
+    mode === 'user'
       ? undefined
-      : strategyChoice === 'intra_zone' && !canIntraZone
+      : strategyChoice === 'auto'
         ? undefined
-        : strategyChoice;
+        : strategyChoice === 'intra_zone' && !canIntraZone
+          ? undefined
+          : strategyChoice;
 
   const handleSubmit = async () => {
     if (!managedNodeId) return;
@@ -112,7 +114,7 @@ export function TriggerTracerouteModal({
   const canSubmit =
     managedNodeId != null &&
     (mode === 'auto' || targetNodeId != null) &&
-    !(strategyChoice === 'intra_zone' && !canIntraZone);
+    !(mode === 'auto' && strategyChoice === 'intra_zone' && !canIntraZone);
 
   const handleMapNodeSelect = (node: MapNode | null) => {
     if (!node) {
@@ -177,58 +179,50 @@ export function TriggerTracerouteModal({
                 ))}
               </SelectContent>
             </Select>
-            {selectedManaged?.geo_classification && (
-              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                <Badge variant="outline" className="font-normal">
-                  {selectedManaged.geo_classification.tier === 'perimeter'
-                    ? `Perimeter${
-                        selectedManaged.geo_classification.bearing_octant
-                          ? ` (${selectedManaged.geo_classification.bearing_octant})`
-                          : ''
-                      }`
-                    : 'Internal'}
-                </Badge>
-                <span className="text-xs">Traceroute feeder geometry vs constellation</span>
-              </div>
-            )}
           </div>
 
-          <div className="grid gap-2">
-            <div className="flex items-center gap-2">
-              <Label htmlFor="tr-strategy">Target strategy</Label>
-              <TooltipProvider delayDuration={200}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      className="text-muted-foreground hover:text-foreground"
-                      aria-label="Strategy help"
-                    >
-                      <Info className="h-4 w-4" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="max-w-xs text-xs">
-                    In auto mode, chooses how the API picks a target. In pick-target mode, records the hypothesis with
-                    an explicit target. Intra-zone needs a constellation envelope (enough positioned managed nodes);
-                    the perimeter/internal badge is geometry only.
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            <Select value={strategyChoice} onValueChange={(v) => setStrategyChoice(v as ManualTargetStrategyChoice)}>
-              <SelectTrigger id="tr-strategy" data-testid="trigger-traceroute-strategy">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="auto">Pick automatically</SelectItem>
-                <SelectItem value="intra_zone" disabled={!canIntraZone}>
-                  Intra-zone
-                </SelectItem>
-                <SelectItem value="dx_across">DX across</SelectItem>
-                <SelectItem value="dx_same_side">DX same side</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {mode === 'auto' && (
+            <>
+              <div className="grid gap-2">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="tr-strategy">Target strategy</Label>
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-foreground"
+                          aria-label="Strategy help"
+                        >
+                          <Info className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-xs text-xs">
+                        Chooses how the API picks a target when you do not pick one manually. Intra-zone needs a
+                        constellation envelope (enough positioned managed nodes).
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <Select
+                  value={strategyChoice}
+                  onValueChange={(v) => setStrategyChoice(v as ManualTargetStrategyChoice)}
+                >
+                  <SelectTrigger id="tr-strategy" data-testid="trigger-traceroute-strategy">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Pick automatically</SelectItem>
+                    <SelectItem value="intra_zone" disabled={!canIntraZone}>
+                      Intra-zone
+                    </SelectItem>
+                    <SelectItem value="dx_across">DX across</SelectItem>
+                    <SelectItem value="dx_same_side">DX same side</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
 
           {mode === 'auto' && !hasFixedTarget && managedNodeId != null && selectedManaged && (
             <div className="grid gap-2">

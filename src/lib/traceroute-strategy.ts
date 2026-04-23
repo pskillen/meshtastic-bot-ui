@@ -1,6 +1,10 @@
 /** Target selection strategy (`AutoTraceRoute.target_strategy`). */
 
+/** Hypothesis + legacy tokens used in filters and coverage (not `manual`). */
 export type TracerouteStrategyValue = 'intra_zone' | 'dx_across' | 'dx_same_side' | 'legacy';
+
+/** Full set including server-persisted manual target runs. */
+export type TracerouteStrategyDisplayValue = TracerouteStrategyValue | 'manual';
 
 export const TRACEROUTE_STRATEGIES = [
   'intra_zone',
@@ -10,7 +14,7 @@ export const TRACEROUTE_STRATEGIES = [
 ] as const satisfies readonly TracerouteStrategyValue[];
 
 export const STRATEGY_META: Record<
-  TracerouteStrategyValue,
+  TracerouteStrategyDisplayValue,
   { label: string; shortDescription: string; badgeVariant: 'default' | 'secondary' | 'outline' }
 > = {
   intra_zone: {
@@ -33,11 +37,16 @@ export const STRATEGY_META: Record<
     shortDescription: 'Recorded before strategy tracking or unspecified.',
     badgeVariant: 'outline',
   },
+  manual: {
+    label: 'Manual target',
+    shortDescription: 'User picked an explicit target node; no automated hypothesis selection.',
+    badgeVariant: 'outline',
+  },
 };
 
-export function strategyLabel(value: TracerouteStrategyValue | string | null | undefined): string {
-  if (value == null || value === '') return STRATEGY_META.legacy.label;
-  const k = value as TracerouteStrategyValue;
+export function strategyLabel(value: TracerouteStrategyDisplayValue | string | null | undefined): string {
+  if (value == null || value === '') return '—';
+  const k = value as TracerouteStrategyDisplayValue;
   return STRATEGY_META[k]?.label ?? String(value);
 }
 

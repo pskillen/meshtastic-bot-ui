@@ -4,6 +4,18 @@ import { render, screen } from '@testing-library/react';
 import { TriggerTracerouteModal } from './TriggerTracerouteModal';
 import type { GeoClassification, ManagedNode, ObservedNode } from '@/lib/models';
 
+vi.mock('@/providers/ConfigProvider', () => ({
+  useConfig: () => ({ apis: { meshBot: { baseUrl: 'https://api.example' } } }),
+}));
+
+vi.mock('@/hooks/api/useNodes', () => ({
+  useNodes: () => ({
+    searchNodes: vi.fn(),
+    searchResults: [],
+    isSearching: false,
+  }),
+}));
+
 vi.mock('@/components/traceroutes/AutoTargetPreviewMap', () => ({
   AutoTargetPreviewMap: () => <div data-testid="auto-target-preview-stub" />,
 }));
@@ -112,6 +124,38 @@ describe('TriggerTracerouteModal with fixedTargetNode', () => {
       />
     );
     expect(screen.getByTestId('trigger-traceroute-strategy')).toBeInTheDocument();
+  });
+
+  it('does not show target strategy selector in pick-target mode', () => {
+    render(
+      <TriggerTracerouteModal
+        open={true}
+        onOpenChange={vi.fn()}
+        mode="user"
+        managedNodes={[makeManagedNode({ geo_classification: sampleGeo() })]}
+        observedNodes={[makeObservedNode()]}
+        onTrigger={vi.fn()}
+        isSubmitting={false}
+      />
+    );
+    expect(screen.queryByTestId('trigger-traceroute-strategy')).not.toBeInTheDocument();
+  });
+
+  it('does not show target strategy selector for fixed-target flow', () => {
+    const fixed = makeObservedNode();
+    render(
+      <TriggerTracerouteModal
+        open={true}
+        onOpenChange={vi.fn()}
+        mode="user"
+        managedNodes={[makeManagedNode({ geo_classification: sampleGeo() })]}
+        observedNodes={[fixed]}
+        onTrigger={vi.fn()}
+        isSubmitting={false}
+        fixedTargetNode={fixed}
+      />
+    );
+    expect(screen.queryByTestId('trigger-traceroute-strategy')).not.toBeInTheDocument();
   });
 
   it('shows auto-target preview after selecting a source in auto mode', async () => {

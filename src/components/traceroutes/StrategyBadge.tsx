@@ -1,17 +1,24 @@
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { STRATEGY_META, type TracerouteStrategyValue } from '@/lib/traceroute-strategy';
+import { STRATEGY_META, type TracerouteStrategyDisplayValue } from '@/lib/traceroute-strategy';
 
 export function StrategyBadge({
   value,
   className,
 }: {
-  /** API field; null / undefined renders Legacy */
-  value: TracerouteStrategyValue | string | null | undefined;
+  /** API field; null / undefined renders an em dash (e.g. external traceroutes). */
+  value: TracerouteStrategyDisplayValue | string | null | undefined;
   className?: string;
 }) {
-  const key: TracerouteStrategyValue = value == null || value === '' ? 'legacy' : (value as TracerouteStrategyValue);
-  const meta = STRATEGY_META[key] ?? STRATEGY_META.legacy;
+  if (value == null || value === '') {
+    return <span className="text-muted-foreground">—</span>;
+  }
+
+  const key = value as TracerouteStrategyDisplayValue;
+  const meta =
+    key in STRATEGY_META
+      ? STRATEGY_META[key]
+      : { label: String(value), shortDescription: 'Unknown strategy value', badgeVariant: 'outline' as const };
 
   return (
     <TooltipProvider delayDuration={200}>
