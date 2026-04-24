@@ -4,6 +4,7 @@ import { NodeDetailSheet } from '@/components/nodes/NodeDetailSheet';
 import { useNodesSuspense, useManagedNodesSuspense } from '@/hooks/api/useNodes';
 import { subDays, subHours } from 'date-fns';
 import { useMemo, useState, Suspense } from 'react';
+import { filterManagedNodesForMapDisplay } from '@/lib/managed-node-status';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -51,11 +52,13 @@ function NodeMapContent() {
 
   const lastHeardAfter = useMemo(() => getLastHeardAfter(timeRange), [timeRange]);
 
-  const { managedNodes } = useManagedNodesSuspense({ pageSize: 500 });
+  const { managedNodes } = useManagedNodesSuspense({ pageSize: 500, includeStatus: true });
   const { nodes: observedNodes } = useNodesSuspense({
     lastHeardAfter,
     pageSize: 500,
   });
+
+  const managedNodesForMap = useMemo(() => filterManagedNodesForMapDisplay(managedNodes), [managedNodes]);
 
   const constellations = useMemo(() => {
     const seen = new Map<number, string>();
@@ -218,7 +221,7 @@ function NodeMapContent() {
 
           <div className="h-[500px] w-full rounded-md overflow-hidden">
             <NodesAndConstellationsMap
-              managedNodes={managedNodes}
+              managedNodes={managedNodesForMap}
               observedNodes={observedNodes}
               showConstellation={showConstellation}
               showUnmanagedNodes={showUnmanagedNodes}

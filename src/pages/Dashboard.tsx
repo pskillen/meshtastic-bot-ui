@@ -2,7 +2,8 @@ import { NodeActivityTable } from '@/components/NodeActivityTable';
 import { NodesAndConstellationsMap } from '@/components/nodes/NodesAndConstellationsMap';
 import { useNodesSuspense, useManagedNodesSuspense, useRecentNodeCountsSuspense } from '@/hooks/api/useNodes';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Suspense } from 'react';
+import { Suspense, useMemo } from 'react';
+import { filterManagedNodesForMapDisplay } from '@/lib/managed-node-status';
 import { MeshStatsSection } from '@/components/MeshStatsSection';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Link } from 'react-router-dom';
@@ -19,7 +20,8 @@ const COUNT_COLUMNS = [
 function DashboardContent() {
   const counts = useRecentNodeCountsSuspense();
   const { nodes } = useNodesSuspense();
-  const { managedNodes } = useManagedNodesSuspense();
+  const { managedNodes } = useManagedNodesSuspense({ includeStatus: true });
+  const managedNodesForMap = useMemo(() => filterManagedNodesForMapDisplay(managedNodes), [managedNodes]);
 
   return (
     <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
@@ -69,7 +71,7 @@ function DashboardContent() {
           <CardContent>
             <div className="h-[600px] w-full">
               <NodesAndConstellationsMap
-                managedNodes={managedNodes || []}
+                managedNodes={managedNodesForMap}
                 showConstellation={true}
                 showUnmanagedNodes={false}
               />

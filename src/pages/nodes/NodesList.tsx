@@ -11,6 +11,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ObservedNode } from '@/lib/models';
 import { Link } from 'react-router-dom';
+import { filterManagedNodesForMapDisplay } from '@/lib/managed-node-status';
 import { StaleReportedTime } from '@/components/nodes/StaleReportedTime';
 
 type TimeRangeOption = '2h' | '24h' | '7d' | '30d' | 'all';
@@ -82,7 +83,8 @@ function NodesListContent() {
     pageSize: 100,
   });
 
-  const { managedNodes } = useManagedNodesSuspense({ pageSize: 500 });
+  const { managedNodes } = useManagedNodesSuspense({ pageSize: 500, includeStatus: true });
+  const managedNodesForMap = useMemo(() => filterManagedNodesForMapDisplay(managedNodes), [managedNodes]);
 
   const sortNodes = (nodes: ObservedNode[]) => {
     return [...nodes].sort((a, b) => {
@@ -188,7 +190,7 @@ function NodesListContent() {
         <CardContent>
           <div className="h-[600px] w-full">
             <NodesAndConstellationsMap
-              managedNodes={managedNodes}
+              managedNodes={managedNodesForMap}
               observedNodes={mapNodes}
               showConstellation={true}
               showUnmanagedNodes={true}

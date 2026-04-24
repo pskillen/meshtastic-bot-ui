@@ -23,7 +23,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useManagedNodesSuspense } from '@/hooks/api/useNodes';
-import { ManagedNodeStatusTier, getManagedNodeStatusTier, managedNodeStatusTierColor } from '@/lib/managed-node-status';
+import {
+  ManagedNodeStatusTier,
+  filterManagedNodesForMapDisplay,
+  getManagedNodeStatusTier,
+  managedNodeStatusTierColor,
+} from '@/lib/managed-node-status';
 import { ManagedNode } from '@/lib/models';
 
 import { ManagedNodesSortKey, parseManagedNodesUrlState, updateManagedNodesUrlState } from './managed-nodes-url-state';
@@ -175,6 +180,8 @@ function ManagedNodesStatusContent() {
     return sorted;
   }, [filteredManagedNodes, filters.sort]);
 
+  const managedNodesForMap = useMemo(() => filterManagedNodesForMapDisplay(sortedManagedNodes), [sortedManagedNodes]);
+
   const counts = useMemo(() => {
     const base = { total: filteredManagedNodes.length, online: 0, stale: 0, offline: 0, never: 0 };
     for (const node of filteredManagedNodes) {
@@ -233,7 +240,7 @@ function ManagedNodesStatusContent() {
         <CardContent>
           <div className="h-[450px] rounded border">
             <NodesAndConstellationsMap
-              managedNodes={sortedManagedNodes}
+              managedNodes={managedNodesForMap}
               showConstellation={true}
               showUnmanagedNodes={false}
               drawPositionUncertainty={true}

@@ -16,6 +16,7 @@ import { NodesAndConstellationsMap, MapNode } from '@/components/nodes/NodesAndC
 import { AutoTargetPreviewMap } from '@/components/traceroutes/AutoTargetPreviewMap';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ManagedNode, ObservedNode } from '@/lib/models';
+import { filterManagedNodesForMapDisplay } from '@/lib/managed-node-status';
 import { observedNodeHeardOnOrAfter, pickTargetLastHeardCutoff } from '@/lib/observed-node-recency';
 import type { TargetPreviewStrategy } from '@/lib/tracerouteTargetGeometry';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -86,7 +87,9 @@ export function TriggerTracerouteModal({
   const geo = selectedManaged?.geo_classification;
   const canIntraZone = geo?.applicable_strategies?.includes('intra_zone') ?? false;
 
-  const managedNodeIdSet = useMemo(() => new Set(managedNodes.map((m) => m.node_id)), [managedNodes]);
+  const managedNodesForMap = useMemo(() => filterManagedNodesForMapDisplay(managedNodes), [managedNodes]);
+
+  const managedNodeIdSet = useMemo(() => new Set(managedNodesForMap.map((m) => m.node_id)), [managedNodesForMap]);
 
   const [pickTargetLastHeardAfter, setPickTargetLastHeardAfter] = useState(() => pickTargetLastHeardCutoff());
 
@@ -144,7 +147,7 @@ export function TriggerTracerouteModal({
   // Clicking anything else (e.g. the fixed target itself) is a no-op.
   const handleFixedTargetMapNodeSelect = (node: MapNode | null) => {
     if (!node) return false;
-    const isManaged = managedNodes.some((m) => m.node_id === node.node_id);
+    const isManaged = managedNodesForMap.some((m) => m.node_id === node.node_id);
     if (!isManaged) return false;
     setManagedNodeId(node.node_id);
     return true;
@@ -288,7 +291,7 @@ export function TriggerTracerouteModal({
                 </p>
                 <div className="h-[300px] rounded-md border overflow-hidden">
                   <NodesAndConstellationsMap
-                    managedNodes={managedNodes}
+                    managedNodes={managedNodesForMap}
                     observedNodes={[fixedTargetNode]}
                     showConstellation={true}
                     showUnmanagedNodes={true}
@@ -326,7 +329,7 @@ export function TriggerTracerouteModal({
                 </p>
                 <div className="h-[300px] rounded-md border overflow-hidden">
                   <NodesAndConstellationsMap
-                    managedNodes={managedNodes}
+                    managedNodes={managedNodesForMap}
                     observedNodes={pickTargetObservedNodes}
                     showConstellation={true}
                     showUnmanagedNodes={true}

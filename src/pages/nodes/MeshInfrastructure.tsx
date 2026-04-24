@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ObservedNode, type NodeWatch } from '@/lib/models';
+import { filterManagedNodesForMapDisplay } from '@/lib/managed-node-status';
 import { MeshWatchControls } from '@/components/nodes/MeshWatchControls';
 import { MapPinOff } from 'lucide-react';
 
@@ -110,8 +111,13 @@ function MeshInfrastructureContent() {
     return m;
   }, [watchesQuery.data]);
 
-  const { managedNodes } = useManagedNodesSuspense({ pageSize: 500, includeGeoClassification: true });
+  const { managedNodes } = useManagedNodesSuspense({
+    pageSize: 500,
+    includeStatus: true,
+    includeGeoClassification: true,
+  });
   const managedByMeshId = useMemo(() => new Map(managedNodes.map((m) => [m.node_id, m])), [managedNodes]);
+  const managedNodesForMap = useMemo(() => filterManagedNodesForMapDisplay(managedNodes), [managedNodes]);
 
   const { metricsMap } = useMultiNodeMetricsSuspense(nodes, chartDateRange);
 
@@ -202,7 +208,7 @@ function MeshInfrastructureContent() {
             <div className="h-[600px] w-full">
               <NodesAndConstellationsMap
                 observedNodes={nodesWithLocation}
-                managedNodes={managedNodes}
+                managedNodes={managedNodesForMap}
                 showConstellation={true}
                 showUnmanagedNodes={true}
                 drawPositionUncertainty={true}
