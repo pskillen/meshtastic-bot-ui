@@ -151,6 +151,33 @@ describe('getManagedLiveness', () => {
     expect(r.message).toMatch(/Feeder not reporting/);
   });
 
+  it('is ok when last_packet_ingested_at is missing but radio is fresh (no false feeder warning)', () => {
+    const radio = new Date(NOW.getTime() - 60_000);
+    const r = getManagedLiveness(
+      {
+        last_packet_ingested_at: null,
+        radio_last_heard: radio,
+        last_heard: new Date(0),
+      },
+      NOW
+    );
+    expect(r.severity).toBe('ok');
+    expect(r.message).toBeNull();
+  });
+
+  it('is ok when last_packet_ingested_at is undefined and last_heard is fresh', () => {
+    const r = getManagedLiveness(
+      {
+        last_packet_ingested_at: undefined,
+        radio_last_heard: null,
+        last_heard: new Date(NOW.getTime() - 60_000),
+      },
+      NOW
+    );
+    expect(r.severity).toBe('ok');
+    expect(r.message).toBeNull();
+  });
+
   it('warns when feeder fresh and radio stale', () => {
     const feeder = new Date(NOW.getTime() - 60_000);
     const radio = new Date(NOW.getTime() - MY_NODES_CLAIMED_ONLINE_MS - 60_000);
@@ -206,7 +233,9 @@ describe('getPositionHint', () => {
 
   it('returns No GPS position for missing coords', () => {
     const n = makeObserved({ latest_position: { latitude: 0, longitude: 0 } as ObservedNode['latest_position'] });
-    expect(getPositionHint(n, NOW).label).toBe('No GPS position');
+    const h = getPositionHint(n, NOW);
+    expect(h.label).toBe('No GPS position');
+    expect(h.treatment).toBe('missing');
   });
 
   it('returns stale when reported_time older than 7d', () => {
@@ -221,7 +250,23 @@ describe('getPositionHint', () => {
         location_source: 'gps',
       },
     });
-    expect(getPositionHint(n, NOW).label).toBe('GPS position stale (>7d)');
+    const h = getPositionHint(n, NOW);
+    expect(h.label).toBe('GPS position stale (>7d)');
+    expect(h.treatment).toBe('stale');
+  });
+
+  it('marks recent position as ok treatment', () => {
+    const n = makeObserved({
+      latest_position: {
+        latitude: 1,
+        longitude: 2,
+        reported_time: new Date(NOW.getTime() - 60_000),
+        logged_time: null,
+        altitude: null,
+        location_source: 'gps',
+      },
+    });
+    expect(getPositionHint(n, NOW).treatment).toBe('ok');
   });
 });
 

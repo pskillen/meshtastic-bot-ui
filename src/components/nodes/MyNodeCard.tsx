@@ -17,8 +17,19 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ObservedNode, NodeWatch, PaginatedResponse } from '@/lib/models';
-import type { ManagedLiveness } from '@/lib/my-nodes-grouping';
+import { cn } from '@/lib/utils';
+import type { ManagedLiveness, PositionHintTreatment } from '@/lib/my-nodes-grouping';
 import { getPositionHint } from '@/lib/my-nodes-grouping';
+
+function positionTreatmentBadgeClass(t: PositionHintTreatment): string | undefined {
+  if (t === 'stale') {
+    return 'border-amber-500/70 bg-amber-50/90 text-amber-950 shadow-sm dark:border-amber-500/50 dark:bg-amber-950/35 dark:text-amber-50';
+  }
+  if (t === 'missing') {
+    return 'border-destructive/60 bg-destructive/10 text-destructive font-medium dark:border-destructive/50 dark:bg-destructive/15 dark:text-destructive';
+  }
+  return undefined;
+}
 
 export interface MyNodeCardProps {
   node: ObservedNode;
@@ -50,6 +61,7 @@ export function MyNodeCard({
   const voltage = metrics?.voltage != null ? metrics.voltage : null;
   const metricsReported = metrics?.reported_time ? new Date(metrics.reported_time) : null;
   const positionHint = getPositionHint(node);
+  const positionBadgeClass = positionTreatmentBadgeClass(positionHint.treatment);
   const displayName = node.short_name || node.node_id_str;
   const liveness =
     managedLiveness != null && managedLiveness.severity !== 'ok' && managedLiveness.message != null
@@ -130,7 +142,10 @@ export function MyNodeCard({
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="inline-flex max-w-full">
-                  <Badge variant="secondary" className="text-xs cursor-default">
+                  <Badge
+                    variant={positionHint.treatment === 'missing' ? 'outline' : 'secondary'}
+                    className={cn('text-xs cursor-default', positionBadgeClass)}
+                  >
                     {positionHint.label}
                   </Badge>
                 </span>

@@ -183,6 +183,19 @@ describe('MyNodes', () => {
     expect(screen.getByText(/Managed node offline/)).toBeInTheDocument();
   });
 
+  it('does not show feeder-not-reporting when last_packet_ingested_at is missing but radio is fresh', () => {
+    const managed = makeManaged({
+      node_id: 8,
+      last_packet_ingested_at: null,
+      radio_last_heard: new Date(NOW.getTime() - 60_000),
+    });
+    useMyClaimedNodesSuspense.mockReturnValue({ myClaimedNodes: [] });
+    useMyManagedNodesSuspense.mockReturnValue({ myManagedNodes: [managed] });
+    renderMyNodes();
+    expect(screen.queryByText(/Feeder not reporting/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Attention')).not.toBeInTheDocument();
+  });
+
   it('renders map section title and map component', () => {
     useMyClaimedNodesSuspense.mockReturnValue({ myClaimedNodes: [makeObserved()] });
     useMyManagedNodesSuspense.mockReturnValue({ myManagedNodes: [] });
