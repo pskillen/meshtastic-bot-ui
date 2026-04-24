@@ -24,10 +24,14 @@ export interface ManagedLiveness {
   message: string | null;
 }
 
+/** Visual band for position copy on MyNodeCard (aligns with StaleReportedTime-style treatments). */
+export type PositionHintTreatment = 'ok' | 'stale' | 'missing';
+
 export interface PositionHint {
   label: string;
   /** Shown in tooltip when useful (e.g. exact relative age). */
   tooltip: string | null;
+  treatment: PositionHintTreatment;
 }
 
 function parseDate(value: Date | string | null | undefined): Date | null {
@@ -95,23 +99,28 @@ export function managedRadioActivityAt(
 
 /**
  * Dual-signal liveness for managed nodes on My Nodes.
- * Feeder fresh = `last_packet_ingested_at` within 10m.
+ * Feeder fresh = `last_packet_ingested_at` within 10m (when the field is present).
  * Radio fresh = `radio_last_heard` (or `last_heard`) within 2h.
+ *
+ * When `last_packet_ingested_at` is missing (e.g. API omitted status) but radio activity
+ * is within the same “online” window as claimed nodes, we do not show a feeder warning —
+ * mesh recency is the user-visible signal.
  */
 export function getManagedLiveness(
   node: Pick<ManagedNode, 'last_packet_ingested_at' | 'radio_last_heard' | 'last_heard'>,
   now: Date = new Date()
 ): ManagedLiveness {
-  const feederFresh = isFresh(node.last_packet_ingested_at, MY_NODES_FEEDER_FRESH_MS, now);
+  const noIngestedAt = node.last_packet_ingested_at == null;
+  const feederFresh = !noIngestedAt && isFresh(node.last_packet_ingested_at, MY_NODES_FEEDER_FRESH_MS, now);
   const radioAt = managedRadioActivityAt(node);
   const radioFresh = isFresh(radioAt, MY_NODES_CLAIMED_ONLINE_MS, now);
 
+  if (radioFresh && (feederFresh || noIngestedAt)) {
+    return { feeder: 'fresh', radio: 'fresh', severity: 'ok', message: null };
+  }
+
   const feeder: 'fresh' | 'stale' = feederFresh ? 'fresh' : 'stale';
   const radio: 'fresh' | 'stale' = radioFresh ? 'fresh' : 'stale';
-
-  if (feederFresh && radioFresh) {
-    return { feeder, radio, severity: 'ok', message: null };
-  }
 
   const feederAge = agePhrase(node.last_packet_ingested_at);
   const radioAge = agePhrase(radioAt);
@@ -160,12 +169,12 @@ export function getPositionHint(node: ObservedNode, now: Date = new Date()): Pos
     | undefined;
 
   if (!pos) {
-    return { label: 'No GPS position', tooltip: null };
+    return { label: 'No GPS position', tooltip: null, treatment: 'missing' };
   }
   const lat = pos.latitude;
   const lon = pos.longitude;
   if (!hasValidCoords(lat, lon)) {
-    return { label: 'No GPS position', tooltip: null };
+    return { label: 'No GPS position', tooltip: null, treatment: 'missing' };
   }
 
   const reported = parseDate(pos.reported_time ?? null);
@@ -173,6 +182,7 @@ export function getPositionHint(node: ObservedNode, now: Date = new Date()): Pos
     return {
       label: 'GPS position recent',
       tooltip: 'Position reported; no exact timestamp on record.',
+      treatment: 'ok',
     };
   }
   const ageMs = now.getTime() - reported.getTime();
@@ -180,17 +190,20 @@ export function getPositionHint(node: ObservedNode, now: Date = new Date()): Pos
     return {
       label: 'GPS position recent',
       tooltip: `Reported ${formatRecencyRelative(reported)}`,
+      treatment: 'ok',
     };
   }
   if (ageMs <= POSITION_STALE_MS) {
     return {
       label: 'GPS position recent',
       tooltip: `Reported ${formatRecencyRelative(reported)}`,
+      treatment: 'ok',
     };
   }
   return {
     label: 'GPS position stale (>7d)',
     tooltip: `Reported ${formatRecencyRelative(reported)}`,
+    treatment: 'stale',
   };
 }
 
