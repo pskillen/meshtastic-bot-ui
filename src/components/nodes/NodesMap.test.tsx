@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import type { ObservedNode } from '@/lib/models';
 import { NodesMap } from './NodesMap';
+import { watchMonitoringStatusLegendSwatches } from '@/lib/watch-monitoring-status';
 
 vi.mock('@/hooks/useMapTileUrl', () => ({
   useMapTileUrl: () => ({
@@ -99,5 +100,20 @@ describe('NodesMap', () => {
       />
     );
     await waitFor(() => expect(mapMocks.fitBounds).toHaveBeenCalled());
+  });
+
+  it('shows watch status legend instead of node role when status colours are provided', () => {
+    render(
+      <NodesMap
+        nodes={[nodeWithPosition(1, 55.1, -4.2)]}
+        markerColorsByNodeId={new Map([[1, '#dc2626']])}
+        mapLegendStatusSwatches={watchMonitoringStatusLegendSwatches()}
+        mapLegendStatusTitle="Watch status"
+      />
+    );
+    const legend = screen.getByRole('region', { name: /Map marker colours/i });
+    expect(legend).toHaveTextContent('Watch status');
+    expect(legend).toHaveTextContent('Offline');
+    expect(screen.queryByText('Node role')).not.toBeInTheDocument();
   });
 });

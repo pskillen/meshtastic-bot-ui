@@ -11,6 +11,9 @@ export interface MapMarkerLegendProps {
   roleSwatches: RoleLegendSwatch[];
   constellationTitle?: string;
   roleSectionTitle?: string;
+  /** Optional first column (e.g. mesh watch monitoring status colours). */
+  statusSwatches?: RoleLegendSwatch[];
+  statusSectionTitle?: string;
 }
 
 function SwatchRow({ label, color }: { label: string; color: string }) {
@@ -33,9 +36,12 @@ export function MapMarkerLegend({
   roleSwatches,
   constellationTitle = 'Monitoring (constellation)',
   roleSectionTitle = 'Other mesh nodes (by role)',
+  statusSwatches,
+  statusSectionTitle = 'Watch status',
 }: MapMarkerLegendProps) {
   const hasConstellation = constellationItems.length > 0;
-  if (!hasConstellation && !showRoleSwatches) return null;
+  const hasStatus = Boolean(statusSwatches?.length);
+  if (!hasConstellation && !showRoleSwatches && !hasStatus) return null;
 
   return (
     <div
@@ -59,8 +65,30 @@ export function MapMarkerLegend({
             </div>
           </div>
         ) : null}
+        {hasStatus ? (
+          <div
+            className={cn(
+              'min-w-0 flex-1 space-y-1',
+              hasConstellation && 'border-t border-border/60 pt-2 sm:border-t-0 sm:pt-0 sm:border-l sm:pl-3'
+            )}
+          >
+            <div className="font-medium text-[0.7rem] uppercase tracking-wide text-muted-foreground">
+              {statusSectionTitle}
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-1">
+              {statusSwatches!.map((s) => (
+                <SwatchRow key={s.key} label={s.label} color={s.color} />
+              ))}
+            </div>
+          </div>
+        ) : null}
         {showRoleSwatches ? (
-          <div className="min-w-0 flex-1 space-y-1 border-t border-border/60 pt-2 sm:border-t-0 sm:pt-0 sm:border-l sm:pl-3 sm:pt-0">
+          <div
+            className={cn(
+              'min-w-0 flex-1 space-y-1 border-t border-border/60 pt-2 sm:border-t-0 sm:pt-0 sm:border-l sm:pl-3 sm:pt-0',
+              (hasConstellation || hasStatus) && 'sm:pt-0'
+            )}
+          >
             <div className="font-medium text-[0.7rem] uppercase tracking-wide text-muted-foreground">
               {roleSectionTitle}
             </div>
