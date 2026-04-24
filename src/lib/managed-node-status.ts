@@ -1,3 +1,5 @@
+import type { ManagedNode } from '@/lib/models';
+
 export type ManagedNodeStatusTier = 'online' | 'stale' | 'offline' | 'never';
 
 export const MANAGED_NODE_ONLINE_MAX_AGE_SECONDS = 600;
@@ -26,4 +28,18 @@ export function managedNodeStatusTierColor(tier: ManagedNodeStatusTier): string 
   if (tier === 'stale') return '#d97706';
   if (tier === 'offline') return '#dc2626';
   return '#64748b';
+}
+
+/**
+ * True when this managed node has ever ingested a packet into Meshflow
+ * (`ManagedNodeStatus.last_packet_ingested_at` on the API). Requires
+ * `include=status` on managed-node list/detail responses for a reliable value.
+ */
+export function hasManagedNodeEverFedData(node: Pick<ManagedNode, 'last_packet_ingested_at'>): boolean {
+  return node.last_packet_ingested_at != null;
+}
+
+/** Managed nodes to draw on constellation / infrastructure maps (exclude never-fed). */
+export function filterManagedNodesForMapDisplay(nodes: ManagedNode[]): ManagedNode[] {
+  return nodes.filter(hasManagedNodeEverFedData);
 }

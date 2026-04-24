@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useNodeSuspense, useManagedNodesSuspense } from '@/hooks/api/useNodes';
 import { useMeshtasticApi } from '@/hooks/api/useApi';
@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { NodeClaim } from '@/lib/models';
 import { StaleReportedTime } from '@/components/nodes/StaleReportedTime';
+import { filterManagedNodesForMapDisplay } from '@/lib/managed-node-status';
 
 export function ClaimNode() {
   const { id } = useParams<{ id: string }>();
@@ -23,7 +24,11 @@ export function ClaimNode() {
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
 
   const node = useNodeSuspense(nodeId);
-  const { managedNodes } = useManagedNodesSuspense();
+  const { managedNodes } = useManagedNodesSuspense({ includeStatus: true });
+  const managedNodesForMap = useMemo(
+    () => (managedNodes ? filterManagedNodesForMapDisplay(managedNodes) : []),
+    [managedNodes]
+  );
   const isLoadingManagedNodes = !managedNodes;
   const managedNodesError = false; // Suspense disables error state, so just set to false
 
@@ -254,7 +259,7 @@ export function ClaimNode() {
                 <>
                   <div className="mb-4">
                     <div className="h-[400px] w-full">
-                      <ConstellationsMap nodes={managedNodes} />
+                      <ConstellationsMap nodes={managedNodesForMap} />
                     </div>
                   </div>
                 </>

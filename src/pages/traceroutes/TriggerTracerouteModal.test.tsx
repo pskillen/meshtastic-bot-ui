@@ -56,6 +56,7 @@ function makeManagedNode(overrides: Partial<ManagedNode> = {}): ManagedNode {
     long_name: 'Source',
     short_name: 'SRC',
     last_heard: null,
+    last_packet_ingested_at: new Date('2026-01-01T00:00:00Z'),
     node_id_str: '!00000007',
     owner: { id: 1, username: 'me' },
     constellation: { id: 1, name: 'C1' },
