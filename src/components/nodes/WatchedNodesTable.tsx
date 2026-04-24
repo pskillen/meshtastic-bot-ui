@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
+import { enGB } from 'date-fns/locale';
+import { StaleReportedTime } from '@/components/nodes/StaleReportedTime';
 import { Link } from 'react-router-dom';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import type { AutoTraceRoute, NodeWatch, ObservedNode, PaginatedResponse } from '@/lib/models';
@@ -19,7 +21,7 @@ function toDate(value: Date | string | null | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/** Primary: relative (e.g. "1 hour ago"). Secondary: absolute timestamp. */
+/** Primary: relative with staleness. Secondary: absolute UK-style timestamp. */
 function FriendlyThenAbsolute({ value }: { value: Date | string | null | undefined }) {
   const d = toDate(value);
   if (!d) {
@@ -27,8 +29,8 @@ function FriendlyThenAbsolute({ value }: { value: Date | string | null | undefin
   }
   return (
     <div>
-      <div className="text-sm">{formatDistanceToNow(d, { addSuffix: true })}</div>
-      <div className="text-xs text-muted-foreground tabular-nums mt-0.5">{format(d, 'PPpp')}</div>
+      <StaleReportedTime at={d} className="text-sm" />
+      <div className="text-xs text-muted-foreground tabular-nums mt-0.5">{format(d, 'PPpp', { locale: enGB })}</div>
     </div>
   );
 }

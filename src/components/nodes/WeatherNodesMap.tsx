@@ -70,6 +70,7 @@ export function WeatherNodesMap({ nodes, cutoffHours = MAP_CUTOFF_HOURS, tempera
       drawBoundingBox={false}
       drawPositionUncertainty={false}
       enableBubbles={true}
+      showMapLegend={false}
       getMarkerLabel={getMarkerLabel}
       getMarkerColor={getMarkerColor}
       getMarkerBorderColor={getMarkerBorderColor}

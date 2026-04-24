@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { formatDistanceToNow } from 'date-fns';
 import { Battery } from 'lucide-react';
+import { StaleReportedTime } from '@/components/nodes/StaleReportedTime';
 import { ObservedNode } from '@/lib/models';
 import { getRoleLabel } from '@/lib/meshtastic';
 import { cn } from '@/lib/utils';
@@ -56,7 +56,7 @@ export function NodeCard({ node }: NodeCardProps) {
         </div>
         <div className="text-right shrink-0">
           <div className="text-sm text-slate-500 dark:text-slate-400">
-            {node.last_heard ? formatDistanceToNow(node.last_heard, { addSuffix: true }) : 'Never'}
+            <StaleReportedTime at={node.last_heard ?? null} fallback="Never" className="text-inherit" />
           </div>
           <div className="text-xs font-mono text-slate-500 dark:text-slate-400 mt-0.5">{node.node_id_str}</div>
         </div>

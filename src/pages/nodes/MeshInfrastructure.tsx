@@ -1,6 +1,8 @@
 import { useMemo, useState, useCallback, Suspense } from 'react';
 import { Link } from 'react-router-dom';
-import { subDays, subHours, format, formatDistanceToNow } from 'date-fns';
+import { subDays, subHours, format } from 'date-fns';
+import { enGB } from 'date-fns/locale';
+import { StaleReportedTime } from '@/components/nodes/StaleReportedTime';
 import { useInfrastructureNodesSuspense, useManagedNodesSuspense } from '@/hooks/api/useNodes';
 import { useNodeWatches } from '@/hooks/api/useNodeWatches';
 import { useMultiNodeMetricsSuspense } from '@/hooks/api/useMultiNodeMetrics';
@@ -269,17 +271,14 @@ function MeshInfrastructureContent() {
                               <span>
                                 {format(
                                   node.last_heard instanceof Date ? node.last_heard : new Date(node.last_heard),
-                                  'PPpp'
+                                  'PPpp',
+                                  { locale: enGB }
                                 )}
                               </span>
-                              <span className="text-xs text-muted-foreground">
-                                {formatDistanceToNow(
-                                  node.last_heard instanceof Date ? node.last_heard : new Date(node.last_heard),
-                                  {
-                                    addSuffix: true,
-                                  }
-                                )}
-                              </span>
+                              <StaleReportedTime
+                                at={node.last_heard instanceof Date ? node.last_heard : new Date(node.last_heard)}
+                                className="text-xs text-muted-foreground"
+                              />
                             </>
                           ) : (
                             'Never'
@@ -290,10 +289,8 @@ function MeshInfrastructureContent() {
                         <div className="flex flex-col">
                           {lastLocation ? (
                             <>
-                              <span>{format(lastLocation, 'PPpp')}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {formatDistanceToNow(lastLocation, { addSuffix: true })}
-                              </span>
+                              <span>{format(lastLocation, 'PPpp', { locale: enGB })}</span>
+                              <StaleReportedTime at={lastLocation} className="text-xs text-muted-foreground" />
                             </>
                           ) : (
                             'Never'

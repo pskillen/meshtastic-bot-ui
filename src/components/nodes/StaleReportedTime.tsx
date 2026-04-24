@@ -1,19 +1,50 @@
-import { format, formatDistanceToNow } from 'date-fns';
-import { reportedTimeFreshness } from '@/lib/reported-time-stale';
+import { enGB } from 'date-fns/locale';
+import { format } from 'date-fns';
+import { reportedTimeFreshness, type ReportedTimeFreshnessOptions } from '@/lib/reported-time-stale';
+import { formatRecencyRelative } from '@/lib/reported-time-format';
 import { cn } from '@/lib/utils';
 
-type StaleReportedTimeProps = {
+const enGbDateTime = new Intl.DateTimeFormat('en-GB', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+});
+
+function formatAbsoluteEnGb(d: Date): string {
+  return enGbDateTime.format(d);
+}
+
+export type StaleReportedTimeProps = {
   at: Date | string | number | null | undefined;
   /** When `at` is null/undefined/invalid */
   fallback?: string;
   className?: string;
+  /** Overrides native `title` / tooltip when set. */
+  title?: string;
+  showFriendly?: boolean;
+  showDateTime?: boolean;
+  warningAfterHours?: number;
+  dangerAfterHours?: number;
+  /** `stale` = yellow/red bands; `neutral` = relative time only (e.g. message sent). */
+  variant?: 'stale' | 'neutral';
 };
 
 /**
- * Relative time ("x ago") with yellow border if over 24h old, red if over 7 days.
- * `title` shows absolute local time for hover/accessibility.
+ * Relative time ("x ago") with optional UK-style absolute text; yellow border at warning age, red at danger (unless `variant="neutral"`).
  */
-export function StaleReportedTime({ at, fallback = '—', className }: StaleReportedTimeProps) {
+export function StaleReportedTime({
+  at,
+  fallback = '—',
+  className,
+  title: titleOverride,
+  showFriendly = true,
+  showDateTime = false,
+  warningAfterHours,
+  dangerAfterHours,
+  variant = 'stale',
+}: StaleReportedTimeProps) {
+  const freshnessOpts: ReportedTimeFreshnessOptions | undefined =
+    warningAfterHours != null || dangerAfterHours != null ? { warningAfterHours, dangerAfterHours } : undefined;
+
   if (at == null) {
     return <span className={className}>{fallback}</span>;
   }
@@ -23,16 +54,40 @@ export function StaleReportedTime({ at, fallback = '—', className }: StaleRepo
     return <span className={className}>{fallback}</span>;
   }
 
-  const relative = formatDistanceToNow(d, { addSuffix: true });
-  const title = format(d, 'PPpp');
-  const freshness = reportedTimeFreshness(d);
+  const relative = formatRecencyRelative(d, fallback);
+  const absoluteEn = formatAbsoluteEnGb(d);
+  const freshness = reportedTimeFreshness(d, freshnessOpts);
 
   const staleClasses =
-    freshness === 'stale24h'
+    variant === 'stale' && freshness === 'stale24h'
       ? 'border border-yellow-500/70 bg-yellow-500/10 text-yellow-900 dark:border-yellow-500/60 dark:bg-yellow-500/15 dark:text-yellow-100'
-      : freshness === 'stale7d'
+      : variant === 'stale' && freshness === 'stale7d'
         ? 'border border-red-500/70 bg-red-500/10 text-red-900 dark:border-red-500/60 dark:bg-red-500/15 dark:text-red-100'
         : null;
+
+  const title =
+    titleOverride ??
+    (showDateTime && showFriendly
+      ? absoluteEn
+      : showDateTime && !showFriendly
+        ? formatRecencyRelative(d, fallback)
+        : format(d, 'PPpp', { locale: enGB }));
+
+  const inner = (
+    <>
+      {showFriendly ? relative : null}
+      {showFriendly && showDateTime ? <span className="text-muted-foreground font-normal"> ({absoluteEn})</span> : null}
+      {!showFriendly && showDateTime ? absoluteEn : null}
+    </>
+  );
+
+  if (!showFriendly && !showDateTime) {
+    return (
+      <time dateTime={d.toISOString()} title={title} className={className}>
+        {absoluteEn}
+      </time>
+    );
+  }
 
   return (
     <time
@@ -40,7 +95,7 @@ export function StaleReportedTime({ at, fallback = '—', className }: StaleRepo
       title={title}
       className={cn(staleClasses && 'inline-block rounded px-1.5 py-0.5', staleClasses, className)}
     >
-      {relative}
+      {inner}
     </time>
   );
 }

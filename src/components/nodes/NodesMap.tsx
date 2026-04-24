@@ -1,23 +1,28 @@
 import { ObservedNode } from '@/lib/models';
 import L from 'leaflet';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import 'leaflet/dist/leaflet.css';
 import { useMapTileUrl } from '@/hooks/useMapTileUrl';
 import { createNodeIcon, getRoleColor, buildNodePopupHtml } from './map-utils';
+import { MapMarkerLegend } from './MapMarkerLegend';
+import { meshRoleLegendSwatches } from './map-role-legend';
 
 interface NodesMapProps {
   nodes: ObservedNode[];
+  /** Default true: role-colour key for marker pins. */
+  showMapLegend?: boolean;
 }
 
 // Default center only used if no nodes are present
 const DEFAULT_CENTER: L.LatLngExpression = [55.8642, -4.2518];
 
-export function NodesMap({ nodes }: NodesMapProps) {
+export function NodesMap({ nodes, showMapLegend = true }: NodesMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const { url: tileUrl, attribution } = useMapTileUrl();
+  const roleSwatches = useMemo(() => meshRoleLegendSwatches(), []);
 
   // Initialize the map
   useEffect(() => {
@@ -163,15 +168,25 @@ export function NodesMap({ nodes }: NodesMapProps) {
   }, [nodes]);
 
   return (
-    <div
-      ref={mapRef}
-      style={{
-        height: '100%',
-        minHeight: '400px',
-        position: 'relative',
-        zIndex: 1,
-      }}
-      className="map-container"
-    />
+    <div className="relative h-full w-full min-h-[400px]">
+      {showMapLegend ? (
+        <MapMarkerLegend
+          constellationItems={[]}
+          showRoleSwatches
+          roleSwatches={roleSwatches}
+          roleSectionTitle="Node role"
+        />
+      ) : null}
+      <div
+        ref={mapRef}
+        style={{
+          height: '100%',
+          minHeight: '400px',
+          position: 'relative',
+          zIndex: 1,
+        }}
+        className="map-container"
+      />
+    </div>
   );
 }

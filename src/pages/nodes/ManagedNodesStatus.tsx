@@ -1,6 +1,8 @@
 import { Suspense, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
+import { enGB } from 'date-fns/locale';
+import { StaleReportedTime } from '@/components/nodes/StaleReportedTime';
 import { ChevronDown, Loader2 } from 'lucide-react';
 
 import { NodesAndConstellationsMap } from '@/components/nodes/NodesAndConstellationsMap';
@@ -74,8 +76,8 @@ function renderTimestampCell(value: Date | string | null | undefined) {
   const date = new Date(value);
   return (
     <div className="flex flex-col">
-      <span>{format(date, 'PPpp')}</span>
-      <span className="text-xs text-muted-foreground">{formatDistanceToNow(date, { addSuffix: true })}</span>
+      <span>{format(date, 'PPpp', { locale: enGB })}</span>
+      <StaleReportedTime at={date} className="text-xs text-muted-foreground" />
     </div>
   );
 }

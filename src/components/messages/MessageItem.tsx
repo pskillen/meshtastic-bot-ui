@@ -2,8 +2,9 @@ import { TextMessage, type PacketObservation } from '@/lib/models';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 import { memo, useMemo } from 'react';
+import { StaleReportedTime } from '@/components/nodes/StaleReportedTime';
 import { Link } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ExternalLink } from 'lucide-react';
@@ -99,9 +100,6 @@ export const MessageItem = memo(function MessageItem({
   continuationMessages = [],
 }: MessageItemProps) {
   const nodeId = useMemo(() => parseNodeId(message.sender.node_id_str), [message.sender.node_id_str]);
-  const relativeTime = useMemo(() => {
-    return message.sent_at ? formatDistanceToNow(new Date(message.sent_at), { addSuffix: true }) : '';
-  }, [message.sent_at]);
   const fullTime = useMemo(() => {
     return message.sent_at ? format(new Date(message.sent_at), 'MMM d, yyyy h:mm a') : 'Unknown time';
   }, [message.sent_at]);
@@ -151,9 +149,14 @@ export const MessageItem = memo(function MessageItem({
             <span className="font-medium truncate">{senderName}</span>
           )}
         </div>
-        <time className="shrink-0 text-xs text-muted-foreground" title={fullTime}>
-          {relativeTime}
-        </time>
+        {message.sent_at ? (
+          <StaleReportedTime
+            at={message.sent_at}
+            variant="neutral"
+            className="shrink-0 text-xs text-muted-foreground"
+            title={fullTime}
+          />
+        ) : null}
         <HeardDialog observations={message.heard} />
       </header>
       <div className="pl-8">

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { formatDistanceToNow } from 'date-fns';
 import { MoreVertical, Radio, Settings, ChevronRight, FileText, AlertTriangle, AlertCircle } from 'lucide-react';
+import { StaleReportedTime } from '@/components/nodes/StaleReportedTime';
 import type { UseQueryResult } from '@tanstack/react-query';
 
 import { MeshWatchControls } from '@/components/nodes/MeshWatchControls';
@@ -145,9 +145,7 @@ export function MyNodeCard({
         </div>
         <p className="text-sm text-muted-foreground">
           Last heard{' '}
-          <span className="text-foreground tabular-nums">
-            {node.last_heard ? formatDistanceToNow(new Date(node.last_heard), { addSuffix: true }) : 'never'}
-          </span>
+          <StaleReportedTime at={node.last_heard ?? null} fallback="never" className="text-foreground tabular-nums" />
         </p>
         <TooltipProvider delayDuration={300}>
           <Tooltip>
@@ -158,7 +156,7 @@ export function MyNodeCard({
             </TooltipTrigger>
             {metricsReported ? (
               <TooltipContent side="bottom" className="max-w-xs">
-                Metrics updated {formatDistanceToNow(metricsReported, { addSuffix: true })}
+                Metrics updated <StaleReportedTime at={metricsReported} className="inline" />
               </TooltipContent>
             ) : (
               <TooltipContent side="bottom">No recent telemetry timestamp</TooltipContent>

@@ -9,8 +9,8 @@ import {
   SortingState,
   getSortedRowModel,
 } from '@tanstack/react-table';
-import { formatDistanceToNow } from 'date-fns';
 import { BatteryIcon, SignalIcon } from 'lucide-react';
+import { StaleReportedTime } from '@/components/nodes/StaleReportedTime';
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -44,7 +44,7 @@ const columns: ColumnDef<ObservedNode>[] = [
       return (
         <div className="flex items-center gap-2">
           <SignalIcon className="h-4 w-4 text-green-500" />
-          <span>{formatDistanceToNow(lastHeard, { addSuffix: true })}</span>
+          <StaleReportedTime at={lastHeard} className="inline" />
         </div>
       );
     },
