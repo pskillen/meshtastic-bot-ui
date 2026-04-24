@@ -6,23 +6,46 @@ import { useMapTileUrl } from '@/hooks/useMapTileUrl';
 import { createNodeIcon, getRoleColor, buildNodePopupHtml } from './map-utils';
 import { MapMarkerLegend } from './MapMarkerLegend';
 import { meshRoleLegendSwatches } from './map-role-legend';
+import type { RoleLegendSwatch } from './map-role-legend';
 
 interface NodesMapProps {
   nodes: ObservedNode[];
   /** Default true: role-colour key for marker pins. */
   showMapLegend?: boolean;
+  /** When set, marker pins use these colours by `node_id` instead of Meshtastic role. */
+  markerColorsByNodeId?: ReadonlyMap<number, string> | Record<number, string>;
+  /** Legend rows when using `markerColorsByNodeId` (e.g. watch monitoring status). */
+  mapLegendStatusSwatches?: RoleLegendSwatch[];
+  mapLegendStatusTitle?: string;
 }
 
 // Default center only used if no nodes are present
 const DEFAULT_CENTER: L.LatLngExpression = [55.8642, -4.2518];
 
-export function NodesMap({ nodes, showMapLegend = true }: NodesMapProps) {
+function colorMapFromProp(
+  markerColorsByNodeId: ReadonlyMap<number, string> | Record<number, string> | undefined
+): ReadonlyMap<number, string> | null {
+  if (!markerColorsByNodeId) return null;
+  return markerColorsByNodeId instanceof Map
+    ? markerColorsByNodeId
+    : new Map(Object.entries(markerColorsByNodeId).map(([k, v]) => [Number(k), v]));
+}
+
+export function NodesMap({
+  nodes,
+  showMapLegend = true,
+  markerColorsByNodeId,
+  mapLegendStatusSwatches,
+  mapLegendStatusTitle,
+}: NodesMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const { url: tileUrl, attribution } = useMapTileUrl();
   const roleSwatches = useMemo(() => meshRoleLegendSwatches(), []);
+  const colorByNodeId = useMemo(() => colorMapFromProp(markerColorsByNodeId), [markerColorsByNodeId]);
+  const useStatusLegend = Boolean(colorByNodeId?.size && mapLegendStatusSwatches?.length);
 
   // Initialize the map
   useEffect(() => {
@@ -146,8 +169,10 @@ export function NodesMap({ nodes, showMapLegend = true }: NodesMapProps) {
     nodesWithPosition.forEach((node) => {
       const position: L.LatLngExpression = [node.latest_position!.latitude!, node.latest_position!.longitude!];
 
+      const pinColor = colorByNodeId?.get(node.node_id) ?? getRoleColor(node.role);
+
       const marker = L.marker(position, {
-        icon: createNodeIcon(node.short_name || node.node_id_str.toString(), getRoleColor(node.role), false),
+        icon: createNodeIcon(node.short_name || node.node_id_str.toString(), pinColor, false),
       })
         .bindPopup(buildNodePopupHtml(node))
         .addTo(map);
@@ -165,16 +190,18 @@ export function NodesMap({ nodes, showMapLegend = true }: NodesMapProps) {
         maxZoom: 15,
       });
     }
-  }, [nodes]);
+  }, [nodes, colorByNodeId]);
 
   return (
     <div className="relative h-full w-full min-h-[400px]">
       {showMapLegend ? (
         <MapMarkerLegend
           constellationItems={[]}
-          showRoleSwatches
+          showRoleSwatches={!useStatusLegend}
           roleSwatches={roleSwatches}
           roleSectionTitle="Node role"
+          statusSwatches={useStatusLegend ? mapLegendStatusSwatches : undefined}
+          statusSectionTitle={mapLegendStatusTitle}
         />
       ) : null}
       <div

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useMemo } from 'react';
 import { format } from 'date-fns';
 import { enGB } from 'date-fns/locale';
 import { StaleReportedTime } from '@/components/nodes/StaleReportedTime';
@@ -10,9 +11,18 @@ import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/ca
 import { Badge } from '@/components/ui/badge';
 import { MeshWatchControls } from '@/components/nodes/MeshWatchControls';
 import { useMeshtasticApi } from '@/hooks/api/useApi';
-import { BatteryIcon } from 'lucide-react';
+import { BatteryIcon, RouteIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import {
+  deriveWatchMonitoringStatus,
+  WATCH_STATUS_LABEL,
+  type WatchMonitoringStatus,
+} from '@/lib/watch-monitoring-status';
 
 const LATEST_TRACEROUTES = 5;
+
+const GROUP_ORDER: WatchMonitoringStatus[] = ['offline', 'verifying', 'unknown', 'online'];
 
 function toDate(value: Date | string | null | undefined): Date | null {
   if (value == null) return null;
@@ -126,6 +136,9 @@ export interface WatchedNodesTableProps {
   watches: NodeWatch[];
   watchesQuery: Pick<UseQueryResult<PaginatedResponse<NodeWatch>>, 'isLoading' | 'isError'>;
   onOpenTraceroute: (id: number) => void;
+  onRequestTriggerTraceroute?: (node: ObservedNode) => void;
+  /** When false, trigger button is disabled with a short explanation. */
+  canTriggerTraceroute?: boolean;
 }
 
 function observedAsNode(watch: NodeWatch): ObservedNode {
@@ -169,82 +182,178 @@ function BatteryBlock({ node }: { node: ObservedNode }) {
   );
 }
 
-export function WatchedNodesTable({ watches, watchesQuery, onOpenTraceroute }: WatchedNodesTableProps) {
+function statusBadgeVariant(status: WatchMonitoringStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
+  if (status === 'offline') return 'destructive';
+  if (status === 'verifying') return 'secondary';
+  if (status === 'online') return 'default';
+  return 'outline';
+}
+
+function WatchCard({
+  watch,
+  watchesQuery,
+  onOpenTraceroute,
+  onRequestTriggerTraceroute,
+  canTriggerTraceroute,
+}: {
+  watch: NodeWatch;
+  watchesQuery: Pick<UseQueryResult<PaginatedResponse<NodeWatch>>, 'isLoading' | 'isError'>;
+  onOpenTraceroute: (id: number) => void;
+  onRequestTriggerTraceroute?: (node: ObservedNode) => void;
+  canTriggerTraceroute?: boolean;
+}) {
+  const node = observedAsNode(watch);
+  const status = deriveWatchMonitoringStatus(watch);
+  const showTraceroutes = status !== 'online';
+
+  return (
+    <div
+      id={`watch-card-${watch.id}`}
+      tabIndex={-1}
+      className={cn(
+        'rounded-lg border-2 bg-card text-card-foreground shadow-sm p-4 space-y-4 outline-none scroll-mt-24',
+        status === 'offline' && 'border-destructive ring-2 ring-destructive/25',
+        status !== 'offline' && 'border-slate-300 dark:border-slate-400'
+      )}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={statusBadgeVariant(status)}>{WATCH_STATUS_LABEL[status]}</Badge>
+        </div>
+        {onRequestTriggerTraceroute && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            disabled={!canTriggerTraceroute}
+            title={canTriggerTraceroute ? undefined : 'No eligible source nodes for traceroute'}
+            onClick={() => onRequestTriggerTraceroute(node)}
+          >
+            <RouteIcon className="h-4 w-4 mr-1.5" aria-hidden />
+            Trigger traceroute
+          </Button>
+        )}
+      </div>
+
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <FieldLabel>Node</FieldLabel>
+          <Link to={`/nodes/${node.node_id}`} className="font-medium text-teal-600 dark:text-teal-400 hover:underline">
+            {node.short_name || node.node_id_str}
+          </Link>
+          <div className="text-xs text-muted-foreground font-mono mt-0.5">{node.node_id_str}</div>
+        </div>
+        <div>
+          <FieldLabel>Last heard</FieldLabel>
+          {node.last_heard ? (
+            <FriendlyThenAbsolute value={node.last_heard} />
+          ) : (
+            <span className="text-muted-foreground text-sm">Never</span>
+          )}
+        </div>
+        <div>
+          <FieldLabel>Battery</FieldLabel>
+          <BatteryBlock node={node} />
+        </div>
+        <div>
+          <FieldLabel>Watch</FieldLabel>
+          <MeshWatchControls
+            node={node}
+            watch={watch}
+            watchesQuery={watchesQuery}
+            idPrefix={`watch-dash-${watch.id}`}
+            compact
+          />
+        </div>
+      </div>
+
+      {showTraceroutes ? (
+        <div className="border-t border-slate-300 pt-4 dark:border-slate-500">
+          <FieldLabel>Latest traceroutes (this target)</FieldLabel>
+          <div className="rounded-md border border-slate-300 overflow-x-auto dark:border-slate-500">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>TR sender</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Route</TableHead>
+                  <TableHead>Triggered</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <WatchTracerouteHistoryRows targetNodeId={node.node_id} onOpenTraceroute={onOpenTraceroute} />
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      ) : (
+        <div className="border-t border-slate-300 pt-4 dark:border-slate-500">
+          <p className="text-sm text-muted-foreground">
+            Node is currently online; traceroute history is hidden here.{' '}
+            <Link to="/traceroutes" className="text-teal-600 dark:text-teal-400 hover:underline">
+              Open full traceroute history
+            </Link>
+            .
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function WatchedNodesTable({
+  watches,
+  watchesQuery,
+  onOpenTraceroute,
+  onRequestTriggerTraceroute,
+  canTriggerTraceroute,
+}: WatchedNodesTableProps) {
+  const grouped = useMemo(() => {
+    const m = new Map<WatchMonitoringStatus, NodeWatch[]>();
+    for (const s of GROUP_ORDER) m.set(s, []);
+    for (const w of watches) {
+      const s = deriveWatchMonitoringStatus(w);
+      m.get(s)!.push(w);
+    }
+    return m;
+  }, [watches]);
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">Watched nodes</CardTitle>
         <CardDescription>
-          Mesh monitoring watches for your account. Each block is one watched node.{' '}
+          Mesh monitoring watches for your account, grouped by status. Offline and verifying nodes are listed first.{' '}
           <Link to="/traceroutes" className="text-teal-600 dark:text-teal-400 hover:underline">
             Open full traceroute history
           </Link>
           .
         </CardDescription>
       </CardHeader>
-      <div className="p-4 flex flex-col gap-4">
-        {watches.map((watch) => {
-          const node = observedAsNode(watch);
+      <div className="p-4 flex flex-col gap-8">
+        {GROUP_ORDER.map((groupStatus) => {
+          const list = grouped.get(groupStatus) ?? [];
+          if (list.length === 0) return null;
           return (
-            <div
-              key={watch.id}
-              className="rounded-lg border-2 border-slate-300 bg-card text-card-foreground shadow-sm dark:border-slate-400 p-4 space-y-4"
-            >
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                <div>
-                  <FieldLabel>Node</FieldLabel>
-                  <Link
-                    to={`/nodes/${node.node_id}`}
-                    className="font-medium text-teal-600 dark:text-teal-400 hover:underline"
-                  >
-                    {node.short_name || node.node_id_str}
-                  </Link>
-                  <div className="text-xs text-muted-foreground font-mono mt-0.5">{node.node_id_str}</div>
-                </div>
-                <div>
-                  <FieldLabel>Last heard</FieldLabel>
-                  {node.last_heard ? (
-                    <FriendlyThenAbsolute value={node.last_heard} />
-                  ) : (
-                    <span className="text-muted-foreground text-sm">Never</span>
-                  )}
-                </div>
-                <div>
-                  <FieldLabel>Battery</FieldLabel>
-                  <BatteryBlock node={node} />
-                </div>
-                <div>
-                  <FieldLabel>Watch</FieldLabel>
-                  <MeshWatchControls
-                    node={node}
+            <section key={groupStatus} aria-labelledby={`watch-group-${groupStatus}`}>
+              <h3 id={`watch-group-${groupStatus}`} className="text-sm font-semibold mb-3">
+                {WATCH_STATUS_LABEL[groupStatus]} ({list.length})
+              </h3>
+              <div className="flex flex-col gap-4">
+                {list.map((watch) => (
+                  <WatchCard
+                    key={watch.id}
                     watch={watch}
                     watchesQuery={watchesQuery}
-                    idPrefix={`watch-dash-${watch.id}`}
-                    compact
+                    onOpenTraceroute={onOpenTraceroute}
+                    onRequestTriggerTraceroute={onRequestTriggerTraceroute}
+                    canTriggerTraceroute={canTriggerTraceroute}
                   />
-                </div>
+                ))}
               </div>
-
-              <div className="border-t border-slate-300 pt-4 dark:border-slate-500">
-                <FieldLabel>Latest traceroutes (this target)</FieldLabel>
-                <div className="rounded-md border border-slate-300 overflow-x-auto dark:border-slate-500">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>TR sender</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Route</TableHead>
-                        <TableHead>Triggered</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <WatchTracerouteHistoryRows targetNodeId={node.node_id} onOpenTraceroute={onOpenTraceroute} />
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            </div>
+            </section>
           );
         })}
       </div>

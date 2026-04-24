@@ -100,9 +100,7 @@ export function AutoTargetPreviewMap({
 
   const { envelope, centroid } = useMemo(() => {
     const env = geo?.envelope ?? null;
-    const cen =
-      geo?.selection_centroid ??
-      (env ? { lat: env.centroid_lat, lon: env.centroid_lon } : null);
+    const cen = geo?.selection_centroid ?? (env ? { lat: env.centroid_lat, lon: env.centroid_lon } : null);
     return { envelope: env, centroid: cen };
   }, [geo?.envelope, geo?.selection_centroid]);
 
