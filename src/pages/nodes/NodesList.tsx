@@ -10,8 +10,8 @@ import { Search } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ObservedNode } from '@/lib/models';
-import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
+import { StaleReportedTime } from '@/components/nodes/StaleReportedTime';
 
 type TimeRangeOption = '2h' | '24h' | '7d' | '30d' | 'all';
 type SortOption = 'last_heard' | 'name';
@@ -49,7 +49,7 @@ function RecentNodeChip({ node }: { node: ObservedNode }) {
     >
       <span className="font-medium text-sm truncate max-w-[120px]">{node.short_name}</span>
       <span className="text-xs text-muted-foreground">
-        {node.last_heard ? formatDistanceToNow(node.last_heard, { addSuffix: true }) : 'Never'}
+        <StaleReportedTime at={node.last_heard ?? null} fallback="Never" className="text-inherit" />
       </span>
     </Link>
   );

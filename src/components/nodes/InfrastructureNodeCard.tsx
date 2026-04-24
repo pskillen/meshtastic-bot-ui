@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { formatDistanceToNow } from 'date-fns';
 import { DeviceMetrics, ManagedNode, ObservedNode, NodeWatch, PaginatedResponse } from '@/lib/models';
+import { StaleReportedTime } from '@/components/nodes/StaleReportedTime';
 import { MeshWatchControls } from '@/components/nodes/MeshWatchControls';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { STRATEGY_META, type TracerouteStrategyValue } from '@/lib/traceroute-strategy';
@@ -81,7 +81,7 @@ function InfrastructureNodeCardInner({
             </Badge>
           )}
           <span className="text-sm text-slate-500 dark:text-slate-400">
-            {node.last_heard ? formatDistanceToNow(node.last_heard, { addSuffix: true }) : 'Never'}
+            <StaleReportedTime at={node.last_heard ?? null} fallback="Never" className="text-inherit" />
           </span>
         </div>
       </div>

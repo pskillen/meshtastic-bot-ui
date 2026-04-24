@@ -7,8 +7,8 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
 import { NodeClaim } from '@/lib/models';
+import { StaleReportedTime } from '@/components/nodes/StaleReportedTime';
 
 export function ClaimNode() {
   const { id } = useParams<{ id: string }>();
@@ -157,7 +157,7 @@ export function ClaimNode() {
             <p className="mb-4">
               Last Heard:{' '}
               <span className="font-medium">
-                {node.last_heard ? formatDistanceToNow(node.last_heard, { addSuffix: true }) : 'Never'}
+                <StaleReportedTime at={node.last_heard ?? null} fallback="Never" className="font-medium" />
               </span>
             </p>
           </CardContent>

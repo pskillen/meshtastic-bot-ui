@@ -1,9 +1,8 @@
 import { ObservedNode, ManagedNode } from '@/lib/models';
 import L from 'leaflet';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
 import * as turf from '@turf/turf';
-import * as d3 from 'd3';
 import type { Feature, Point, Polygon, Position as GeoPosition } from 'geojson';
 import { useMapTileUrl } from '@/hooks/useMapTileUrl';
 import {
@@ -14,6 +13,9 @@ import {
   precisionBitsToMeters,
   buildNodePopupHtml,
 } from './map-utils';
+import { computeManagedConstellationGroups, constellationLegendItems } from './map-constellation-colors';
+import { meshRoleLegendSwatches } from './map-role-legend';
+import { MapMarkerLegend } from './MapMarkerLegend';
 
 const DEFAULT_CENTER: L.LatLngExpression = [55.8642, -4.2518];
 const UNCERTAINTY_THRESHOLD_M = 200;
@@ -67,6 +69,11 @@ export interface NodesAndConstellationsMapProps {
   getMarkerBorderColor?: (node: ObservedNode) => string | undefined;
   /** Optional marker colour override for managed nodes */
   getManagedNodeMarkerColor?: (node: ManagedNode) => string;
+  /**
+   * When unset, legend shows except for custom marker colours (e.g. weather map).
+   * Set `false` to hide; set `true` to force on even with `getMarkerColor`.
+   */
+  showMapLegend?: boolean;
 }
 
 export function NodesAndConstellationsMap({
@@ -89,6 +96,7 @@ export function NodesAndConstellationsMap({
   getMarkerGrayscale,
   getMarkerBorderColor,
   getManagedNodeMarkerColor,
+  showMapLegend,
 }: NodesAndConstellationsMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -103,6 +111,22 @@ export function NodesAndConstellationsMap({
   const { url: tileUrl, attribution } = useMapTileUrl();
   onMapMoveRef.current = onMapMove;
   onNodeSelectRef.current = onNodeSelect;
+
+  const roleLegendData = useMemo(() => meshRoleLegendSwatches(), []);
+
+  const constellationGroups = useMemo(
+    () => computeManagedConstellationGroups(managedNodes, filterConstellationIds),
+    [managedNodes, filterConstellationIds]
+  );
+
+  const legendConstellationItems = useMemo(() => constellationLegendItems(constellationGroups), [constellationGroups]);
+
+  const showLegendResolved =
+    showMapLegend === false
+      ? false
+      : showMapLegend === true
+        ? true
+        : getMarkerColor == null && getManagedNodeMarkerColor == null;
 
   const handleMarkerClick = useCallback(
     (node: MapNode) => {
@@ -244,27 +268,7 @@ export function NodesAndConstellationsMap({
         ? managedNodes.filter((n) => n.constellation && filterConstellationIds.includes(n.constellation.id))
         : managedNodes;
 
-    const constellations: Record<number, { name: string; color: string; nodes: ManagedNode[] }> = {};
-    filteredManaged.forEach((node) => {
-      if (node.constellation) {
-        const id = node.constellation.id;
-        if (!constellations[id]) {
-          constellations[id] = {
-            name: node.constellation.name || 'Unknown',
-            color: node.constellation.map_color || '',
-            nodes: [],
-          };
-        }
-        constellations[id].nodes.push(node);
-      }
-    });
-
-    const constellationIds = Object.keys(constellations);
-    constellationIds.forEach((id, idx) => {
-      if (!constellations[+id].color) {
-        constellations[+id].color = d3.schemeCategory10[idx % d3.schemeCategory10.length];
-      }
-    });
+    const constellations = computeManagedConstellationGroups(managedNodes, filterConstellationIds);
 
     const bounds = L.latLngBounds([]);
     const hasStoredView = lastViewRef.current != null;
@@ -494,10 +498,20 @@ export function NodesAndConstellationsMap({
   ]);
 
   return (
-    <div
-      ref={mapRef}
-      style={{ height: '100%', minHeight: '400px', position: 'relative', zIndex: 1 }}
-      className="map-container"
-    />
+    <div className="relative h-full w-full min-h-[400px]">
+      {showLegendResolved ? (
+        <MapMarkerLegend
+          constellationItems={showConstellation ? legendConstellationItems : []}
+          showRoleSwatches={getMarkerColor == null}
+          roleSwatches={roleLegendData}
+          roleSectionTitle={showConstellation ? 'Other mesh nodes (by role)' : 'Node role'}
+        />
+      ) : null}
+      <div
+        ref={mapRef}
+        style={{ height: '100%', minHeight: '400px', position: 'relative', zIndex: 1 }}
+        className="map-container"
+      />
+    </div>
   );
 }

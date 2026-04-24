@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { formatDistanceToNow } from 'date-fns';
 import { EnvironmentMetrics, ObservedNode } from '@/lib/models';
+import { StaleReportedTime } from '@/components/nodes/StaleReportedTime';
 import { EnvironmentMetricsMiniChart } from './EnvironmentMetricsMiniChart';
 import { ChevronRight } from 'lucide-react';
 import { memo } from 'react';
@@ -25,7 +25,7 @@ function WeatherNodeCardInner({ node, metrics, dateRange }: WeatherNodeCardProps
         </div>
         <div className="flex flex-col items-end gap-1">
           <span className="text-sm text-slate-500 dark:text-slate-400">
-            {envReportedTime ? formatDistanceToNow(envReportedTime, { addSuffix: true }) : 'No env data'}
+            {envReportedTime ? <StaleReportedTime at={envReportedTime} className="text-inherit" /> : 'No env data'}
           </span>
         </div>
       </div>

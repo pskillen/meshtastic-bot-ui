@@ -4,8 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useCancelNodeClaim, useUserClaims } from '@/hooks/api/useNodeClaims';
 import { useConstellationChannels } from '@/hooks/api/useConstellations';
 import { useMyManagedNodesSuspense, useMyClaimedNodesSuspense } from '@/hooks/api/useNodes';
-import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { StaleReportedTime } from '@/components/nodes/StaleReportedTime';
 import { Loader2, AlertCircle, Info, Copy, Radio, HelpCircle, ChevronDown, KeyRound } from 'lucide-react';
 import { useConfig } from '@/providers/ConfigProvider';
 import { BotSetupInstructions } from '@/components/nodes/BotSetupInstructions';
@@ -116,10 +116,7 @@ function NodeSettingsContent() {
                           <p className="text-sm text-slate-500 dark:text-slate-400">{node.long_name}</p>
                           <p className="text-xs text-slate-400">Node ID: {node.node_id_str}</p>
                           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                            Last heard:{' '}
-                            {node.last_heard
-                              ? formatDistanceToNow(new Date(node.last_heard), { addSuffix: true })
-                              : 'Never'}
+                            Last heard: <StaleReportedTime at={node.last_heard ?? null} fallback="Never" />
                           </p>
                         </div>
                       </div>
@@ -181,7 +178,7 @@ function NodeSettingsContent() {
                               <p className="text-sm text-slate-500 dark:text-slate-400">{claim.node.long_name}</p>
                               <p className="text-xs text-slate-400">Node ID: {claim.node.node_id_str}</p>
                               <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                Claimed {formatDistanceToNow(new Date(claim.created_at), { addSuffix: true })}
+                                Claimed <StaleReportedTime at={claim.created_at} variant="neutral" className="inline" />
                               </p>
                             </div>
                             <Button
@@ -269,10 +266,7 @@ function NodeSettingsContent() {
                                   {node.constellation.name}
                                 </Badge>
                                 <span className="text-xs text-slate-500 dark:text-slate-400">
-                                  Last heard:{' '}
-                                  {node.last_heard
-                                    ? formatDistanceToNow(new Date(node.last_heard), { addSuffix: true })
-                                    : 'Never'}
+                                  Last heard: <StaleReportedTime at={node.last_heard ?? null} fallback="Never" />
                                 </span>
                                 {nodeApiKeys.length > 0 && (
                                   <span className="text-xs text-slate-500 dark:text-slate-400">

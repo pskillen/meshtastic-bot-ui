@@ -1,6 +1,5 @@
-import { formatDistanceToNow } from 'date-fns';
-
 import { MANAGED_NODE_ONLINE_MAX_AGE_SECONDS } from '@/lib/managed-node-status';
+import { formatRecencyRelative } from '@/lib/reported-time-format';
 import type { ManagedNode, ObservedNode, Position } from '@/lib/models';
 
 /** Claimed-node “online”: same window as dashboard “2h” and the Meshtastic bot’s online threshold. */
@@ -83,7 +82,7 @@ function isFresh(at: Date | string | null | undefined, maxAgeMs: number, now: Da
 function agePhrase(at: Date | string | null | undefined): string {
   const d = parseDate(at);
   if (!d) return 'never';
-  return formatDistanceToNow(d, { addSuffix: true });
+  return formatRecencyRelative(d, 'never');
 }
 
 /** Mesh-side activity: prefer `radio_last_heard`, else `last_heard`. */
@@ -180,18 +179,18 @@ export function getPositionHint(node: ObservedNode, now: Date = new Date()): Pos
   if (ageMs < 0) {
     return {
       label: 'GPS position recent',
-      tooltip: `Reported ${formatDistanceToNow(reported, { addSuffix: true })}`,
+      tooltip: `Reported ${formatRecencyRelative(reported)}`,
     };
   }
   if (ageMs <= POSITION_STALE_MS) {
     return {
       label: 'GPS position recent',
-      tooltip: `Reported ${formatDistanceToNow(reported, { addSuffix: true })}`,
+      tooltip: `Reported ${formatRecencyRelative(reported)}`,
     };
   }
   return {
     label: 'GPS position stale (>7d)',
-    tooltip: `Reported ${formatDistanceToNow(reported, { addSuffix: true })}`,
+    tooltip: `Reported ${formatRecencyRelative(reported)}`,
   };
 }
 
