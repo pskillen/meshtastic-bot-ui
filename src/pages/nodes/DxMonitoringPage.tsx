@@ -5,7 +5,7 @@ import { enGB } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { ActivityIcon, RadioIcon } from 'lucide-react';
 import { authService } from '@/lib/auth/authService';
-import type { DxEventListItem, DxReasonCode } from '@/lib/models';
+import type { DxDestinationNode, DxEventListItem, DxManagedNodeMinimal, DxReasonCode } from '@/lib/models';
 import {
   useDxActiveEventCount,
   useDxEventDetail,
@@ -28,7 +28,6 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 
@@ -54,6 +53,45 @@ function httpStatus(err: unknown): number | undefined {
     return r?.status;
   }
   return undefined;
+}
+
+/** Primary line is short/long name; Meshtastic id is secondary when names exist, else sole label. */
+function formatDestinationLabel(dest: DxDestinationNode): { primary: string; idSecondary?: string } {
+  const long = dest.long_name?.trim();
+  const short = dest.short_name?.trim();
+  let primary = '';
+  if (long && short) {
+    primary = long === short ? long : `${long} (${short})`;
+  } else {
+    primary = long || short || '';
+  }
+  if (!primary) {
+    return { primary: dest.node_id_str };
+  }
+  return { primary, idSecondary: dest.node_id_str };
+}
+
+function formatObserverLabel(obs: DxManagedNodeMinimal): { primary: string; idSecondary?: string } {
+  const name = obs.name?.trim();
+  if (name) {
+    return { primary: name, idSecondary: obs.node_id_str };
+  }
+  return { primary: obs.node_id_str };
+}
+
+function NodeLinkLabel({ to, primary, idSecondary }: { to: string; primary: string; idSecondary?: string }) {
+  return (
+    <div className="flex flex-col gap-0.5 min-w-0">
+      <Link
+        to={to}
+        className="font-medium text-primary hover:underline truncate"
+        title={idSecondary ? `${primary} · ${idSecondary}` : primary}
+      >
+        {primary}
+      </Link>
+      {idSecondary ? <span className="text-xs text-muted-foreground tabular-nums">{idSecondary}</span> : null}
+    </div>
+  );
 }
 
 export default function DxMonitoringPage() {
@@ -108,7 +146,8 @@ export default function DxMonitoringPage() {
       },
       {
         onSuccess: () => {
-          toast.success(`Excluded ${excludeTarget.destination.node_id_str} from DX detection`);
+          const { primary } = formatDestinationLabel(excludeTarget.destination);
+          toast.success(`Excluded ${primary} from DX detection`);
           setExcludeTarget(null);
           setExcludeNotes('');
         },
@@ -135,6 +174,7 @@ export default function DxMonitoringPage() {
   }
 
   const listErr = listQuery.isError ? httpStatus(listQuery.error) : undefined;
+  const excludeDestLabel = excludeTarget ? formatDestinationLabel(excludeTarget.destination) : null;
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -299,16 +339,11 @@ export default function DxMonitoringPage() {
                         <Badge variant={row.state === 'active' ? 'default' : 'secondary'}>{row.state}</Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col gap-1">
-                          <Link
+                        <div className="flex flex-col gap-1 max-w-[16rem]">
+                          <NodeLinkLabel
                             to={`/nodes/${row.destination.node_id}`}
-                            className="font-medium text-primary hover:underline"
-                          >
-                            {row.destination.node_id_str}
-                          </Link>
-                          <span className="text-xs text-muted-foreground truncate max-w-[12rem]">
-                            {row.destination.long_name || row.destination.short_name}
-                          </span>
+                            {...formatDestinationLabel(row.destination)}
+                          />
                           {row.destination.dx_metadata.exclude_from_detection && (
                             <Badge variant="outline" className="w-fit text-xs">
                               Excluded from DX
@@ -316,9 +351,12 @@ export default function DxMonitoringPage() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm">
+                      <TableCell className="text-sm max-w-[12rem]">
                         {row.last_observer ? (
-                          <span className="tabular-nums">{row.last_observer.node_id_str}</span>
+                          <NodeLinkLabel
+                            to={`/nodes/${row.last_observer.node_id}`}
+                            {...formatObserverLabel(row.last_observer)}
+                          />
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
@@ -373,36 +411,34 @@ export default function DxMonitoringPage() {
         </Card>
       )}
 
-      <Sheet open={Boolean(detailId)} onOpenChange={(o) => !o && closeDetail()}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>DX event</SheetTitle>
-            <SheetDescription>Evidence rows and destination metadata.</SheetDescription>
-          </SheetHeader>
+      <Dialog open={Boolean(detailId)} onOpenChange={(o) => !o && closeDetail()}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>DX event</DialogTitle>
+            <DialogDescription>Evidence rows and destination metadata.</DialogDescription>
+          </DialogHeader>
           {detailQuery.isLoading && (
             <div className="flex justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
             </div>
           )}
           {detailQuery.isSuccess && detailQuery.data && (
-            <div className="mt-6 space-y-4 text-sm">
+            <div className="mt-2 space-y-4 text-sm">
               <div>
                 <div className="text-muted-foreground">Reason</div>
                 <div className="font-medium">{formatReason(detailQuery.data.reason_code)}</div>
               </div>
               <div>
                 <div className="text-muted-foreground">Destination</div>
-                <Link
-                  to={`/nodes/${detailQuery.data.destination.node_id}`}
-                  className="font-medium text-primary hover:underline"
-                >
-                  {detailQuery.data.destination.node_id_str}
-                </Link>
-                {detailQuery.data.destination.dx_metadata.exclude_from_detection && (
-                  <Badge variant="outline" className="ml-2">
-                    Excluded from DX
-                  </Badge>
-                )}
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <NodeLinkLabel
+                    to={`/nodes/${detailQuery.data.destination.node_id}`}
+                    {...formatDestinationLabel(detailQuery.data.destination)}
+                  />
+                  {detailQuery.data.destination.dx_metadata.exclude_from_detection && (
+                    <Badge variant="outline">Excluded from DX</Badge>
+                  )}
+                </div>
               </div>
               {!detailQuery.data.destination.dx_metadata.exclude_from_detection && (
                 <Button type="button" variant="secondary" size="sm" onClick={() => setExcludeTarget(detailQuery.data)}>
@@ -428,33 +464,52 @@ export default function DxMonitoringPage() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      detailQuery.data.observations.map((o) => (
-                        <TableRow key={o.id}>
-                          <TableCell className="text-xs whitespace-nowrap">{formatWhen(o.observed_at)}</TableCell>
-                          <TableCell className="text-xs">{o.observer.node_id_str}</TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {o.distance_km != null ? o.distance_km.toFixed(1) : '—'}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs break-all">{o.raw_packet}</TableCell>
-                        </TableRow>
-                      ))
+                      detailQuery.data.observations.map((o) => {
+                        const obsLabel = formatObserverLabel(o.observer);
+                        return (
+                          <TableRow key={o.id}>
+                            <TableCell className="text-xs whitespace-nowrap">{formatWhen(o.observed_at)}</TableCell>
+                            <TableCell className="text-xs max-w-[12rem]">
+                              <NodeLinkLabel
+                                to={`/nodes/${o.observer.node_id}`}
+                                primary={obsLabel.primary}
+                                idSecondary={obsLabel.idSecondary}
+                              />
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {o.distance_km != null ? o.distance_km.toFixed(1) : '—'}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs break-all">{o.raw_packet}</TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
               </div>
             </div>
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={Boolean(excludeTarget)} onOpenChange={(o) => !o && setExcludeTarget(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Exclude from DX detection?</DialogTitle>
             <DialogDescription>
-              Future DX candidate detection will ignore node{' '}
-              <span className="font-mono">{excludeTarget?.destination.node_id_str}</span>. Use for known mobile or noisy
-              stations.
+              Future DX candidate detection will ignore{' '}
+              {excludeDestLabel ? (
+                <>
+                  <span className="font-medium">{excludeDestLabel.primary}</span>
+                  {excludeDestLabel.idSecondary ? (
+                    <>
+                      {' '}
+                      (<span className="font-mono">{excludeDestLabel.idSecondary}</span>)
+                    </>
+                  ) : null}
+                </>
+              ) : null}
+              . Use for known mobile or noisy stations.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
