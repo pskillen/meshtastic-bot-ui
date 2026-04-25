@@ -25,6 +25,8 @@ export interface User {
   email?: string;
   first_name?: string;
   last_name?: string;
+  /** From `/api/auth/user/`; staff may access DX monitoring APIs. */
+  is_staff?: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any; // For any additional fields
 }

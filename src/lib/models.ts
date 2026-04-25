@@ -537,3 +537,73 @@ export interface NodeWatch {
   enabled: boolean;
   created_at: string;
 }
+
+/** DX monitoring (meshflow-api `/api/dx/`, staff-only). */
+export type DxReasonCode = 'new_distant_node' | 'returned_dx_node' | 'distant_observation';
+export type DxEventState = 'active' | 'closed';
+
+export interface DxNodeMetadataPublic {
+  exclude_from_detection: boolean;
+  exclude_notes: string;
+  updated_at: string | null;
+}
+
+export interface DxDestinationNode {
+  internal_id: string;
+  node_id: number;
+  node_id_str: string;
+  short_name: string;
+  long_name: string;
+  dx_metadata: DxNodeMetadataPublic;
+}
+
+export interface DxManagedNodeMinimal {
+  internal_id: string;
+  node_id: number;
+  node_id_str: string;
+  name: string;
+}
+
+export interface DxConstellationMinimal {
+  id: number;
+  name: string;
+}
+
+export interface DxEventListItem {
+  id: string;
+  constellation: DxConstellationMinimal;
+  destination: DxDestinationNode;
+  reason_code: DxReasonCode;
+  state: DxEventState;
+  first_observed_at: string;
+  last_observed_at: string;
+  active_until: string;
+  observation_count: number;
+  last_observer: DxManagedNodeMinimal | null;
+  best_distance_km: number | null;
+  last_distance_km: number | null;
+  metadata: Record<string, unknown>;
+  evidence_count: number;
+}
+
+export interface DxEventObservationRow {
+  id: string;
+  observed_at: string;
+  distance_km: number | null;
+  metadata: Record<string, unknown>;
+  observer: DxManagedNodeMinimal;
+  raw_packet: string;
+  packet_observation: number;
+}
+
+export interface DxEventDetail extends DxEventListItem {
+  observations: DxEventObservationRow[];
+}
+
+export interface DxNodeExclusionResponse {
+  node_id: number;
+  node_id_str: string;
+  exclude_from_detection: boolean;
+  exclude_notes: string;
+  updated_at: string | null;
+}

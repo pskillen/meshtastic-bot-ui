@@ -28,6 +28,22 @@ export interface PaginationParams {
   last_heard_after?: Date;
 }
 
+/** Query params for GET `/api/dx/events/` (staff). */
+export interface DxEventsQueryParams extends PaginationParams {
+  state?: string;
+  reason_code?: string;
+  constellation?: number;
+  destination_node_id?: number;
+  last_observer_id?: string;
+  active_now?: boolean;
+  recent_only?: boolean;
+  recent_days?: number;
+  last_observed_after?: string;
+  last_observed_before?: string;
+  first_observed_after?: string;
+  first_observed_before?: string;
+}
+
 export interface ApiAuthConfig {
   type: 'none' | 'token' | 'basic' | 'oauth' | 'apiKey';
   token?: string;
