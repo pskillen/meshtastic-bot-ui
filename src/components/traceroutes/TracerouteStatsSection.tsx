@@ -33,10 +33,16 @@ function getTriggeredAtAfter(timeframe: TimeframeKey): Date {
 const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#ef4444', '#06b6d4', '#84cc16'];
 
 const SOURCE_LABELS: Record<string, string> = {
-  auto: 'Auto',
+  '1': 'User',
+  '2': 'External',
+  '3': 'Monitoring',
+  '4': 'Node watch',
+  '5': 'DX watch',
+  // Legacy string keys if any cached responses still return slugs
+  auto: 'Monitoring',
   user: 'User',
   external: 'External',
-  monitor: 'Monitor',
+  monitor: 'Node watch',
 };
 
 // Min number of attempts before a target is included in top/least success rankings.
@@ -55,7 +61,7 @@ export function TracerouteStatsSection() {
   const sourcesChartData = useMemo(() => {
     if (!data?.sources?.length) return [];
     return data.sources.map((s, idx) => ({
-      name: SOURCE_LABELS[s.trigger_type] ?? s.trigger_type,
+      name: SOURCE_LABELS[String(s.trigger_type)] ?? String(s.trigger_type),
       value: s.count,
       fill: CHART_COLORS[idx % CHART_COLORS.length],
     }));

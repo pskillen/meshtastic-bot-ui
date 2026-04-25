@@ -27,6 +27,13 @@ import { StrategyBadge } from '@/components/traceroutes/StrategyBadge';
 import { AutoTraceRoute, ObservedNode } from '@/lib/models';
 import { formatElapsedBetween } from '@/lib/utils';
 import { TRACEROUTE_STRATEGIES, type TracerouteStrategyValue } from '@/lib/traceroute-strategy';
+import {
+  TRIGGER_TYPE_EXTERNAL,
+  TRIGGER_TYPE_FILTER_OPTIONS,
+  type TriggerTypeFilterToken,
+  labelForTriggerTypeApi,
+  labelForTriggerTypeFilterToken,
+} from '@/lib/traceroute-trigger-type';
 import { ChevronDown, RotateCw, RouteIcon, X } from 'lucide-react';
 
 type StatusValue = 'completed' | 'failed' | 'pending' | 'sent';
@@ -37,14 +44,6 @@ const STATUS_OPTIONS: Array<{ value: StatusValue; label: string }> = [
   { value: 'sent', label: 'Sent' },
 ];
 const SUCCESS_STATUS_PRESET: StatusValue[] = ['completed', 'pending', 'sent'];
-
-type TriggerTypeValue = 'auto' | 'user' | 'external' | 'monitor';
-const TRIGGER_TYPE_OPTIONS: Array<{ value: TriggerTypeValue; label: string }> = [
-  { value: 'auto', label: 'Auto' },
-  { value: 'user', label: 'User' },
-  { value: 'external', label: 'External' },
-  { value: 'monitor', label: 'Monitor' },
-];
 
 const STRATEGY_FILTER_OPTIONS: Array<{ value: TracerouteStrategyValue; label: string }> = TRACEROUTE_STRATEGIES.map(
   (value) => ({
@@ -102,7 +101,7 @@ function parseNumberParam(raw: string | null): number | null {
 function TracerouteElapsedCell({ tr }: { tr: AutoTraceRoute }) {
   if (tr.status === 'failed') return '—';
   /** Only completion time is reliable for externally ingested traceroutes */
-  if (tr.trigger_type === 'external') {
+  if (tr.trigger_type === TRIGGER_TYPE_EXTERNAL) {
     return (
       <span
         className="text-muted-foreground"
@@ -114,6 +113,12 @@ function TracerouteElapsedCell({ tr }: { tr: AutoTraceRoute }) {
   }
   if (!tr.triggered_at || !tr.completed_at) return '—';
   return formatElapsedBetween(new Date(tr.triggered_at), new Date(tr.completed_at));
+}
+
+function triggerTypeMultiLabel(values: TriggerTypeFilterToken[]): string {
+  if (values.length === 0) return 'Trigger type';
+  if (values.length === 1) return labelForTriggerTypeFilterToken(values[0]);
+  return `Trigger type (${values.length})`;
 }
 
 function multiSelectLabel<T extends string>(
@@ -135,7 +140,7 @@ export function TracerouteHistory() {
   const sourceNodeId = parseNumberParam(searchParams.get('source_node'));
   const targetNodeId = parseNumberParam(searchParams.get('target_node'));
   const statusValues = parseCsvParam<StatusValue>(searchParams.get('status'));
-  const triggerTypeValues = parseCsvParam<TriggerTypeValue>(searchParams.get('trigger_type'));
+  const triggerTypeValues = parseCsvParam(searchParams.get('trigger_type')) as TriggerTypeFilterToken[];
   const strategyValues = parseCsvParam<TracerouteStrategyValue>(searchParams.get('strategy'));
 
   const updateParams = (patch: Record<string, string | null>) => {
@@ -153,7 +158,7 @@ export function TracerouteHistory() {
   const setSourceNode = (id: number | null) => updateParams({ source_node: id?.toString() ?? null });
   const setTargetNode = (id: number | null) => updateParams({ target_node: id?.toString() ?? null });
   const setStatusValues = (values: StatusValue[]) => updateParams({ status: values.length ? values.join(',') : null });
-  const setTriggerTypeValues = (values: TriggerTypeValue[]) =>
+  const setTriggerTypeValues = (values: TriggerTypeFilterToken[]) =>
     updateParams({ trigger_type: values.length ? values.join(',') : null });
   const setStrategyValues = (values: TracerouteStrategyValue[]) =>
     updateParams({ strategy: values.length ? values.join(',') : null });
@@ -184,8 +189,11 @@ export function TracerouteHistory() {
     return SUCCESS_STATUS_PRESET.every((s) => statusValues.includes(s));
   }, [statusValues]);
 
-  const isMonitorPreset = triggerTypeValues.length === 1 && triggerTypeValues[0] === 'monitor';
-  const isUserPreset = triggerTypeValues.length === 1 && triggerTypeValues[0] === 'user';
+  const isMonitorPreset =
+    triggerTypeValues.length === 1 &&
+    (triggerTypeValues[0] === '4' || triggerTypeValues[0] === 'monitor');
+  const isUserPreset =
+    triggerTypeValues.length === 1 && (triggerTypeValues[0] === '1' || triggerTypeValues[0] === 'user');
 
   const [triggerModalOpen, setTriggerModalOpen] = useState(false);
   const [selectedTracerouteId, setSelectedTracerouteId] = useState<number | null>(null);
@@ -302,18 +310,20 @@ export function TracerouteHistory() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="w-[180px] justify-between">
-                  {multiSelectLabel(triggerTypeValues, TRIGGER_TYPE_OPTIONS, 'Trigger type')}
+                  {triggerTypeMultiLabel(triggerTypeValues)}
                   <ChevronDown className="h-4 w-4 opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuLabel>Trigger type</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {TRIGGER_TYPE_OPTIONS.map((opt) => (
+                {TRIGGER_TYPE_FILTER_OPTIONS.map((opt) => (
                   <DropdownMenuCheckboxItem
                     key={opt.value}
                     checked={triggerTypeValues.includes(opt.value)}
-                    onCheckedChange={() => setTriggerTypeValues(toggleValue(triggerTypeValues, opt.value))}
+                    onCheckedChange={() =>
+                      setTriggerTypeValues(toggleValue(triggerTypeValues, opt.value) as TriggerTypeFilterToken[])
+                    }
                     onSelect={(e) => e.preventDefault()}
                   >
                     {opt.label}
@@ -366,7 +376,7 @@ export function TracerouteHistory() {
             <Button
               variant={isMonitorPreset ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setTriggerTypeValues(isMonitorPreset ? [] : ['monitor'])}
+              onClick={() => setTriggerTypeValues(isMonitorPreset ? [] : ['4'])}
               title="Show only monitor-triggered traceroutes"
             >
               Monitoring TRs
@@ -374,7 +384,7 @@ export function TracerouteHistory() {
             <Button
               variant={isUserPreset ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setTriggerTypeValues(isUserPreset ? [] : ['user'])}
+              onClick={() => setTriggerTypeValues(isUserPreset ? [] : ['1'])}
               title="Show only user-triggered traceroutes"
             >
               Manually triggered
@@ -416,7 +426,9 @@ export function TracerouteHistory() {
                     >
                       <TableCell>{tr.source_node?.short_name ?? tr.source_node?.node_id_str ?? '—'}</TableCell>
                       <TableCell>{tr.target_node?.short_name ?? tr.target_node?.node_id_str ?? '—'}</TableCell>
-                      <TableCell>{tr.trigger_type}</TableCell>
+                      <TableCell>
+                        {labelForTriggerTypeApi(tr.trigger_type, tr.trigger_type_label)}
+                      </TableCell>
                       <TableCell>
                         <StrategyBadge value={tr.target_strategy} />
                       </TableCell>
@@ -431,7 +443,7 @@ export function TracerouteHistory() {
                       <TableCell
                         title={
                           tr.status !== 'failed' && tr.completed_at
-                            ? tr.trigger_type === 'external'
+                            ? tr.trigger_type === TRIGGER_TYPE_EXTERNAL
                               ? `Completed ${format(new Date(tr.completed_at), 'PPp')} (start time not recorded)`
                               : format(new Date(tr.completed_at), 'PPp')
                             : undefined

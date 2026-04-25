@@ -1,3 +1,7 @@
+import type { TracerouteTriggerType } from './traceroute-trigger-type';
+
+export type { TracerouteTriggerType } from './traceroute-trigger-type';
+
 export interface PaginatedResponse<T> {
   count: number;
   next: string | null;
@@ -203,7 +207,8 @@ export interface AutoTraceRoute {
   id: number;
   source_node: ManagedNode;
   target_node: ObservedNode;
-  trigger_type: 'auto' | 'user' | 'external' | 'monitor';
+  trigger_type: TracerouteTriggerType;
+  trigger_type_label?: string | null;
   /** Hypothesis-driven selector; null means legacy / unspecified */
   target_strategy?: 'intra_zone' | 'dx_across' | 'dx_same_side' | 'legacy' | 'manual' | null;
   triggered_by: number | null;

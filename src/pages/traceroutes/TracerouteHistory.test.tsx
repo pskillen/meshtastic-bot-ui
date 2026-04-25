@@ -69,7 +69,8 @@ function makeTraceroute(overrides: Partial<AutoTraceRoute> = {}): AutoTraceRoute
       hw_model: null,
       public_key: null,
     } as ObservedNode,
-    trigger_type: 'user',
+    trigger_type: 1,
+    trigger_type_label: 'User',
     triggered_by: 1,
     triggered_by_username: 'me',
     trigger_source: 'ui',
@@ -259,7 +260,7 @@ describe('TracerouteHistory', () => {
     renderAt('/traceroutes');
     fireEvent.click(screen.getByRole('button', { name: /monitoring trs/i }));
     const lastCall = mockedUseInfinite.mock.calls.at(-1)?.[0];
-    expect(lastCall).toEqual(expect.objectContaining({ trigger_type: 'monitor' }));
+    expect(lastCall).toEqual(expect.objectContaining({ trigger_type: '4' }));
   });
 
   it('applies the "Manually triggered" preset to trigger_type when clicked', () => {
@@ -267,7 +268,7 @@ describe('TracerouteHistory', () => {
     renderAt('/traceroutes');
     fireEvent.click(screen.getByRole('button', { name: /manually triggered/i }));
     const lastCall = mockedUseInfinite.mock.calls.at(-1)?.[0];
-    expect(lastCall).toEqual(expect.objectContaining({ trigger_type: 'user' }));
+    expect(lastCall).toEqual(expect.objectContaining({ trigger_type: '1' }));
   });
 
   it('opens the searchable target filter and filters options by query', () => {
