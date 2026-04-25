@@ -13,6 +13,7 @@ import { TracerouteDetailModal } from '@/pages/traceroutes/TracerouteDetailModal
 import { TriggerTracerouteModal } from '@/pages/traceroutes/TriggerTracerouteModal';
 import { getTracerouteErrorMessage } from '@/pages/traceroutes/tracerouteErrors';
 import type { AutoTraceRoute, ObservedNode } from '@/lib/models';
+import { labelForTriggerTypeApi } from '@/lib/traceroute-trigger-type';
 import { useManagedNodesSuspense } from '@/hooks/api/useNodes';
 
 const PAGE_SIZE = 10;
@@ -152,7 +153,7 @@ export function NodeTracerouteHistorySection({ nodeId, observedNode }: NodeTrace
                         onClick={() => setSelectedTracerouteId(tr.id)}
                       >
                         <TableCell>{tr.source_node?.short_name ?? tr.source_node?.node_id_str ?? '—'}</TableCell>
-                        <TableCell>{tr.trigger_type}</TableCell>
+                        <TableCell>{labelForTriggerTypeApi(tr.trigger_type, tr.trigger_type_label)}</TableCell>
                         <TableCell>{tr.triggered_by_username ?? '—'}</TableCell>
                         <TableCell>
                           <StatusBadge status={tr.status} />

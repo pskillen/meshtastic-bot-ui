@@ -787,7 +787,7 @@ export class MeshtasticApi extends BaseApi {
    * Get traceroute statistics (sources, success/failure, top routers, by source, success over time)
    */
   async getTracerouteStats(params?: { triggered_at_after?: string }): Promise<{
-    sources: Array<{ trigger_type: string; count: number }>;
+    sources: Array<{ trigger_type: number; count: number }>;
     success_failure: Array<{ status: string; count: number }>;
     top_routers: Array<{ node_id: number; node_id_str: string; short_name: string; count: number }>;
     by_source: Array<{

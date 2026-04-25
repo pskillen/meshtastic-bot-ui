@@ -6,6 +6,7 @@ import { StaleReportedTime } from '@/components/nodes/StaleReportedTime';
 import { Link } from 'react-router-dom';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import type { AutoTraceRoute, NodeWatch, ObservedNode, PaginatedResponse } from '@/lib/models';
+import { labelForTriggerTypeApi } from '@/lib/traceroute-trigger-type';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -116,7 +117,7 @@ function WatchTracerouteHistoryRows({
       {rows.map((tr) => (
         <TableRow key={tr.id} className="cursor-pointer hover:bg-muted/50" onClick={() => onOpenTraceroute(tr.id)}>
           <TableCell>{tr.source_node?.short_name ?? tr.source_node?.node_id_str ?? '—'}</TableCell>
-          <TableCell>{tr.trigger_type}</TableCell>
+          <TableCell>{labelForTriggerTypeApi(tr.trigger_type, tr.trigger_type_label)}</TableCell>
           <TableCell>
             <TrStatusBadge status={tr.status} />
           </TableCell>

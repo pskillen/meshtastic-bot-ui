@@ -13,6 +13,7 @@ import { useTraceroutesWithWebSocket } from '@/hooks/useTraceroutesWithWebSocket
 import { TracerouteDetailModal } from '@/pages/traceroutes/TracerouteDetailModal';
 import { getTracerouteErrorMessage } from '@/pages/traceroutes/tracerouteErrors';
 import type { AutoTraceRoute, ManagedNode } from '@/lib/models';
+import { labelForTriggerTypeApi } from '@/lib/traceroute-trigger-type';
 
 const PAGE_SIZE = 10;
 
@@ -132,7 +133,7 @@ export function NodeOutgoingTraceroutesSection({ nodeId, managed }: NodeOutgoing
                           onClick={() => setSelectedTracerouteId(tr.id)}
                         >
                           <TableCell>{tr.target_node?.short_name ?? tr.target_node?.node_id_str ?? '—'}</TableCell>
-                          <TableCell>{tr.trigger_type}</TableCell>
+                          <TableCell>{labelForTriggerTypeApi(tr.trigger_type, tr.trigger_type_label)}</TableCell>
                           <TableCell>{tr.triggered_by_username ?? '—'}</TableCell>
                           <TableCell>
                             <StatusBadge status={tr.status} />
