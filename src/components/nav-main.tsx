@@ -9,6 +9,7 @@ import {
   NetworkIcon,
   RadioIcon,
   RouteIcon,
+  ScanSearchIcon,
   ServerIcon,
   SignalIcon,
   type LucideIcon,
@@ -26,6 +27,7 @@ import {
   SidebarMenuSubItem,
 } from '@/components/ui/sidebar';
 import { useWebSocket } from '@/providers/WebSocketProvider';
+import { authService } from '@/lib/auth/authService';
 
 type NavChild = {
   title: string;
@@ -52,6 +54,7 @@ export function NavMain() {
   const { hasUnreadMessages, unreadMessages, markAllAsRead } = useWebSocket();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const showDxMonitoring = Boolean(authService.getCurrentUser()?.is_staff);
 
   const handleMessagesClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
@@ -70,6 +73,7 @@ export function NavMain() {
         { title: 'My nodes', url: '/nodes/my-nodes', icon: RadioIcon },
         { title: 'Managed nodes', url: '/nodes/managed-nodes', icon: ActivityIcon },
         { title: 'Watches', url: '/nodes/monitor', icon: ActivityIcon },
+        ...(showDxMonitoring ? [{ title: 'DX monitoring', url: '/nodes/dx-monitoring', icon: ScanSearchIcon }] : []),
         { title: 'Mesh infra', url: '/nodes/infrastructure', icon: ServerIcon },
       ],
     },

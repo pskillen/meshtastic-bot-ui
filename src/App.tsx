@@ -27,6 +27,7 @@ import { UserPage } from '@/pages/user/UserPage';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import MonitorNodes from '@/pages/nodes/monitor';
+import DxMonitoringPage from '@/pages/nodes/DxMonitoringPage';
 
 const ManagedNodesStatus = lazy(() => import('@/pages/nodes/ManagedNodesStatus'));
 
@@ -64,6 +65,7 @@ function App() {
                   <Route path="/weather" element={<Weather />} />
                   <Route path="/nodes/my-nodes" element={<MyNodes />} />
                   <Route path="/nodes/monitor" element={<MonitorNodes />} />
+                  <Route path="/nodes/dx-monitoring" element={<DxMonitoringPage />} />
                   <Route path="/nodes/:id/claim" element={<ClaimNode />} />
                   <Route path="/nodes/:id" element={<NodeDetails />} />
                   <Route path="/map" element={<NodeMap />} />

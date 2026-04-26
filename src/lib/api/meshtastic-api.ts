@@ -24,6 +24,9 @@ import {
   DiscordNotificationPrefs,
   NodeWatch,
   MonitoringOfflineAfterResponse,
+  DxEventListItem,
+  DxEventDetail,
+  DxNodeExclusionResponse,
 } from '../models';
 import {
   ApiConfig,
@@ -31,6 +34,7 @@ import {
   DateRangeIntervalParams,
   PaginationParams,
   StatsSnapshotsParams,
+  DxEventsQueryParams,
 } from '@/lib/types';
 import { parseNodeWatchFromAPI, parseObservedNodeFromAPI } from './api-utils';
 import type { RfProfile, RfProfileUpdateBody, RfPropagationPollResult, RfPropagationRenderRow } from '@/lib/models';
@@ -1030,5 +1034,40 @@ export class MeshtasticApi extends BaseApi {
     body: { offline_after: number }
   ): Promise<MonitoringOfflineAfterResponse> {
     return this.patch<MonitoringOfflineAfterResponse>(`/monitoring/nodes/${observedNodeId}/offline-after/`, body);
+  }
+
+  // ===== DX monitoring (staff-only) =====
+
+  async getDxEvents(params?: DxEventsQueryParams): Promise<PaginatedResponse<DxEventListItem>> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    if (params?.state) searchParams.append('state', params.state);
+    if (params?.reason_code) searchParams.append('reason_code', params.reason_code);
+    if (params?.constellation != null) searchParams.append('constellation', String(params.constellation));
+    if (params?.destination_node_id != null) {
+      searchParams.append('destination_node_id', String(params.destination_node_id));
+    }
+    if (params?.last_observer_id) searchParams.append('last_observer_id', params.last_observer_id);
+    if (params?.active_now) searchParams.append('active_now', 'true');
+    if (params?.recent_only) searchParams.append('recent_only', 'true');
+    if (params?.recent_days != null) searchParams.append('recent_days', String(params.recent_days));
+    if (params?.last_observed_after) searchParams.append('last_observed_after', params.last_observed_after);
+    if (params?.last_observed_before) searchParams.append('last_observed_before', params.last_observed_before);
+    if (params?.first_observed_after) searchParams.append('first_observed_after', params.first_observed_after);
+    if (params?.first_observed_before) searchParams.append('first_observed_before', params.first_observed_before);
+    return this.get<PaginatedResponse<DxEventListItem>>('/dx/events/', searchParams);
+  }
+
+  async getDxEvent(id: string): Promise<DxEventDetail> {
+    return this.get<DxEventDetail>(`/dx/events/${id}/`);
+  }
+
+  async postDxNodeExclusion(body: {
+    node_id: number;
+    exclude_from_detection: boolean;
+    exclude_notes?: string;
+  }): Promise<DxNodeExclusionResponse> {
+    return this.post<DxNodeExclusionResponse>('/dx/nodes/exclusion/', body);
   }
 }
