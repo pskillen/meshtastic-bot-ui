@@ -577,6 +577,66 @@ export interface DxConstellationMinimal {
   name: string;
 }
 
+export type DxExplorationOutcome = 'pending' | 'completed' | 'failed' | 'skipped';
+
+export type DxExplorationSkipReason =
+  | ''
+  | 'no_eligible_source'
+  | 'source_queue_full'
+  | 'event_cooldown'
+  | 'target_cooldown'
+  | 'source_cooldown'
+  | 'baseline_in_flight'
+  | 'baseline_recent_success'
+  | 'baseline_failure_cooldown'
+  | 'duplicate_dx_watch'
+  | 'destination_excluded'
+  | 'fanout_saturated'
+  | string;
+
+export interface DxObservedNodeHop {
+  internal_id: string;
+  node_id: number;
+  node_id_str: string;
+  short_name: string;
+  long_name: string;
+}
+
+export interface DxAutoTracerouteExplorationRow {
+  id: number;
+  status: 'pending' | 'sent' | 'completed' | 'failed';
+  trigger_type: number;
+  trigger_type_label: string;
+  trigger_source: string | null;
+  triggered_at: string;
+  earliest_send_at: string;
+  dispatched_at: string | null;
+  completed_at: string | null;
+  error_message: string | null;
+}
+
+export interface DxEventTracerouteExplorationRow {
+  id: string;
+  outcome: DxExplorationOutcome;
+  skip_reason: DxExplorationSkipReason;
+  metadata: Record<string, unknown>;
+  link_kind: string;
+  created_at: string;
+  updated_at: string;
+  source_node: DxManagedNodeMinimal | null;
+  destination: DxObservedNodeHop;
+  auto_traceroute: DxAutoTracerouteExplorationRow | null;
+}
+
+export interface DxExplorationSummary {
+  total: number;
+  pending: number;
+  completed: number;
+  failed: number;
+  skipped: number;
+  baseline_linked_rows: number;
+}
+
 export interface DxEventListItem {
   id: string;
   constellation: DxConstellationMinimal;
@@ -592,6 +652,7 @@ export interface DxEventListItem {
   last_distance_km: number | null;
   metadata: Record<string, unknown>;
   evidence_count: number;
+  exploration_attempt_count: number;
 }
 
 export interface DxEventObservationRow {
@@ -606,6 +667,8 @@ export interface DxEventObservationRow {
 
 export interface DxEventDetail extends DxEventListItem {
   observations: DxEventObservationRow[];
+  traceroute_explorations: DxEventTracerouteExplorationRow[];
+  exploration_summary: DxExplorationSummary;
 }
 
 export interface DxNodeExclusionResponse {
