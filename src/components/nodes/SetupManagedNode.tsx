@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMeshtasticApi } from '@/hooks/api/useApi';
@@ -31,6 +32,23 @@ interface SetupManagedNodeProps {
   node: ObservedNode;
   isOpen: boolean;
   onClose: () => void;
+}
+
+function formatManagedNodeCreateError(err: unknown): string {
+  if (axios.isAxiosError(err) && err.response?.data && typeof err.response.data === 'object') {
+    const data = err.response.data as Record<string, unknown>;
+    const nid = data.node_id;
+    if (Array.isArray(nid) && nid.length > 0) {
+      return String(nid[0]);
+    }
+    if (typeof nid === 'string') {
+      return nid;
+    }
+    if (data.detail != null) {
+      return String(data.detail);
+    }
+  }
+  return 'Failed to create managed node. Please try again.';
 }
 
 type SetupStep = 'constellation' | 'location' | 'channels' | 'api-key' | 'instructions';
@@ -301,7 +319,7 @@ export function SetupManagedNode({ node, isOpen, onClose }: SetupManagedNodeProp
       setCurrentStep('instructions');
     } catch (err) {
       console.error('Error creating managed node:', err);
-      setError('Failed to create managed node. Please try again.');
+      setError(formatManagedNodeCreateError(err));
     } finally {
       setIsLoading(false);
     }

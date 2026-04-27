@@ -1,5 +1,15 @@
 import { Link } from 'react-router-dom';
-import { MoreVertical, Radio, Settings, ChevronRight, FileText, AlertTriangle, AlertCircle } from 'lucide-react';
+import {
+  MoreVertical,
+  Radio,
+  Settings,
+  ChevronRight,
+  FileText,
+  AlertTriangle,
+  AlertCircle,
+  UserX,
+  Unplug,
+} from 'lucide-react';
 import { StaleReportedTime } from '@/components/nodes/StaleReportedTime';
 import type { UseQueryResult } from '@tanstack/react-query';
 
@@ -43,6 +53,10 @@ export interface MyNodeCardProps {
   watchesQuery: Pick<UseQueryResult<PaginatedResponse<NodeWatch>>, 'isLoading' | 'isError'>;
   onConvert: () => void;
   onShowSetupInstructions: () => void;
+  /** When set, shows “Unclaim node” (claimed-only rows). */
+  onRequestUnclaim?: () => void;
+  /** When set, shows “Unmanage node” (managed rows). */
+  onRequestUnmanage?: () => void;
 }
 
 export function MyNodeCard({
@@ -55,6 +69,8 @@ export function MyNodeCard({
   watchesQuery,
   onConvert,
   onShowSetupInstructions,
+  onRequestUnclaim,
+  onRequestUnmanage,
 }: MyNodeCardProps) {
   const metrics = node.latest_device_metrics;
   const batteryLevel = metrics?.battery_level != null ? metrics.battery_level : null;
@@ -89,7 +105,7 @@ export function MyNodeCard({
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-56">
               {!isManaged ? (
                 <DropdownMenuItem onSelect={() => onConvert()}>
                   <Radio className="mr-2 h-4 w-4" />
@@ -100,6 +116,24 @@ export function MyNodeCard({
                 <DropdownMenuItem onSelect={() => onShowSetupInstructions()}>
                   <FileText className="mr-2 h-4 w-4" />
                   Setup instructions
+                </DropdownMenuItem>
+              ) : null}
+              {onRequestUnmanage != null && isManaged ? (
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onSelect={() => onRequestUnmanage()}
+                >
+                  <Unplug className="mr-2 h-4 w-4" />
+                  Unmanage node
+                </DropdownMenuItem>
+              ) : null}
+              {onRequestUnclaim != null && isClaimed && !isManaged ? (
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onSelect={() => onRequestUnclaim()}
+                >
+                  <UserX className="mr-2 h-4 w-4" />
+                  Unclaim node
                 </DropdownMenuItem>
               ) : null}
             </DropdownMenuContent>

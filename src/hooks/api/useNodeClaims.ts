@@ -76,10 +76,33 @@ export function useCreateManagedNode() {
 
       return api.createManagedNode(data.nodeId, data.constellationId, data.name, currentUser.id, data.options);
     },
-    onSuccess: () => {
-      // Invalidate the managed nodes queries
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['managed-nodes'] });
       queryClient.invalidateQueries({ queryKey: ['managed-nodes', 'mine'] });
+      queryClient.invalidateQueries({ queryKey: ['observed-nodes', 'mine'] });
+      queryClient.invalidateQueries({ queryKey: ['nodes', variables.nodeId] });
+      queryClient.invalidateQueries({ queryKey: ['nodes', variables.nodeId, 'claim'] });
+      queryClient.invalidateQueries({ queryKey: ['api-keys'] });
+    },
+  });
+}
+
+/**
+ * Soft-delete a managed node (owner or staff); invalidates related queries.
+ */
+export function useDeleteManagedNode() {
+  const api = useMeshtasticApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (nodeId: number) => api.deleteManagedNode(nodeId),
+    onSuccess: (_, nodeId) => {
+      queryClient.invalidateQueries({ queryKey: ['managed-nodes'] });
+      queryClient.invalidateQueries({ queryKey: ['managed-nodes', 'mine'] });
+      queryClient.invalidateQueries({ queryKey: ['nodes', nodeId] });
+      queryClient.invalidateQueries({ queryKey: ['nodes', nodeId, 'claim'] });
+      queryClient.invalidateQueries({ queryKey: ['api-keys'] });
+      queryClient.invalidateQueries({ queryKey: ['observed-nodes', 'mine'] });
     },
   });
 }
@@ -137,6 +160,9 @@ export function useCancelNodeClaim() {
       queryClient.invalidateQueries({ queryKey: ['nodes', nodeId, 'claim'] });
       queryClient.invalidateQueries({ queryKey: ['nodes', nodeId] });
       queryClient.invalidateQueries({ queryKey: ['observed-nodes', 'mine'] });
+      queryClient.invalidateQueries({ queryKey: ['managed-nodes'] });
+      queryClient.invalidateQueries({ queryKey: ['managed-nodes', 'mine'] });
+      queryClient.invalidateQueries({ queryKey: ['api-keys'] });
     },
   });
 }
