@@ -20,6 +20,7 @@ import {
   useDxEventDetail,
   useDxEvents,
   useDxNodeExclusionMutation,
+  useDxNotificationSettings,
   useDxRecentEventCount,
 } from '@/hooks/api/useDxMonitoring';
 import type { DxEventsQueryParams } from '@/lib/types';
@@ -167,6 +168,7 @@ function NodeLinkLabel({ to, primary, idSecondary }: { to: string; primary: stri
 export default function DxMonitoringPage() {
   const user = authService.getCurrentUser();
   const isStaff = Boolean(user?.is_staff);
+  const dxNotifSettings = useDxNotificationSettings(isStaff);
 
   const [stateFilter, setStateFilter] = useState<string>('');
   const [reasonFilter, setReasonFilter] = useState<string>('');
@@ -258,6 +260,31 @@ export default function DxMonitoringPage() {
           Detection events and evidence (read-only). Exclude noisy or mobile destinations from future DX detection when
           appropriate.
         </p>
+      </div>
+
+      <div className="rounded-md border bg-muted/40 px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-sm">
+        <p className="text-muted-foreground">
+          {dxNotifSettings.isLoading ? (
+            <>Loading your DX Discord notification status…</>
+          ) : dxNotifSettings.data ? (
+            <>
+              <span className="font-medium text-foreground">Your DX DMs:</span>{' '}
+              {dxNotifSettings.data.enabled ? 'On' : 'Off'}
+              {dxNotifSettings.data.discord.status === 'verified'
+                ? ''
+                : dxNotifSettings.data.discord.status === 'needs_relink'
+                  ? ' (Discord needs refresh — see profile)'
+                  : ' (link Discord on your profile)'}
+            </>
+          ) : dxNotifSettings.isError ? (
+            <>Could not load notification status. You can still open settings from your profile.</>
+          ) : (
+            <>Optional DX alerts go to Discord DMs configured on your profile.</>
+          )}
+        </p>
+        <Button asChild variant="outline" size="sm" className="shrink-0 w-fit">
+          <Link to="/user#dx-notifications">Profile: DX notifications</Link>
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">

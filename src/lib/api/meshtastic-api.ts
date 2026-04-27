@@ -27,6 +27,8 @@ import {
   DxEventListItem,
   DxEventDetail,
   DxNodeExclusionResponse,
+  DxNotificationSettings,
+  DxNotificationSettingsWrite,
 } from '../models';
 import {
   ApiConfig,
@@ -1010,6 +1012,16 @@ export class MeshtasticApi extends BaseApi {
   /** POST /api/auth/discord/notifications/test/ */
   async postDiscordNotificationTest(): Promise<{ detail: string }> {
     return this.post<{ detail: string }>('/auth/discord/notifications/test/', {});
+  }
+
+  /** GET /api/dx/notifications/settings/ */
+  async getDxNotificationSettings(): Promise<DxNotificationSettings> {
+    return this.get<DxNotificationSettings>('/dx/notifications/settings/');
+  }
+
+  /** PATCH /api/dx/notifications/settings/ */
+  async patchDxNotificationSettings(body: DxNotificationSettingsWrite): Promise<DxNotificationSettings> {
+    return this.patch<DxNotificationSettings>('/dx/notifications/settings/', body);
   }
 
   // ===== Mesh monitoring watches (Phase 04) =====

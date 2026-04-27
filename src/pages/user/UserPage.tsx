@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { authService } from '@/lib/auth/authService';
 import { useConfig } from '@/providers/ConfigProvider';
 import { DiscordNotificationsPanel } from '@/pages/user/DiscordNotificationsPanel';
+import { DxNotificationsPanel } from '@/pages/user/DxNotificationsPanel';
 
 export function UserPage() {
   const { toast } = useToast();
@@ -151,8 +152,9 @@ export function UserPage() {
         </CardContent>
       </Card>
 
-      <div className="mb-6">
+      <div className="mb-6 space-y-6">
         <DiscordNotificationsPanel />
+        <DxNotificationsPanel />
       </div>
 
       <Card>
