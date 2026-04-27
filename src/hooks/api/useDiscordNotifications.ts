@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { dxNotificationSettingsQueryKey } from '@/hooks/api/dxNotificationSettingsQueryKey';
 import { useMeshtasticApi } from '@/hooks/api/useApi';
 
 export const discordNotificationPrefsQueryKey = ['auth', 'discord-notifications'] as const;
@@ -18,6 +19,7 @@ export function usePatchDiscordNotificationPrefs() {
     mutationFn: () => api.patchDiscordNotificationPrefs(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: discordNotificationPrefsQueryKey });
+      queryClient.invalidateQueries({ queryKey: dxNotificationSettingsQueryKey });
     },
   });
 }
@@ -29,6 +31,7 @@ export function usePostDiscordNotificationTest() {
     mutationFn: () => api.postDiscordNotificationTest(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: discordNotificationPrefsQueryKey });
+      queryClient.invalidateQueries({ queryKey: dxNotificationSettingsQueryKey });
     },
   });
 }

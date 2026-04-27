@@ -520,6 +520,80 @@ export interface DiscordNotificationPrefs {
   discord_notify_verified: boolean;
 }
 
+/** GET/PATCH `/api/dx/notifications/settings/` (DX Discord DM preferences). */
+export type DxNotificationCategoryValue =
+  | 'new_distant_node'
+  | 'returned_dx_node'
+  | 'distant_observation'
+  | 'traceroute_distant_hop'
+  | 'confirmed_event'
+  | 'event_closed_summary';
+
+export type DxDiscordReadinessStatus = 'verified' | 'not_linked' | 'needs_relink';
+
+export interface DxDiscordReadiness {
+  status: DxDiscordReadinessStatus;
+  can_receive_dms: boolean;
+}
+
+export interface DxNotificationSettings {
+  enabled: boolean;
+  all_categories: boolean;
+  categories: DxNotificationCategoryValue[];
+  discord: DxDiscordReadiness;
+}
+
+export interface DxNotificationSettingsWrite {
+  enabled?: boolean;
+  all_categories?: boolean;
+  categories?: DxNotificationCategoryValue[];
+}
+
+/** Error body when enabling DX DMs without verified Discord (`HTTP 400`). */
+export interface DxNotificationSettingsErrorResponse {
+  code: 'NEEDS_DISCORD_VERIFICATION';
+  detail: string;
+}
+
+export const DX_NOTIFICATION_CATEGORY_ORDER: readonly DxNotificationCategoryValue[] = [
+  'new_distant_node',
+  'returned_dx_node',
+  'distant_observation',
+  'traceroute_distant_hop',
+  'confirmed_event',
+  'event_closed_summary',
+] as const;
+
+export const DX_NOTIFICATION_CATEGORY_META: Record<
+  DxNotificationCategoryValue,
+  { label: string; description: string }
+> = {
+  new_distant_node: {
+    label: 'New distant node',
+    description: 'A node is first seen as distant from its constellation footprint.',
+  },
+  returned_dx_node: {
+    label: 'Returned DX node',
+    description: 'A distant node reappears after a quiet period.',
+  },
+  distant_observation: {
+    label: 'Distant observation',
+    description: 'Direct or near-direct mesh observation across distance.',
+  },
+  traceroute_distant_hop: {
+    label: 'Traceroute distant hop',
+    description: 'Traceroute evidence shows a distant hop toward the destination.',
+  },
+  confirmed_event: {
+    label: 'Event confirmed',
+    description: 'A DX event reaches the evidence threshold.',
+  },
+  event_closed_summary: {
+    label: 'Event closed',
+    description: 'Summary when a DX event is closed.',
+  },
+};
+
 /**
  * Observed node embedded on NodeWatch responses: same shape as ObservedNode (list/detail API)
  * plus mesh monitoring hints (`GET /api/monitoring/watches/`).

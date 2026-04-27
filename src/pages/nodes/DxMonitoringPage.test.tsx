@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { DxEventDetail, DxEventListItem } from '@/lib/models';
-import { useDxEventDetail, useDxEvents } from '@/hooks/api/useDxMonitoring';
+import { useDxEventDetail, useDxEvents, useDxNotificationSettings } from '@/hooks/api/useDxMonitoring';
 import DxMonitoringPage from './DxMonitoringPage';
 
 const getCurrentUser = vi.fn();
@@ -23,10 +23,12 @@ vi.mock('@/hooks/api/useDxMonitoring', () => ({
   useDxRecentEventCount: vi.fn(() => ({ isLoading: false, data: 0 })),
   useDxEventDetail: vi.fn(),
   useDxNodeExclusionMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useDxNotificationSettings: vi.fn(),
 }));
 
 const useDxEventsMock = vi.mocked(useDxEvents);
 const useDxEventDetailMock = vi.mocked(useDxEventDetail);
+const useDxNotificationSettingsMock = vi.mocked(useDxNotificationSettings);
 
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -70,6 +72,25 @@ describe('DxMonitoringPage', () => {
         } as ReturnType<typeof useDxEventDetail>;
       }) as typeof useDxEventDetail
     );
+    useDxNotificationSettingsMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      error: null,
+      data: {
+        enabled: true,
+        all_categories: true,
+        categories: [
+          'new_distant_node',
+          'returned_dx_node',
+          'distant_observation',
+          'traceroute_distant_hop',
+          'confirmed_event',
+          'event_closed_summary',
+        ],
+        discord: { status: 'verified', can_receive_dms: true },
+      },
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useDxNotificationSettings>);
   });
 
   it('shows staff-only message when user is not staff', () => {
@@ -83,6 +104,17 @@ describe('DxMonitoringPage', () => {
     renderPage();
     expect(screen.getByRole('heading', { name: /DX monitoring/i })).toBeInTheDocument();
     expect(screen.getByText(/Detection events and evidence/i)).toBeInTheDocument();
+  });
+
+  it('shows profile link and DX notification status for staff', () => {
+    renderPage();
+    expect(screen.getByRole('link', { name: /Profile: DX notifications/i })).toHaveAttribute(
+      'href',
+      '/user#dx-notifications'
+    );
+    const bar = screen.getByRole('link', { name: /Profile: DX notifications/i }).closest('.flex');
+    expect(bar?.textContent).toMatch(/Your DX DMs:/);
+    expect(bar?.textContent).toMatch(/DX DMs:\s*On/);
   });
 
   it('shows exploration attempt counts on the list', () => {
