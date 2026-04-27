@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { AutoTraceRoute, ManagedNode, ObservedNode } from '@/lib/models';
 
@@ -75,6 +76,10 @@ function makeTraceroute(overrides: Partial<AutoTraceRoute> = {}): AutoTraceRoute
     triggered_by_username: 'me',
     trigger_source: 'ui',
     triggered_at: '2026-04-17T10:00:00Z',
+    earliest_send_at: '2026-04-17T10:00:00Z',
+    dispatched_at: '2026-04-17T10:00:01Z',
+    dispatch_attempts: 0,
+    dispatch_error: null,
     status: 'completed',
     route: [],
     route_back: [],
@@ -150,6 +155,10 @@ function renderAt(initialPath: string) {
 describe('TracerouteHistory', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('hydrates target_node from the URL into the query params', () => {
@@ -306,5 +315,54 @@ describe('TracerouteHistory', () => {
 
     const lastCall = mockedUseInfinite.mock.calls.at(-1)?.[0];
     expect(lastCall).toEqual(expect.objectContaining({ target_node: 555 }));
+  });
+
+  it('shows Queued badge and due line for pending traceroute', () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-04-17T12:00:00.000Z'));
+    setupHooks({
+      traceroutes: [
+        makeTraceroute({
+          status: 'pending',
+          completed_at: null,
+          dispatched_at: null,
+          earliest_send_at: '2026-04-17T13:00:00.000Z',
+          route: null,
+          route_back: null,
+        }),
+      ],
+    });
+    renderAt('/traceroutes');
+    expect(screen.getByText('Queued')).toBeInTheDocument();
+    expect(screen.getByText(/^Due /)).toBeInTheDocument();
+  });
+
+  it('shows In flight and sent line for sent traceroute', () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-04-17T12:00:00.000Z'));
+    setupHooks({
+      traceroutes: [
+        makeTraceroute({
+          status: 'sent',
+          completed_at: null,
+          earliest_send_at: '2026-04-17T11:00:00.000Z',
+          dispatched_at: '2026-04-17T11:45:00.000Z',
+          route: null,
+          route_back: null,
+        }),
+      ],
+    });
+    renderAt('/traceroutes');
+    expect(screen.getByText('In flight')).toBeInTheDocument();
+    expect(screen.getByText(/^Sent /)).toBeInTheDocument();
+  });
+
+  it('status filter dropdown uses Queued and In flight labels', async () => {
+    const user = userEvent.setup();
+    setupHooks();
+    renderAt('/traceroutes');
+    await user.click(screen.getByRole('button', { name: /^Status$/i }));
+    expect(await screen.findByRole('menuitemcheckbox', { name: /^Queued$/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitemcheckbox', { name: /^In flight$/i })).toBeInTheDocument();
   });
 });

@@ -19,6 +19,10 @@ vi.mock('@/hooks/api/useApi', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useTraceroutesWithWebSocket', () => ({
+  useTraceroutesWebSocketInvalidator: vi.fn(),
+}));
+
 function makeObservedNode(overrides: Partial<ObservedNodeWatchSummary> = {}): ObservedNode {
   return {
     internal_id: 1,
@@ -157,6 +161,10 @@ describe('WatchedNodesTable', () => {
       triggered_by_username: null,
       trigger_source: null,
       triggered_at: '2026-04-21T10:00:00Z',
+      earliest_send_at: '2026-04-21T10:00:00Z',
+      dispatched_at: '2026-04-21T10:00:00Z',
+      dispatch_attempts: 0,
+      dispatch_error: null,
       status: 'completed',
       route: [],
       route_back: [],

@@ -5,9 +5,10 @@ import { toast } from 'sonner';
 import { RouteIcon, RotateCw } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { TracerouteQueueDispatchCell } from '@/components/traceroutes/TracerouteQueueDispatchCell';
+import { TracerouteStatusBadge } from '@/components/traceroutes/TracerouteStatusBadge';
 import { useTracerouteTriggerableNodesSuspense, useTriggerTraceroute } from '@/hooks/api/useTraceroutes';
 import { useTraceroutesWithWebSocket } from '@/hooks/useTraceroutesWithWebSocket';
 import { TracerouteDetailModal } from '@/pages/traceroutes/TracerouteDetailModal';
@@ -26,18 +27,6 @@ function routeSummary(tr: AutoTraceRoute): string {
   const outStr = outEmpty ? 'Direct' : `${tr.route?.length ?? 0} hops`;
   const backStr = backEmpty ? 'Direct' : `${tr.route_back?.length ?? 0} hops`;
   return `${outStr} out, ${backStr} back`;
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const variant =
-    status === 'completed'
-      ? 'default'
-      : status === 'failed'
-        ? 'destructive'
-        : status === 'pending' || status === 'sent'
-          ? 'secondary'
-          : 'outline';
-  return <Badge variant={variant}>{status}</Badge>;
 }
 
 export interface NodeOutgoingTraceroutesSectionProps {
@@ -117,6 +106,7 @@ export function NodeOutgoingTraceroutesSection({ nodeId, managed }: NodeOutgoing
                       <TableHead>Type</TableHead>
                       <TableHead>Triggered by</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Queue / dispatch</TableHead>
                       <TableHead>Route</TableHead>
                       <TableHead>Triggered</TableHead>
                       <TableHead>Completed</TableHead>
@@ -136,7 +126,10 @@ export function NodeOutgoingTraceroutesSection({ nodeId, managed }: NodeOutgoing
                           <TableCell>{labelForTriggerTypeApi(tr.trigger_type, tr.trigger_type_label)}</TableCell>
                           <TableCell>{tr.triggered_by_username ?? '—'}</TableCell>
                           <TableCell>
-                            <StatusBadge status={tr.status} />
+                            <TracerouteStatusBadge status={tr.status} />
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground max-w-[160px]">
+                            <TracerouteQueueDispatchCell tr={tr} />
                           </TableCell>
                           <TableCell className="max-w-[200px]" title={routeSummary(tr)}>
                             {routeSummary(tr)}

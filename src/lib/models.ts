@@ -215,6 +215,14 @@ export interface AutoTraceRoute {
   triggered_by_username: string | null;
   trigger_source: string | null;
   triggered_at: string;
+  /** Queue: earliest time the dispatcher may send to the source (ISO 8601). */
+  earliest_send_at?: string | null;
+  /** When the command was delivered to the source via the channel layer. */
+  dispatched_at?: string | null;
+  /** Failed channel-delivery attempts while still pending. */
+  dispatch_attempts?: number;
+  /** Last dispatch/channel error while pending, if any. */
+  dispatch_error?: string | null;
   status: 'pending' | 'sent' | 'completed' | 'failed';
   route: Array<{ node_id: number; snr: number | null }> | null;
   route_back: Array<{ node_id: number; snr: number | null }> | null;

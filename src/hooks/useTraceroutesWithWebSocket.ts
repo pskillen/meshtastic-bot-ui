@@ -12,9 +12,9 @@ import {
 /**
  * Subscribe to live traceroute status updates via WebSocket and invalidate the
  * shared `['traceroutes']` query cache when one arrives. Used by both the
- * page-level history and embedded sections.
+ * page-level history and embedded sections (including mesh watches table).
  */
-function useTraceroutesWebSocketInvalidator() {
+export function useTraceroutesWebSocketInvalidator() {
   const queryClient = useQueryClient();
   const config = useConfig();
   const socketRef = useRef<WebSocket | null>(null);

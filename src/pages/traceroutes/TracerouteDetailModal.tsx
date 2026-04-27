@@ -5,9 +5,49 @@ import { Badge } from '@/components/ui/badge';
 import { useTraceroute } from '@/hooks/api/useTraceroutes';
 import { TracerouteFlowDiagram } from '@/components/traceroutes/TracerouteFlowDiagram';
 import { TracerouteMap } from '@/components/traceroutes/TracerouteMap';
+import type { AutoTraceRoute } from '@/lib/models';
+import { tracerouteStatusLabel } from '@/lib/traceroute-status';
 
-function displayStatus(tr: { completed_at: string | null; status: string }): string {
-  return tr.status;
+function displayStatus(tr: Pick<AutoTraceRoute, 'status'>): string {
+  return tracerouteStatusLabel(tr.status);
+}
+
+function DispatchMetadataSection({ traceroute }: { traceroute: AutoTraceRoute }) {
+  const attempts = traceroute.dispatch_attempts ?? 0;
+  const hasDispatchError = traceroute.dispatch_error != null && traceroute.dispatch_error !== '';
+  const show =
+    traceroute.earliest_send_at != null || traceroute.dispatched_at != null || attempts > 0 || hasDispatchError;
+  if (!show) return null;
+
+  return (
+    <div className="rounded-md border bg-muted/40 px-4 py-3 space-y-2 text-sm">
+      <h3 className="font-medium text-foreground">Dispatch queue</h3>
+      <dl className="grid gap-2 sm:grid-cols-2">
+        {traceroute.earliest_send_at != null && traceroute.earliest_send_at !== '' && (
+          <div>
+            <dt className="text-xs font-medium text-muted-foreground">Earliest send</dt>
+            <dd className="tabular-nums">{format(new Date(traceroute.earliest_send_at), 'PPpp')}</dd>
+          </div>
+        )}
+        {traceroute.dispatched_at != null && traceroute.dispatched_at !== '' && (
+          <div>
+            <dt className="text-xs font-medium text-muted-foreground">Dispatched to source</dt>
+            <dd className="tabular-nums">{format(new Date(traceroute.dispatched_at), 'PPpp')}</dd>
+          </div>
+        )}
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground">Dispatch attempts</dt>
+          <dd className="tabular-nums">{attempts}</dd>
+        </div>
+        {hasDispatchError && (
+          <div className="sm:col-span-2">
+            <dt className="text-xs font-medium text-destructive">Dispatch error</dt>
+            <dd className="mt-1 font-mono text-xs text-destructive break-words">{traceroute.dispatch_error}</dd>
+          </div>
+        )}
+      </dl>
+    </div>
+  );
 }
 
 interface TracerouteDetailModalProps {
@@ -103,6 +143,8 @@ export function TracerouteDetailModal({ tracerouteId, open, onOpenChange }: Trac
                   ` • ${traceroute.status === 'failed' ? 'Failed' : 'Completed'} ${format(new Date(traceroute.completed_at), 'PPp')}`}
               </span>
             </div>
+
+            <DispatchMetadataSection traceroute={traceroute} />
 
             {hasRouteData && (
               <>
