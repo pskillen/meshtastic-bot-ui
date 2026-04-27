@@ -46,7 +46,8 @@ export function MapMarkerLegend({
   return (
     <div
       className={cn(
-        'absolute top-2 right-2 z-[1000] max-h-[40%] overflow-y-auto max-w-[min(100%,20rem)] rounded-md border bg-background/95 p-2 text-xs shadow-sm backdrop-blur-sm',
+        // Below sheet/dialog overlays (z-50); above Leaflet panes inside the map container.
+        'absolute top-2 right-2 z-10 max-h-[40%] overflow-y-auto max-w-[min(100%,20rem)] rounded-md border bg-background/95 p-2 text-xs shadow-sm backdrop-blur-sm',
         className
       )}
       role="region"
