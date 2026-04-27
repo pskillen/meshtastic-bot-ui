@@ -5,7 +5,16 @@ import { enGB } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { ActivityIcon, RadioIcon } from 'lucide-react';
 import { authService } from '@/lib/auth/authService';
-import type { DxDestinationNode, DxEventListItem, DxManagedNodeMinimal, DxReasonCode } from '@/lib/models';
+import { buildDxTracerouteHistoryLink, formatDxExplorationSkipReason } from '@/lib/dx-exploration';
+import type {
+  DxDestinationNode,
+  DxEventListItem,
+  DxEventTracerouteExplorationRow,
+  DxManagedNodeMinimal,
+  DxObservedNodeHop,
+  DxReasonCode,
+} from '@/lib/models';
+import { TRIGGER_TYPE_DX_WATCH, TRIGGER_TYPE_NEW_NODE_BASELINE } from '@/lib/traceroute-trigger-type';
 import {
   useDxActiveEventCount,
   useDxEventDetail,
@@ -78,6 +87,66 @@ function formatObserverLabel(obs: DxManagedNodeMinimal): { primary: string; idSe
     return { primary: name, idSecondary: obs.node_id_str };
   }
   return { primary: obs.node_id_str };
+}
+
+function formatHopLabel(hop: DxObservedNodeHop): { primary: string; idSecondary?: string } {
+  const long = hop.long_name?.trim();
+  const short = hop.short_name?.trim();
+  let primary = '';
+  if (long && short) {
+    primary = long === short ? long : `${long} (${short})`;
+  } else {
+    primary = long || short || '';
+  }
+  if (!primary) {
+    return { primary: hop.node_id_str };
+  }
+  return { primary, idSecondary: hop.node_id_str };
+}
+
+function explorationKindLabel(row: DxEventTracerouteExplorationRow): string {
+  if (row.link_kind === 'new_node_baseline') return 'New node baseline';
+  if (row.link_kind === 'dx_watch') return 'DX Watch';
+  if (row.outcome === 'skipped') return 'Skipped';
+  if (row.auto_traceroute?.trigger_type_label) return row.auto_traceroute.trigger_type_label;
+  return '—';
+}
+
+function explorationHistoryHref(row: DxEventTracerouteExplorationRow): string {
+  const targetNodeId = row.destination.node_id;
+  const sourceNodeId = row.source_node?.node_id ?? null;
+  if (row.link_kind === 'new_node_baseline') {
+    return buildDxTracerouteHistoryLink({
+      targetNodeId,
+      sourceNodeId: sourceNodeId ?? undefined,
+      triggerFilter: 'new_node_baseline',
+    });
+  }
+  if (row.link_kind === 'dx_watch' || row.auto_traceroute?.trigger_type === TRIGGER_TYPE_DX_WATCH) {
+    return buildDxTracerouteHistoryLink({
+      targetNodeId,
+      sourceNodeId: sourceNodeId ?? undefined,
+      triggerFilter: 'dx_watch',
+    });
+  }
+  if (row.auto_traceroute?.trigger_type === TRIGGER_TYPE_NEW_NODE_BASELINE) {
+    return buildDxTracerouteHistoryLink({
+      targetNodeId,
+      sourceNodeId: sourceNodeId ?? undefined,
+      triggerFilter: 'new_node_baseline',
+    });
+  }
+  return buildDxTracerouteHistoryLink({ targetNodeId, sourceNodeId: sourceNodeId ?? undefined });
+}
+
+function explorationDetailNote(row: DxEventTracerouteExplorationRow): string {
+  if (row.outcome === 'skipped' && row.skip_reason) {
+    return formatDxExplorationSkipReason(row.skip_reason);
+  }
+  if (row.auto_traceroute?.error_message) {
+    return row.auto_traceroute.error_message;
+  }
+  return '';
 }
 
 function NodeLinkLabel({ to, primary, idSecondary }: { to: string; primary: string; idSecondary?: string }) {
@@ -175,6 +244,7 @@ export default function DxMonitoringPage() {
   }
 
   const listErr = listQuery.isError ? httpStatus(listQuery.error) : undefined;
+  const detailErr = detailQuery.isError ? httpStatus(detailQuery.error) : undefined;
   const excludeDestLabel = excludeTarget ? formatDestinationLabel(excludeTarget.destination) : null;
 
   return (
@@ -322,6 +392,7 @@ export default function DxMonitoringPage() {
                   <TableHead>First seen</TableHead>
                   <TableHead>Last seen</TableHead>
                   <TableHead className="text-right">Evidence</TableHead>
+                  <TableHead className="text-right">Exploration</TableHead>
                   <TableHead className="text-right">Best km</TableHead>
                   <TableHead />
                 </TableRow>
@@ -329,7 +400,7 @@ export default function DxMonitoringPage() {
               <TableBody>
                 {listQuery.data.results.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground py-10">
+                    <TableCell colSpan={10} className="text-center text-muted-foreground py-10">
                       No events match these filters.
                     </TableCell>
                   </TableRow>
@@ -366,6 +437,7 @@ export default function DxMonitoringPage() {
                       <TableCell className="text-xs whitespace-nowrap">{formatWhen(row.first_observed_at)}</TableCell>
                       <TableCell className="text-xs whitespace-nowrap">{formatWhen(row.last_observed_at)}</TableCell>
                       <TableCell className="text-right tabular-nums">{row.evidence_count}</TableCell>
+                      <TableCell className="text-right tabular-nums">{row.exploration_attempt_count ?? '—'}</TableCell>
                       <TableCell className="text-right tabular-nums">
                         {row.best_distance_km != null ? row.best_distance_km.toFixed(1) : '—'}
                       </TableCell>
@@ -414,14 +486,26 @@ export default function DxMonitoringPage() {
       )}
 
       <Dialog open={Boolean(detailId)} onOpenChange={(o) => !o && closeDetail()}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>DX event</DialogTitle>
-            <DialogDescription>Evidence rows and destination metadata.</DialogDescription>
+            <DialogDescription>
+              Packet observations, destination metadata, and how traceroutes were queued or skipped for this candidate.
+            </DialogDescription>
           </DialogHeader>
           {detailQuery.isLoading && (
             <div className="flex justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+            </div>
+          )}
+          {detailQuery.isError && detailErr === 403 && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              You do not have permission to load this DX event.
+            </div>
+          )}
+          {detailQuery.isError && detailErr !== 403 && (
+            <div className="rounded-lg border border-destructive/50 px-4 py-3 text-sm text-destructive">
+              Could not load DX event detail.
             </div>
           )}
           {detailQuery.isSuccess && detailQuery.data && (
@@ -488,6 +572,162 @@ export default function DxMonitoringPage() {
                     )}
                   </TableBody>
                 </Table>
+              </div>
+
+              <div className="border-t pt-4 space-y-3">
+                <div className="text-muted-foreground">Exploration evidence</div>
+                {(() => {
+                  const explorations = detailQuery.data.traceroute_explorations ?? [];
+                  const summary = detailQuery.data.exploration_summary ?? {
+                    total: 0,
+                    pending: 0,
+                    completed: 0,
+                    failed: 0,
+                    skipped: 0,
+                    baseline_linked_rows: 0,
+                  };
+                  return (
+                    <>
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <Badge variant="outline" className="tabular-nums">
+                          Total {summary.total}
+                        </Badge>
+                        {summary.pending > 0 ? (
+                          <Badge variant="secondary" className="tabular-nums">
+                            Queued / in flight {summary.pending}
+                          </Badge>
+                        ) : null}
+                        {summary.completed > 0 ? (
+                          <Badge variant="default" className="tabular-nums">
+                            Completed {summary.completed}
+                          </Badge>
+                        ) : null}
+                        {summary.failed > 0 ? (
+                          <Badge variant="destructive" className="tabular-nums">
+                            Failed {summary.failed}
+                          </Badge>
+                        ) : null}
+                        {summary.skipped > 0 ? (
+                          <Badge variant="outline" className="tabular-nums">
+                            Skipped {summary.skipped}
+                          </Badge>
+                        ) : null}
+                        {summary.baseline_linked_rows > 0 ? (
+                          <Badge variant="secondary" className="tabular-nums">
+                            Baseline-linked rows {summary.baseline_linked_rows}
+                          </Badge>
+                        ) : null}
+                      </div>
+                      {summary.baseline_linked_rows > 0 ? (
+                        <p className="text-xs text-muted-foreground rounded-md border bg-muted/40 px-3 py-2">
+                          A new-node baseline traceroute already covered (or is covering) this destination for at least
+                          one source. Those rows are linked here so a duplicate DX Watch traceroute was not queued for
+                          the same path.
+                        </p>
+                      ) : null}
+                      {explorations.length === 0 ? (
+                        <p className="text-muted-foreground text-xs">
+                          No exploration attempts recorded for this event.
+                        </p>
+                      ) : (
+                        <div className="overflow-x-auto rounded-md border">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Outcome</TableHead>
+                                <TableHead>Kind</TableHead>
+                                <TableHead>Source</TableHead>
+                                <TableHead>Target</TableHead>
+                                <TableHead>Schedule</TableHead>
+                                <TableHead>Detail</TableHead>
+                                <TableHead />
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {explorations.map((row) => {
+                                const tr = row.auto_traceroute;
+                                const note = explorationDetailNote(row);
+                                const outcomeVariant =
+                                  row.outcome === 'failed'
+                                    ? 'destructive'
+                                    : row.outcome === 'skipped'
+                                      ? 'secondary'
+                                      : row.outcome === 'completed'
+                                        ? 'default'
+                                        : 'outline';
+                                return (
+                                  <TableRow key={row.id}>
+                                    <TableCell className="whitespace-nowrap">
+                                      <Badge variant={outcomeVariant}>{row.outcome}</Badge>
+                                    </TableCell>
+                                    <TableCell className="text-xs whitespace-nowrap">
+                                      {explorationKindLabel(row)}
+                                    </TableCell>
+                                    <TableCell className="text-xs max-w-[10rem]">
+                                      {row.source_node ? (
+                                        <NodeLinkLabel
+                                          to={`/nodes/${row.source_node.node_id}`}
+                                          {...formatObserverLabel(row.source_node)}
+                                        />
+                                      ) : (
+                                        <span className="text-muted-foreground">—</span>
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="text-xs max-w-[10rem]">
+                                      <NodeLinkLabel
+                                        to={`/nodes/${row.destination.node_id}`}
+                                        {...formatHopLabel(row.destination)}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="text-xs align-top min-w-[10rem]">
+                                      {tr ? (
+                                        <ul className="list-none space-y-1 m-0 p-0">
+                                          <li>
+                                            <span className="text-muted-foreground">Triggered</span>{' '}
+                                            <span className="whitespace-nowrap">{formatWhen(tr.triggered_at)}</span>
+                                          </li>
+                                          <li>
+                                            <span className="text-muted-foreground">Earliest send</span>{' '}
+                                            <span className="whitespace-nowrap">{formatWhen(tr.earliest_send_at)}</span>
+                                          </li>
+                                          <li>
+                                            <span className="text-muted-foreground">Dispatched</span>{' '}
+                                            <span className="whitespace-nowrap">
+                                              {tr.dispatched_at ? formatWhen(tr.dispatched_at) : '—'}
+                                            </span>
+                                          </li>
+                                          <li>
+                                            <span className="text-muted-foreground">Completed</span>{' '}
+                                            <span className="whitespace-nowrap">
+                                              {tr.completed_at ? formatWhen(tr.completed_at) : '—'}
+                                            </span>
+                                          </li>
+                                        </ul>
+                                      ) : (
+                                        <span className="text-muted-foreground">—</span>
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="text-xs max-w-[14rem]">
+                                      {note ? <span className="break-words">{note}</span> : '—'}
+                                    </TableCell>
+                                    <TableCell className="text-right whitespace-nowrap">
+                                      <Link
+                                        to={explorationHistoryHref(row)}
+                                        className="text-primary text-xs hover:underline"
+                                      >
+                                        Traceroutes
+                                      </Link>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
           )}
