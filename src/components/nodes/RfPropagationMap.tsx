@@ -7,6 +7,44 @@ import L from 'leaflet';
 import { useEffect, useRef } from 'react';
 import 'leaflet/dist/leaflet.css';
 
+/** Approximate km per degree latitude */
+const KM_PER_DEG_LAT = 111;
+
+/** Target on-screen diameter when API bounds span more than this (local coverage UX; see issue #191). */
+const VIEWPORT_MAX_DIAMETER_KM = 200;
+
+function approxBoundsSpanKm(bounds: { west: number; south: number; east: number; north: number }): number {
+  const midLat = (bounds.south + bounds.north) / 2;
+  const nsKm = Math.abs(bounds.north - bounds.south) * KM_PER_DEG_LAT;
+  const ewKm = Math.abs(bounds.east - bounds.west) * KM_PER_DEG_LAT * Math.cos((midLat * Math.PI) / 180);
+  return Math.max(nsKm, ewKm);
+}
+
+/** Axis-aligned bounds ~`radiusKm` from center (used when raw render bounds are continent-scale). */
+function latLngBoundsRadiusKm(centerLat: number, centerLng: number, radiusKm: number): L.LatLngBounds {
+  const latDelta = radiusKm / KM_PER_DEG_LAT;
+  const cosLat = Math.cos((centerLat * Math.PI) / 180);
+  const lngDelta = cosLat > 1e-6 ? radiusKm / (KM_PER_DEG_LAT * cosLat) : latDelta;
+  return L.latLngBounds([centerLat - latDelta, centerLng - lngDelta], [centerLat + latDelta, centerLng + lngDelta]);
+}
+
+function fitBoundsForPropagation(
+  map: L.Map,
+  bounds: { west: number; south: number; east: number; north: number },
+  overlaySw: L.LatLngTuple,
+  overlayNe: L.LatLngTuple
+): void {
+  const spanKm = approxBoundsSpanKm(bounds);
+  if (spanKm <= VIEWPORT_MAX_DIAMETER_KM) {
+    map.fitBounds(L.latLngBounds(overlaySw, overlayNe), { padding: [24, 24], maxZoom: 14 });
+    return;
+  }
+  const centerLat = (bounds.south + bounds.north) / 2;
+  const centerLng = (bounds.west + bounds.east) / 2;
+  const capped = latLngBoundsRadiusKm(centerLat, centerLng, VIEWPORT_MAX_DIAMETER_KM / 2);
+  map.fitBounds(capped, { padding: [24, 24], maxZoom: 14 });
+}
+
 export interface RfPropagationMapProps {
   assetUrl: string | null | undefined;
   bounds: { west: number; south: number; east: number; north: number } | null | undefined;
@@ -25,10 +63,9 @@ export function RfPropagationMap({ assetUrl, bounds, minHeight = 280, className 
     const el = mapRef.current;
     if (!el || !assetUrl || !bounds) return;
 
-    const map = L.map(el, { zoomControl: true }).setView(
-      [(bounds.south + bounds.north) / 2, (bounds.west + bounds.east) / 2],
-      10
-    );
+    const centerLat = (bounds.south + bounds.north) / 2;
+    const centerLng = (bounds.west + bounds.east) / 2;
+    const map = L.map(el, { zoomControl: true }).setView([centerLat, centerLng], 11);
     mapInstanceRef.current = map;
     L.tileLayer(tileUrl, { attribution }).addTo(map);
 
@@ -37,7 +74,7 @@ export function RfPropagationMap({ assetUrl, bounds, minHeight = 280, className 
     const overlay = L.imageOverlay(assetUrl, [sw, ne], { opacity: 0.85 }).addTo(map);
     layersRef.current.push(overlay);
 
-    map.fitBounds(L.latLngBounds(sw, ne), { padding: [24, 24], maxZoom: 14 });
+    fitBoundsForPropagation(map, bounds, sw, ne);
     const t = setTimeout(() => map.invalidateSize(), 50);
 
     return () => {
