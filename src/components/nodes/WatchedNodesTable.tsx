@@ -7,6 +7,9 @@ import { Link } from 'react-router-dom';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import type { AutoTraceRoute, NodeWatch, ObservedNode, PaginatedResponse } from '@/lib/models';
 import { labelForTriggerTypeApi } from '@/lib/traceroute-trigger-type';
+import { TracerouteQueueDispatchCell } from '@/components/traceroutes/TracerouteQueueDispatchCell';
+import { TracerouteStatusBadge } from '@/components/traceroutes/TracerouteStatusBadge';
+import { useTraceroutesWebSocketInvalidator } from '@/hooks/useTraceroutesWithWebSocket';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -59,18 +62,6 @@ function routeSummary(tr: AutoTraceRoute): string {
   return `${outStr} out, ${backStr} back`;
 }
 
-function TrStatusBadge({ status }: { status: string }) {
-  const variant =
-    status === 'completed'
-      ? 'default'
-      : status === 'failed'
-        ? 'destructive'
-        : status === 'pending' || status === 'sent'
-          ? 'secondary'
-          : 'outline';
-  return <Badge variant={variant}>{status}</Badge>;
-}
-
 function WatchTracerouteHistoryRows({
   targetNodeId,
   onOpenTraceroute,
@@ -87,7 +78,7 @@ function WatchTracerouteHistoryRows({
   if (isLoading) {
     return (
       <TableRow>
-        <TableCell colSpan={5} className="text-muted-foreground text-sm py-6">
+        <TableCell colSpan={6} className="text-muted-foreground text-sm py-6">
           Loading traceroutes…
         </TableCell>
       </TableRow>
@@ -96,7 +87,7 @@ function WatchTracerouteHistoryRows({
   if (isError) {
     return (
       <TableRow>
-        <TableCell colSpan={5} className="text-muted-foreground text-sm py-6">
+        <TableCell colSpan={6} className="text-muted-foreground text-sm py-6">
           Could not load traceroutes.
         </TableCell>
       </TableRow>
@@ -106,7 +97,7 @@ function WatchTracerouteHistoryRows({
   if (rows.length === 0) {
     return (
       <TableRow>
-        <TableCell colSpan={5} className="text-muted-foreground text-sm py-6">
+        <TableCell colSpan={6} className="text-muted-foreground text-sm py-6">
           No traceroutes to this node yet.
         </TableCell>
       </TableRow>
@@ -119,7 +110,10 @@ function WatchTracerouteHistoryRows({
           <TableCell>{tr.source_node?.short_name ?? tr.source_node?.node_id_str ?? '—'}</TableCell>
           <TableCell>{labelForTriggerTypeApi(tr.trigger_type, tr.trigger_type_label)}</TableCell>
           <TableCell>
-            <TrStatusBadge status={tr.status} />
+            <TracerouteStatusBadge status={tr.status} />
+          </TableCell>
+          <TableCell className="text-sm text-muted-foreground max-w-[160px]">
+            <TracerouteQueueDispatchCell tr={tr} />
           </TableCell>
           <TableCell className="max-w-[200px]" title={routeSummary(tr)}>
             {routeSummary(tr)}
@@ -279,6 +273,7 @@ function WatchCard({
                   <TableHead>TR sender</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Queue / dispatch</TableHead>
                   <TableHead>Route</TableHead>
                   <TableHead>Triggered</TableHead>
                 </TableRow>
@@ -311,6 +306,8 @@ export function WatchedNodesTable({
   onRequestTriggerTraceroute,
   canTriggerTraceroute,
 }: WatchedNodesTableProps) {
+  useTraceroutesWebSocketInvalidator();
+
   const grouped = useMemo(() => {
     const m = new Map<WatchMonitoringStatus, NodeWatch[]>();
     for (const s of GROUP_ORDER) m.set(s, []);

@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   DropdownMenu,
@@ -24,6 +23,8 @@ import { TracerouteDetailModal } from './TracerouteDetailModal';
 import { getTracerouteErrorMessage } from './tracerouteErrors';
 import { TracerouteStatsSection } from '@/components/traceroutes/TracerouteStatsSection';
 import { StrategyBadge } from '@/components/traceroutes/StrategyBadge';
+import { TracerouteQueueDispatchCell } from '@/components/traceroutes/TracerouteQueueDispatchCell';
+import { TracerouteStatusBadge } from '@/components/traceroutes/TracerouteStatusBadge';
 import { AutoTraceRoute, ObservedNode } from '@/lib/models';
 import { formatElapsedBetween } from '@/lib/utils';
 import { TRACEROUTE_STRATEGIES, type TracerouteStrategyValue } from '@/lib/traceroute-strategy';
@@ -40,8 +41,8 @@ type StatusValue = 'completed' | 'failed' | 'pending' | 'sent';
 const STATUS_OPTIONS: Array<{ value: StatusValue; label: string }> = [
   { value: 'completed', label: 'Completed' },
   { value: 'failed', label: 'Failed' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'sent', label: 'Sent' },
+  { value: 'pending', label: 'Queued' },
+  { value: 'sent', label: 'In flight' },
 ];
 const SUCCESS_STATUS_PRESET: StatusValue[] = ['completed', 'pending', 'sent'];
 
@@ -70,18 +71,6 @@ function routeSummary(tr: AutoTraceRoute): string {
   const outStr = outEmpty ? 'Direct' : `${route.length} hops`;
   const backStr = backEmpty ? 'Direct' : `${routeBack.length} hops`;
   return `${outStr} out, ${backStr} back`;
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const variant =
-    status === 'completed'
-      ? 'default'
-      : status === 'failed'
-        ? 'destructive'
-        : status === 'pending' || status === 'sent'
-          ? 'secondary'
-          : 'outline';
-  return <Badge variant={variant}>{status}</Badge>;
 }
 
 function parseCsvParam<T extends string>(raw: string | null): T[] {
@@ -190,8 +179,7 @@ export function TracerouteHistory() {
   }, [statusValues]);
 
   const isMonitorPreset =
-    triggerTypeValues.length === 1 &&
-    (triggerTypeValues[0] === '4' || triggerTypeValues[0] === 'monitor');
+    triggerTypeValues.length === 1 && (triggerTypeValues[0] === '4' || triggerTypeValues[0] === 'monitor');
   const isUserPreset =
     triggerTypeValues.length === 1 && (triggerTypeValues[0] === '1' || triggerTypeValues[0] === 'user');
 
@@ -411,6 +399,9 @@ export function TracerouteHistory() {
                     <TableHead>Strategy</TableHead>
                     <TableHead>Triggered by</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead title="Queue due time (pending) or when the command reached the source (sent)">
+                      Queue / dispatch
+                    </TableHead>
                     <TableHead>Route</TableHead>
                     <TableHead>Triggered</TableHead>
                     <TableHead title="Time from triggered to completion (successful runs only)">Elapsed</TableHead>
@@ -426,15 +417,16 @@ export function TracerouteHistory() {
                     >
                       <TableCell>{tr.source_node?.short_name ?? tr.source_node?.node_id_str ?? '—'}</TableCell>
                       <TableCell>{tr.target_node?.short_name ?? tr.target_node?.node_id_str ?? '—'}</TableCell>
-                      <TableCell>
-                        {labelForTriggerTypeApi(tr.trigger_type, tr.trigger_type_label)}
-                      </TableCell>
+                      <TableCell>{labelForTriggerTypeApi(tr.trigger_type, tr.trigger_type_label)}</TableCell>
                       <TableCell>
                         <StrategyBadge value={tr.target_strategy} />
                       </TableCell>
                       <TableCell>{tr.triggered_by_username ?? '—'}</TableCell>
                       <TableCell>
-                        <StatusBadge status={tr.status} />
+                        <TracerouteStatusBadge status={tr.status} />
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-[180px]">
+                        <TracerouteQueueDispatchCell tr={tr} />
                       </TableCell>
                       <TableCell className="max-w-[200px]" title={routeSummary(tr)}>
                         {routeSummary(tr)}
