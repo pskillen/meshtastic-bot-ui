@@ -539,7 +539,7 @@ export interface NodeWatch {
 }
 
 /** DX monitoring (meshflow-api `/api/dx/`, staff-only). */
-export type DxReasonCode = 'new_distant_node' | 'returned_dx_node' | 'distant_observation';
+export type DxReasonCode = 'new_distant_node' | 'returned_dx_node' | 'distant_observation' | 'traceroute_distant_hop';
 export type DxEventState = 'active' | 'closed';
 
 export interface DxNodeMetadataPublic {
