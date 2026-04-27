@@ -1,6 +1,7 @@
 import { useState, Suspense, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useMyClaimedNodesSuspense, useMyManagedNodesSuspense } from '@/hooks/api/useNodes';
+import { useCancelNodeClaim, useDeleteManagedNode } from '@/hooks/api/useNodeClaims';
 import { useNodeWatches } from '@/hooks/api/useNodeWatches';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,6 +49,10 @@ function MyNodesContent() {
   const api = useMeshtasticApi();
   const [showInstructionsNode, setShowInstructionsNode] = useState<ObservedNode | null>(null);
   const [instructionsModalOpen, setInstructionsModalOpen] = useState(false);
+  const [unclaimTarget, setUnclaimTarget] = useState<ObservedNode | null>(null);
+  const [unmanageTarget, setUnmanageTarget] = useState<{ nodeId: number; label: string } | null>(null);
+  const cancelClaimMutation = useCancelNodeClaim();
+  const deleteManagedMutation = useDeleteManagedNode();
   const { data: apiKeys } = useQuery({
     queryKey: ['api-keys'],
     queryFn: () => api.getApiKeys(),
@@ -190,6 +195,78 @@ function MyNodesContent() {
 
       {renderInstructionsModal()}
 
+      <Dialog open={unclaimTarget !== null} onOpenChange={(open) => !open && setUnclaimTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Unclaim this node?</DialogTitle>
+            <DialogDescription>
+              This releases your ownership claim. The node can stay visible as an observed node if the mesh still hears
+              it. You can claim it again later if it is unclaimed.
+            </DialogDescription>
+          </DialogHeader>
+          {cancelClaimMutation.isError ? (
+            <p className="text-sm text-destructive">Could not unclaim. Try again.</p>
+          ) : null}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setUnclaimTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={cancelClaimMutation.isPending}
+              onClick={() => {
+                if (!unclaimTarget) return;
+                cancelClaimMutation.mutate(unclaimTarget.node_id, {
+                  onSuccess: () => setUnclaimTarget(null),
+                });
+              }}
+            >
+              {cancelClaimMutation.isPending ? 'Unclaiming…' : 'Unclaim node'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={unmanageTarget !== null} onOpenChange={(open) => !open && setUnmanageTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Unmanage this node?</DialogTitle>
+            <DialogDescription>
+              {unmanageTarget ? (
+                <>
+                  <span className="font-medium text-foreground">{unmanageTarget.label}</span>
+                  {' — '}
+                </>
+              ) : null}
+              Stops this radio from acting as a managed feeder and removes API-key associations for it. Your claim stays
+              active; use “Unclaim” separately if you want to release ownership too.
+            </DialogDescription>
+          </DialogHeader>
+          {deleteManagedMutation.isError ? (
+            <p className="text-sm text-destructive">Could not unmanage. Try again.</p>
+          ) : null}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setUnmanageTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleteManagedMutation.isPending}
+              onClick={() => {
+                if (!unmanageTarget) return;
+                deleteManagedMutation.mutate(unmanageTarget.nodeId, {
+                  onSuccess: () => setUnmanageTarget(null),
+                });
+              }}
+            >
+              {deleteManagedMutation.isPending ? 'Removing…' : 'Unmanage node'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {hasAnyNodes ? (
         <>
           {myManagedNodes.length > 0 ? (
@@ -222,6 +299,12 @@ function MyNodesContent() {
                           setShowInstructionsNode(node);
                           setInstructionsModalOpen(true);
                         }}
+                        onRequestUnmanage={() =>
+                          setUnmanageTarget({
+                            nodeId: managed.node_id,
+                            label: node.short_name || node.node_id_str,
+                          })
+                        }
                       />
                     );
                   })}
@@ -262,6 +345,7 @@ function MyNodesContent() {
                               setShowInstructionsNode(node);
                               setInstructionsModalOpen(true);
                             }}
+                            onRequestUnclaim={() => setUnclaimTarget(node)}
                           />
                         );
                       })}
@@ -295,6 +379,7 @@ function MyNodesContent() {
                               setShowInstructionsNode(node);
                               setInstructionsModalOpen(true);
                             }}
+                            onRequestUnclaim={() => setUnclaimTarget(node)}
                           />
                         );
                       })}
@@ -324,6 +409,7 @@ function MyNodesContent() {
                               setShowInstructionsNode(node);
                               setInstructionsModalOpen(true);
                             }}
+                            onRequestUnclaim={() => setUnclaimTarget(node)}
                           />
                         );
                       })}

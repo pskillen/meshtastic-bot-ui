@@ -402,10 +402,16 @@ export class MeshtasticApi extends BaseApi {
   }
 
   /**
-   * Cancel / withdraw the current user's pending claim for a node
+   * Release the current user's claim on this observed node (`DELETE .../claim/`).
+   * Withdraws a pending claim or clears accepted ownership (`claimed_by`) when you own the claim.
    */
-  async cancelNodeClaim(nodeId: number): Promise<void> {
+  async releaseNodeClaim(nodeId: number): Promise<void> {
     await this.delete<void>(`/nodes/observed-nodes/${nodeId}/claim/`);
+  }
+
+  /** Same as {@link MeshtasticApi.releaseNodeClaim}. */
+  async cancelNodeClaim(nodeId: number): Promise<void> {
+    return this.releaseNodeClaim(nodeId);
   }
 
   /**
@@ -514,6 +520,14 @@ export class MeshtasticApi extends BaseApi {
     };
 
     return this.post<OwnedManagedNode>('/nodes/managed-nodes/', data);
+  }
+
+  /**
+   * Soft-delete (un-manage) a managed node: removes API-key links and hides the row from listings.
+   * Does not clear the observed-node claim.
+   */
+  async deleteManagedNode(nodeId: number): Promise<void> {
+    await this.delete<void>(`/nodes/managed-nodes/${nodeId}/`);
   }
 
   // ===== API Keys =====

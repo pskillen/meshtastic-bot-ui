@@ -1,6 +1,7 @@
 import type { ComponentProps } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ObservedNode } from '@/lib/models';
@@ -48,6 +49,8 @@ function renderCard(props: Partial<ComponentProps<typeof MyNodeCard>> = {}) {
           watchesQuery={props.watchesQuery ?? { isLoading: false, isError: false }}
           onConvert={props.onConvert ?? vi.fn()}
           onShowSetupInstructions={props.onShowSetupInstructions ?? vi.fn()}
+          onRequestUnclaim={props.onRequestUnclaim}
+          onRequestUnmanage={props.onRequestUnmanage}
         />
       </MemoryRouter>
     </QueryClientProvider>
@@ -108,6 +111,24 @@ describe('MyNodeCard', () => {
     });
     expect(screen.queryByText('Attention')).not.toBeInTheDocument();
     expect(screen.queryByText('Connectivity issue')).not.toBeInTheDocument();
+  });
+
+  it('offers Unclaim from the menu for claimed-only nodes when onRequestUnclaim is set', async () => {
+    const user = userEvent.setup();
+    const onRequestUnclaim = vi.fn();
+    renderCard({ isManaged: false, isClaimed: true, onRequestUnclaim });
+    await user.click(screen.getByRole('button', { name: /More actions/i }));
+    await user.click(screen.getByRole('menuitem', { name: /Unclaim node/i }));
+    expect(onRequestUnclaim).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers Unmanage from the menu for managed nodes when onRequestUnmanage is set', async () => {
+    const user = userEvent.setup();
+    const onRequestUnmanage = vi.fn();
+    renderCard({ isManaged: true, isClaimed: true, onRequestUnmanage });
+    await user.click(screen.getByRole('button', { name: /More actions/i }));
+    await user.click(screen.getByRole('menuitem', { name: /Unmanage node/i }));
+    expect(onRequestUnmanage).toHaveBeenCalledTimes(1);
   });
 });
 

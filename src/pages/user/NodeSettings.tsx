@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useCancelNodeClaim, useUserClaims } from '@/hooks/api/useNodeClaims';
+import { useCancelNodeClaim, useDeleteManagedNode, useUserClaims } from '@/hooks/api/useNodeClaims';
 import { useConstellationChannels } from '@/hooks/api/useConstellations';
 import { useMyManagedNodesSuspense, useMyClaimedNodesSuspense } from '@/hooks/api/useNodes';
 import { Badge } from '@/components/ui/badge';
@@ -44,7 +44,10 @@ function NodeSettingsContent() {
     botDefaults?: { ignorePortnums?: string | null; hopLimit?: number | null };
   } | null>(null);
   const [cancelClaimForNodeId, setCancelClaimForNodeId] = useState<number | null>(null);
+  const [unclaimMyNodesTarget, setUnclaimMyNodesTarget] = useState<ObservedNode | null>(null);
+  const [unmanageManagedTarget, setUnmanageManagedTarget] = useState<OwnedManagedNode | null>(null);
   const cancelClaimMutation = useCancelNodeClaim();
+  const deleteManagedMutation = useDeleteManagedNode();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const activeTab = ['nodes', 'pending-claims', 'managed'].includes(tabParam ?? '') ? tabParam! : 'nodes';
@@ -135,6 +138,14 @@ function NodeSettingsContent() {
                             Convert to Managed Node
                           </Button>
                         )}
+                        <Button
+                          onClick={() => setUnclaimMyNodesTarget(node)}
+                          size="sm"
+                          variant="outline"
+                          className="text-xs text-destructive border-destructive/40 hover:bg-destructive/10"
+                        >
+                          Unclaim node
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -285,6 +296,7 @@ function NodeSettingsContent() {
                             isLoadingApiKeys={isLoadingApiKeys}
                             handleCopyToClipboard={handleCopyToClipboard}
                             onShowSetupInstructions={setSetupInstructionsKey}
+                            onRequestUnmanage={() => setUnmanageManagedTarget(node)}
                           />
                         </AccordionContent>
                       </AccordionItem>
@@ -321,12 +333,79 @@ function NodeSettingsContent() {
         </TabsContent>
       </Tabs>
 
+      <Dialog open={unclaimMyNodesTarget !== null} onOpenChange={(open) => !open && setUnclaimMyNodesTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Unclaim this node?</DialogTitle>
+            <DialogDescription>
+              Releases your ownership claim. The node may still appear as observed if the mesh hears it. You can claim
+              again later if it is unclaimed.
+            </DialogDescription>
+          </DialogHeader>
+          {cancelClaimMutation.isError ? (
+            <p className="text-sm text-destructive">Could not unclaim. Try again.</p>
+          ) : null}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setUnclaimMyNodesTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={cancelClaimMutation.isPending}
+              onClick={() => {
+                if (!unclaimMyNodesTarget) return;
+                cancelClaimMutation.mutate(unclaimMyNodesTarget.node_id, {
+                  onSuccess: () => setUnclaimMyNodesTarget(null),
+                });
+              }}
+            >
+              {cancelClaimMutation.isPending ? 'Unclaiming…' : 'Unclaim node'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={unmanageManagedTarget !== null} onOpenChange={(open) => !open && setUnmanageManagedTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Unmanage this node?</DialogTitle>
+            <DialogDescription>
+              Stops this radio from acting as a managed feeder and removes API-key associations. Your claim stays
+              active; use “Unclaim” on the My Nodes tab if you also want to release ownership.
+            </DialogDescription>
+          </DialogHeader>
+          {deleteManagedMutation.isError ? (
+            <p className="text-sm text-destructive">Could not unmanage. Try again.</p>
+          ) : null}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setUnmanageManagedTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleteManagedMutation.isPending}
+              onClick={() => {
+                if (!unmanageManagedTarget) return;
+                deleteManagedMutation.mutate(unmanageManagedTarget.node_id, {
+                  onSuccess: () => setUnmanageManagedTarget(null),
+                });
+              }}
+            >
+              {deleteManagedMutation.isPending ? 'Removing…' : 'Unmanage node'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={cancelClaimForNodeId !== null} onOpenChange={(open) => !open && setCancelClaimForNodeId(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Cancel this claim?</DialogTitle>
             <DialogDescription>
-              This withdraws your pending claim. You can start again later from the node page if you change your mind.
+              This withdraws your pending claim before it is accepted. You can start again later from the node page if
+              you change your mind.
             </DialogDescription>
           </DialogHeader>
           {cancelClaimMutation.isError && (
@@ -391,6 +470,7 @@ function ManagedNodeSettings({
   isLoadingApiKeys,
   handleCopyToClipboard,
   onShowSetupInstructions,
+  onRequestUnmanage,
 }: {
   node: OwnedManagedNode;
   nodeApiKeys: NodeApiKey[];
@@ -404,6 +484,7 @@ function ManagedNodeSettings({
       botDefaults?: { ignorePortnums?: string | null; hopLimit?: number | null };
     } | null
   ) => void;
+  onRequestUnmanage?: () => void;
 }) {
   const api = useMeshtasticApi();
   const queryClient = useQueryClient();
@@ -445,12 +526,23 @@ function ManagedNodeSettings({
 
   return (
     <div className="space-y-4 pt-2">
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Link to={`/nodes/${node.node_id}`}>
           <Button variant="outline" size="sm">
             View Node Details
           </Button>
         </Link>
+        {onRequestUnmanage != null ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="text-destructive border-destructive/40 hover:bg-destructive/10"
+            onClick={() => onRequestUnmanage()}
+          >
+            Unmanage node
+          </Button>
+        ) : null}
       </div>
 
       <div className="border rounded-md bg-slate-50/50 dark:bg-slate-900/30 overflow-hidden">
