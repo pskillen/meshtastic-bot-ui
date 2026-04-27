@@ -10,6 +10,7 @@ import { TracerouteQueueDispatchCell } from '@/components/traceroutes/Traceroute
 import { TracerouteStatusBadge } from '@/components/traceroutes/TracerouteStatusBadge';
 import { useTracerouteTriggerableNodesSuspense, useTriggerTraceroute } from '@/hooks/api/useTraceroutes';
 import { useTraceroutesWithWebSocket } from '@/hooks/useTraceroutesWithWebSocket';
+import { TracerouteElapsedCell } from '@/components/traceroutes/TracerouteElapsedCell';
 import { TracerouteDetailModal } from '@/pages/traceroutes/TracerouteDetailModal';
 import { TriggerTracerouteModal } from '@/pages/traceroutes/TriggerTracerouteModal';
 import { getTracerouteErrorMessage } from '@/pages/traceroutes/tracerouteErrors';
@@ -129,7 +130,7 @@ export function NodeTracerouteHistorySection({ nodeId, observedNode }: NodeTrace
                     <TableHead>Queue / dispatch</TableHead>
                     <TableHead>Route</TableHead>
                     <TableHead>Triggered</TableHead>
-                    <TableHead>Completed</TableHead>
+                    <TableHead title="Time from triggered to completion (successful runs only)">Elapsed</TableHead>
                     {canTrigger && <TableHead className="w-12"></TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -155,7 +156,9 @@ export function NodeTracerouteHistorySection({ nodeId, observedNode }: NodeTrace
                           {routeSummary(tr)}
                         </TableCell>
                         <TableCell>{tr.triggered_at ? format(new Date(tr.triggered_at), 'PPp') : '—'}</TableCell>
-                        <TableCell>{tr.completed_at ? format(new Date(tr.completed_at), 'PPp') : '—'}</TableCell>
+                        <TableCell>
+                          <TracerouteElapsedCell tr={tr} />
+                        </TableCell>
                         {canTrigger && (
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             {canRepeat ? (

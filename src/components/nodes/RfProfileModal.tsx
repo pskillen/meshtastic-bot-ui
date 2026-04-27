@@ -269,9 +269,9 @@ export function RfProfileModal({ open, onOpenChange, node }: RfProfileModalProps
 
   const handleSave = async () => {
     try {
+      const needsRerender = coordsChangedVsSnapshot();
       await updateMutation.mutateAsync(buildBody());
       toast.success('RF profile saved');
-      const needsRerender = coordsChangedVsSnapshot();
       onOpenChange(false);
       if (needsRerender) setConfirmRerenderOpen(true);
     } catch {

@@ -26,7 +26,7 @@ import { StrategyBadge } from '@/components/traceroutes/StrategyBadge';
 import { TracerouteQueueDispatchCell } from '@/components/traceroutes/TracerouteQueueDispatchCell';
 import { TracerouteStatusBadge } from '@/components/traceroutes/TracerouteStatusBadge';
 import { AutoTraceRoute, ObservedNode } from '@/lib/models';
-import { formatElapsedBetween } from '@/lib/utils';
+import { TracerouteElapsedCell } from '@/components/traceroutes/TracerouteElapsedCell';
 import { TRACEROUTE_STRATEGIES, type TracerouteStrategyValue } from '@/lib/traceroute-strategy';
 import {
   TRIGGER_TYPE_EXTERNAL,
@@ -85,23 +85,6 @@ function parseNumberParam(raw: string | null): number | null {
   if (!raw) return null;
   const n = parseInt(raw, 10);
   return Number.isFinite(n) ? n : null;
-}
-
-function TracerouteElapsedCell({ tr }: { tr: AutoTraceRoute }) {
-  if (tr.status === 'failed') return '—';
-  /** Only completion time is reliable for externally ingested traceroutes */
-  if (tr.trigger_type === TRIGGER_TYPE_EXTERNAL) {
-    return (
-      <span
-        className="text-muted-foreground"
-        title="External traceroutes do not record when the probe started; elapsed time cannot be computed."
-      >
-        Unknown
-      </span>
-    );
-  }
-  if (!tr.triggered_at || !tr.completed_at) return '—';
-  return formatElapsedBetween(new Date(tr.triggered_at), new Date(tr.completed_at));
 }
 
 function triggerTypeMultiLabel(values: TriggerTypeFilterToken[]): string {
