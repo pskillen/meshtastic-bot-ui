@@ -252,6 +252,7 @@ function MeshInfrastructureContent() {
                     !node.last_heard ||
                     (node.last_heard instanceof Date ? node.last_heard : new Date(node.last_heard)) < cutoff;
                   const watch = watchesByNodeIdStr.get(node.node_id_str);
+                  const managed = managedByMeshId.get(node.node_id);
                   return (
                     <TableRow key={node.internal_id}>
                       <TableCell>
@@ -317,13 +318,15 @@ function MeshInfrastructureContent() {
                           <Link to={`/nodes/${node.node_id}`} className="text-primary text-sm hover:underline">
                             View details
                           </Link>
-                          <Link
-                            to={`/traceroutes/map/coverage?feeder=${node.node_id}`}
-                            className="text-muted-foreground text-sm underline-offset-4 hover:text-primary hover:underline"
-                            data-testid={`infra-no-loc-coverage-link-${node.node_id}`}
-                          >
-                            Coverage map
-                          </Link>
+                          {managed != null && (
+                            <Link
+                              to={`/traceroutes/map/coverage?feeder=${node.node_id}`}
+                              className="text-muted-foreground text-sm underline-offset-4 hover:text-primary hover:underline"
+                              data-testid={`infra-no-loc-coverage-link-${node.node_id}`}
+                            >
+                              Coverage map
+                            </Link>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

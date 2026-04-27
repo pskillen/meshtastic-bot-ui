@@ -154,13 +154,15 @@ function InfrastructureNodeCardInner({
         )}
       </div>
       <div className="mt-auto flex justify-end gap-3 pt-3">
-        <Link
-          to={`/traceroutes/map/coverage?feeder=${node.node_id}`}
-          className="text-sm text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
-          data-testid={`infra-coverage-link-${node.node_id}`}
-        >
-          Coverage map
-        </Link>
+        {managedNode != null && (
+          <Link
+            to={`/traceroutes/map/coverage?feeder=${node.node_id}`}
+            className="text-sm text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
+            data-testid={`infra-coverage-link-${node.node_id}`}
+          >
+            Coverage map
+          </Link>
+        )}
         {node.has_ready_rf_render === true && (
           <>
             <button

@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { ObservedNode } from '@/lib/models';
+import type { ManagedNode, ObservedNode } from '@/lib/models';
 
 import { InfrastructureNodeCard } from './InfrastructureNodeCard';
 
@@ -13,12 +13,25 @@ vi.mock('@/hooks/api/useRfPropagation', () => ({
   useRecomputeRfPropagation: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
-function renderCard(node: ObservedNode) {
+function minimalManaged(nodeId: number): ManagedNode {
+  return {
+    node_id: nodeId,
+    long_name: null,
+    short_name: null,
+    last_heard: null,
+    node_id_str: '!0',
+    owner: { id: 1, username: 'u' },
+    constellation: { id: 1 },
+    position: { latitude: null, longitude: null },
+  } as ManagedNode;
+}
+
+function renderCard(node: ObservedNode, opts?: { managedNode?: ManagedNode | null }) {
   const client = new QueryClient();
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
-        <InfrastructureNodeCard node={node} />
+        <InfrastructureNodeCard node={node} managedNode={opts?.managedNode ?? null} />
       </MemoryRouter>
     </QueryClientProvider>
   );
@@ -42,11 +55,15 @@ function makeNode(overrides: Partial<ObservedNode> = {}): ObservedNode {
 }
 
 describe('InfrastructureNodeCard', () => {
-  it('renders a deep-linked Coverage map link to /traceroutes/map/coverage?feeder=<node_id>', () => {
-    renderCard(makeNode({ node_id: 4242 }));
+  it('renders Coverage map link only when the infra node is a managed feeder', () => {
+    renderCard(makeNode({ node_id: 4242 }), { managedNode: minimalManaged(4242) });
     const link = screen.getByTestId('infra-coverage-link-4242');
-    expect(link).toBeInTheDocument();
     expect(link.getAttribute('href')).toBe('/traceroutes/map/coverage?feeder=4242');
+  });
+
+  it('does not render Coverage map link for unmanaged infrastructure nodes', () => {
+    renderCard(makeNode({ node_id: 4242 }));
+    expect(screen.queryByTestId('infra-coverage-link-4242')).not.toBeInTheDocument();
   });
 
   it('also renders the Open node details link to /nodes/<node_id>', () => {
