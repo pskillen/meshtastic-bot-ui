@@ -75,10 +75,30 @@ export function RfPropagationMap({ assetUrl, bounds, minHeight = 280, className 
     layersRef.current.push(overlay);
 
     fitBoundsForPropagation(map, bounds, sw, ne);
-    const t = setTimeout(() => map.invalidateSize(), 50);
+
+    /** Tabs (e.g. node Map) and dialogs mount the map at 0×0; refit once the container is measurable. */
+    let prevTooSmall = true;
+    const refitIfNeeded = () => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      const tooSmall = w < 32 || h < 32;
+      if (tooSmall) {
+        prevTooSmall = true;
+        return;
+      }
+      map.invalidateSize();
+      if (prevTooSmall) {
+        fitBoundsForPropagation(map, bounds, sw, ne);
+      }
+      prevTooSmall = false;
+    };
+    const ro = new ResizeObserver(() => refitIfNeeded());
+    ro.observe(el);
+    const t = window.setTimeout(() => refitIfNeeded(), 50);
 
     return () => {
-      clearTimeout(t);
+      window.clearTimeout(t);
+      ro.disconnect();
       layersRef.current.forEach((layer) => {
         try {
           map.removeLayer(layer);
