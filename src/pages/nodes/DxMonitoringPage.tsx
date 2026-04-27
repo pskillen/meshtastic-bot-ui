@@ -35,6 +35,7 @@ const REASON_LABELS: Record<DxReasonCode, string> = {
   new_distant_node: 'New distant node',
   returned_dx_node: 'Returned DX node',
   distant_observation: 'Distant observation',
+  traceroute_distant_hop: 'Traceroute distant hop',
 };
 
 function formatReason(code: string): string {
@@ -269,6 +270,7 @@ export default function DxMonitoringPage() {
                 <SelectItem value="new_distant_node">{REASON_LABELS.new_distant_node}</SelectItem>
                 <SelectItem value="returned_dx_node">{REASON_LABELS.returned_dx_node}</SelectItem>
                 <SelectItem value="distant_observation">{REASON_LABELS.distant_observation}</SelectItem>
+                <SelectItem value="traceroute_distant_hop">{REASON_LABELS.traceroute_distant_hop}</SelectItem>
               </SelectContent>
             </Select>
           </div>
