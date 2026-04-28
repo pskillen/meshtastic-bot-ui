@@ -100,6 +100,9 @@
 }
 
 /* Mapbox GL Popup + deck.gl maps (TracerouteHeatmapMap, coverage maps, links map) */
+.meshflow-map-popup {
+  z-index: 10000;
+}
 .meshflow-map-popup .mapboxgl-popup-content {
   background: transparent;
   padding: 0;

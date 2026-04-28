@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 
 import type { Layer, PickingInfo } from '@deck.gl/core';
 import { DeckGL } from 'deck.gl';
@@ -9,6 +10,19 @@ import { Map } from 'react-map-gl';
 import { useConfig } from '@/providers/ConfigProvider';
 import { useMapboxStyle } from '@/hooks/useMapboxStyle';
 import { cn } from '@/lib/utils';
+
+/** Move Mapbox popups to the deck.gl wrapper so they stack above the WebGL canvas (@deck.gl/react forces Map to z-index -1). */
+function reparentMapboxPopupsIntoDeckWrapper(root: HTMLElement) {
+  const deckWrap =
+    root.querySelector<HTMLElement>('#deckgl-wrapper') ?? root.querySelector<HTMLElement>('[id$="deckgl-wrapper"]');
+  if (!deckWrap) return;
+  const popups = root.querySelectorAll<HTMLElement>('.mapboxgl-popup');
+  popups.forEach((popup) => {
+    if (popup.parentElement !== deckWrap) {
+      deckWrap.appendChild(popup);
+    }
+  });
+}
 
 /** DeckGL `initialViewState` (longitude, latitude, zoom, etc.). */
 export type DeckMapboxInitialViewState = NonNullable<DeckGLProps['initialViewState']>;
@@ -23,6 +37,11 @@ export type DeckMapboxMapProps = {
   children?: ReactNode;
   className?: string;
   'data-testid'?: string;
+  /**
+   * Reparent `.mapboxgl-popup` nodes into the deck.gl root so popups render above deck layers.
+   * Disable only if you hit positioning issues with a custom Mapbox integration.
+   */
+  elevateMapboxPopups?: boolean;
 };
 
 /**
@@ -39,10 +58,26 @@ export function DeckMapboxMap({
   children,
   className,
   'data-testid': testId,
+  elevateMapboxPopups = true,
 }: DeckMapboxMapProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const config = useConfig();
   const mapboxToken = config.mapboxToken ?? (import.meta.env.VITE_MAPBOX_TOKEN as string | undefined);
   const mapStyle = useMapboxStyle();
+
+  useLayoutEffect(() => {
+    if (!mapboxToken || !elevateMapboxPopups) return;
+    const root = rootRef.current;
+    if (!root) return;
+    const run = () => reparentMapboxPopupsIntoDeckWrapper(root);
+    run();
+    const raf = requestAnimationFrame(run);
+    const t = window.setTimeout(run, 0);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(t);
+    };
+  }, [mapboxToken, elevateMapboxPopups, children]);
 
   if (!mapboxToken) {
     return (
@@ -53,7 +88,7 @@ export function DeckMapboxMap({
   }
 
   return (
-    <div className={cn('relative h-full w-full', className)} data-testid={testId}>
+    <div ref={rootRef} className={cn('relative h-full w-full', className)} data-testid={testId}>
       <DeckGL
         controller
         layers={layers}
