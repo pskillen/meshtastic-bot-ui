@@ -75,22 +75,6 @@ describe('MyNodeCard', () => {
     expect(badge.className).toMatch(/border-destructive/);
   });
 
-  it('shows GPS position recent for fresh reported_time', () => {
-    renderCard({
-      node: makeNode({
-        latest_position: {
-          latitude: 55,
-          longitude: -4,
-          reported_time: new Date('2026-04-21T11:00:00Z'),
-          logged_time: null,
-          altitude: null,
-          location_source: 'gps',
-        },
-      }),
-    });
-    expect(screen.getByText('GPS position recent')).toBeInTheDocument();
-  });
-
   it('renders managed liveness warning when severity is warn', () => {
     renderCard({
       isManaged: true,
@@ -139,6 +123,22 @@ describe('MyNodeCard position hint styling (fixed clock)', () => {
   });
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('shows GPS position recent for fresh reported_time', () => {
+    renderCard({
+      node: makeNode({
+        latest_position: {
+          latitude: 55,
+          longitude: -4,
+          reported_time: new Date('2026-04-21T11:00:00Z'),
+          logged_time: null,
+          altitude: null,
+          location_source: 'gps',
+        },
+      }),
+    });
+    expect(screen.getByText('GPS position recent')).toBeInTheDocument();
   });
 
   it('applies warning-style border to stale GPS copy', () => {
