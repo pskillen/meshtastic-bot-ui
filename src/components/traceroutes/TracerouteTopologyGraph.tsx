@@ -7,6 +7,7 @@ import {
   degreeFillColor,
   edgeArcColor,
   edgeArcWidth,
+  getHeatmapNodeLabel,
   HEATMAP_NODE_COLOR_FALLBACK,
   nodeLineColor,
   nodeLineWidth,
@@ -39,6 +40,16 @@ function linkStrengthValue(edge: HeatmapEdge, enc: NonNullable<ReturnType<typeof
   const v = enc.valueKey === 'avg_snr' ? (edge.avg_snr ?? enc.minVal) : edge.weight;
   const t = (v - enc.minVal) / Math.max(enc.maxVal - enc.minVal, 1e-9);
   return Math.min(1, Math.max(0, t));
+}
+
+/** Screen-space font px; scales slightly when zoomed out so labels stay usable. */
+function topologyLabelFontPx(viewScale: number): number {
+  return Math.round(Math.max(9, Math.min(13, 10 + Math.log2(Math.max(viewScale, 0.05)) * 1.5)));
+}
+
+function truncateTopologyLabel(raw: string): string {
+  if (raw.length <= 28) return raw;
+  return `${raw.slice(0, 26)}…`;
 }
 
 export interface TracerouteTopologyGraphProps {
@@ -273,6 +284,28 @@ export function TracerouteTopologyGraph({
     }
 
     ctx.restore();
+
+    // Labels in CSS pixel space so they stay readable at every zoom level (constant-ish screen size).
+    const labelPx = topologyLabelFontPx(transform.k);
+    ctx.font = `${labelPx}px ui-sans-serif, system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for (const n of nodeDrawOrder) {
+      if (n.x == null || n.y == null) continue;
+      const gx = n.x * transform.k + transform.x;
+      const gy = n.y * transform.k + transform.y;
+      const rPx = (hasSignal ? nodeRadiusPixels(n.centrality, cExt.min, cExt.max) : 9) * transform.k;
+      const fade = nodeFade(n.node_id);
+      const label = truncateTopologyLabel(getHeatmapNodeLabel(n));
+      const ty = gy + rPx + labelPx * 0.65 + 2;
+      ctx.strokeStyle = `rgba(15, 23, 42, ${0.92 * fade})`;
+      ctx.lineWidth = Math.max(3, labelPx * 0.35);
+      ctx.lineJoin = 'round';
+      ctx.strokeText(label, gx, ty);
+      ctx.fillStyle = `rgba(226, 232, 240, ${fade})`;
+      ctx.fillText(label, gx, ty);
+    }
   }, [dimensions, transform, arcEnc, nodeExtents, staleMs, hoverId, selectedNodeId, adjacency]);
 
   useEffect(() => {

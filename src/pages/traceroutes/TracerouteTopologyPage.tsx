@@ -5,11 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useHeatmapEdges } from '@/hooks/api/useHeatmapEdges';
 import { useManagedNodesSuspense } from '@/hooks/api/useNodes';
 import { TracerouteTopologyGraph } from '@/components/traceroutes/TracerouteTopologyGraph';
-import {
-  NetworkStatsCard,
-  TracerouteHeatmapChrome,
-  type EdgeMetric,
-} from '@/components/traceroutes/TracerouteHeatmapChrome';
+import { TracerouteHeatmapChrome, type EdgeMetric } from '@/components/traceroutes/TracerouteHeatmapChrome';
 import { TracerouteHeatmapNodePanel } from '@/components/traceroutes/TracerouteHeatmapNodePanel';
 import type { HeatmapNode } from '@/hooks/api/useHeatmapEdges';
 import type { TracerouteStrategyValue } from '@/lib/traceroute-strategy';
@@ -71,7 +67,6 @@ export function TracerouteTopologyPage({ edgeMetric }: { edgeMetric: EdgeMetric 
 
   const edges = data?.edges ?? [];
   const nodes = useMemo(() => data?.nodes ?? [], [data]);
-  const meta = data?.meta ?? { active_nodes_count: 0, total_trace_routes_count: 0 };
 
   const hasGeoFilters = strategyTokens.length > 0 || sourceMeshId != null;
 
@@ -108,10 +103,6 @@ export function TracerouteTopologyPage({ edgeMetric }: { edgeMetric: EdgeMetric 
         onUpdateParams={updateParams}
       />
 
-      <div className="block md:hidden">
-        <NetworkStatsCard meta={meta} staleThresholdHours={HEATMAP_STALE_THRESHOLD_HOURS} />
-      </div>
-
       <div className="relative flex min-h-[300px] flex-1 flex-col gap-4 md:min-h-[calc(100dvh-16rem)] md:flex-row">
         <Card className="relative min-h-[300px] flex-1 overflow-hidden md:min-h-[calc(100dvh-16rem)]">
           <CardContent className="h-full min-h-[300px] p-0">
@@ -139,7 +130,7 @@ export function TracerouteTopologyPage({ edgeMetric }: { edgeMetric: EdgeMetric 
         </Card>
 
         {selectedNode && !error && !isLoading && (
-          <div className="shrink-0 md:w-80" data-testid="topology-node-panel">
+          <div className="shrink-0 md:z-20 md:w-80" data-testid="topology-node-panel">
             <TracerouteHeatmapNodePanel
               node={selectedNode}
               onClose={() => updateParams({ selected: null })}
@@ -148,10 +139,6 @@ export function TracerouteTopologyPage({ edgeMetric }: { edgeMetric: EdgeMetric 
             />
           </div>
         )}
-
-        <div className="absolute right-4 top-4 z-10 hidden md:block">
-          <NetworkStatsCard meta={meta} staleThresholdHours={HEATMAP_STALE_THRESHOLD_HOURS} className="w-64" />
-        </div>
       </div>
     </div>
   );
