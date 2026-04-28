@@ -5,19 +5,55 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import type { HeatmapNode } from '@/hooks/api/useHeatmapEdges';
 import { getHeatmapNodeLabel } from '@/components/traceroutes/heatmapEncoding';
 
-function roleSort(a: HeatmapNode, b: HeatmapNode): number {
-  const rank = (r: string | undefined) => (r === 'backbone' ? 0 : r === 'relay' ? 1 : 2);
-  const dr = rank(a.role) - rank(b.role);
-  if (dr !== 0) return dr;
-  const ca = a.centrality ?? 0;
-  const cb = b.centrality ?? 0;
-  return cb - ca;
+function byCentralityDesc(a: HeatmapNode, b: HeatmapNode): number {
+  return (b.centrality ?? 0) - (a.centrality ?? 0);
+}
+
+const SCROLL_AREA_HEIGHT = 'h-56'; /* 14rem; fixed so both panels align */
+
+function RoleNodeTable({ nodes }: { nodes: HeatmapNode[] }) {
+  if (nodes.length === 0) {
+    return (
+      <div className="text-muted-foreground flex h-full min-h-[4rem] items-center justify-center px-3 text-sm">
+        None for these filters.
+      </div>
+    );
+  }
+
+  return (
+    <Table>
+      <TableHeader className="bg-card sticky top-0 z-[1] shadow-[0_1px_0_0_hsl(var(--border))]">
+        <TableRow>
+          <TableHead className="w-[48%]">Node</TableHead>
+          <TableHead className="text-right">Centrality</TableHead>
+          <TableHead className="text-right">Degree</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {nodes.map((n) => (
+          <TableRow key={n.node_id}>
+            <TableCell>
+              <Link to={`/nodes/${n.node_id}`} className="font-medium text-primary hover:underline">
+                {getHeatmapNodeLabel(n)}
+              </Link>
+              <div className="text-muted-foreground text-xs">{n.node_id_str ?? `!${n.node_id.toString(16)}`}</div>
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {n.centrality != null ? `${(n.centrality * 100).toFixed(1)}%` : '—'}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">{n.degree ?? '—'}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
 }
 
 export function TracerouteHeatmapBackboneRelayTable({ nodes }: { nodes: HeatmapNode[] }) {
-  const rows = useMemo(() => nodes.filter((n) => n.role === 'backbone' || n.role === 'relay').sort(roleSort), [nodes]);
+  const backbone = useMemo(() => nodes.filter((n) => n.role === 'backbone').sort(byCentralityDesc), [nodes]);
+  const relay = useMemo(() => nodes.filter((n) => n.role === 'relay').sort(byCentralityDesc), [nodes]);
 
-  if (rows.length === 0) {
+  if (backbone.length === 0 && relay.length === 0) {
     return (
       <Card data-testid="heatmap-backbone-relay-table">
         <CardHeader className="pb-2">
@@ -36,34 +72,25 @@ export function TracerouteHeatmapBackboneRelayTable({ nodes }: { nodes: HeatmapN
           Nodes classified from mesh topology (betweenness and degree). Same roles as on the map.
         </CardDescription>
       </CardHeader>
-      <CardContent className="overflow-x-auto px-2 pb-4 pt-0 sm:px-6">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[40%]">Node</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead className="text-right">Centrality</TableHead>
-              <TableHead className="text-right">Degree</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((n) => (
-              <TableRow key={n.node_id}>
-                <TableCell>
-                  <Link to={`/nodes/${n.node_id}`} className="font-medium text-primary hover:underline">
-                    {getHeatmapNodeLabel(n)}
-                  </Link>
-                  <div className="text-xs text-muted-foreground">{n.node_id_str ?? `!${n.node_id.toString(16)}`}</div>
-                </TableCell>
-                <TableCell className="capitalize">{n.role}</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {n.centrality != null ? `${(n.centrality * 100).toFixed(1)}%` : '—'}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{n.degree ?? '—'}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <CardContent className="px-2 pb-4 pt-0 sm:px-6">
+        <div className="grid gap-6 md:grid-cols-2">
+          <section data-testid="heatmap-backbone-list">
+            <h3 className="text-foreground mb-2 text-sm font-semibold tracking-tight">Backbone</h3>
+            <div
+              className={`border-border bg-card overflow-x-auto overflow-y-auto rounded-md border ${SCROLL_AREA_HEIGHT}`}
+            >
+              <RoleNodeTable nodes={backbone} />
+            </div>
+          </section>
+          <section data-testid="heatmap-relay-list">
+            <h3 className="text-foreground mb-2 text-sm font-semibold tracking-tight">Relay</h3>
+            <div
+              className={`border-border bg-card overflow-x-auto overflow-y-auto rounded-md border ${SCROLL_AREA_HEIGHT}`}
+            >
+              <RoleNodeTable nodes={relay} />
+            </div>
+          </section>
+        </div>
       </CardContent>
     </Card>
   );
