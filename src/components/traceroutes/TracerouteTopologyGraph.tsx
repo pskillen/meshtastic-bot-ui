@@ -85,6 +85,12 @@ export function TracerouteTopologyGraph({
   const nodeExtents = useMemo(() => computeHeatmapNodeExtents(nodes), [nodes]);
   const arcEnc = useMemo(() => computeHeatmapArcEncoding(edges, edgeMetric, intensity), [edges, edgeMetric, intensity]);
 
+  const roleById = useMemo(() => {
+    const m = new Map<number, HeatmapNode['role']>();
+    for (const n of nodes) m.set(n.node_id, n.role);
+    return m;
+  }, [nodes]);
+
   const adjacency = useMemo(() => {
     const m = new Map<number, Set<number>>();
     const add = (a: number, b: number) => {
@@ -244,9 +250,13 @@ export function TracerouteTopologyGraph({
       const b = L.target;
       if (a.x == null || a.y == null || b.x == null || b.y == null) continue;
       const alphaMul = edgeFade(a.node_id, b.node_id);
+      const touchesLeaf = roleById.get(a.node_id) === 'leaf' || roleById.get(b.node_id) === 'leaf';
       let stroke: [number, number, number, number];
       let lw: number;
-      if (enc) {
+      if (touchesLeaf) {
+        stroke = [142, 142, 148, 200];
+        lw = enc ? edgeArcWidth(L.edge, enc) : 1.5;
+      } else if (enc) {
         stroke = edgeArcColor(L.edge, enc);
         lw = edgeArcWidth(L.edge, enc);
       } else {
@@ -258,7 +268,10 @@ export function TracerouteTopologyGraph({
       ctx.lineTo(b.x, b.y);
       ctx.strokeStyle = `rgba(${stroke[0]},${stroke[1]},${stroke[2]},${(stroke[3] / 255) * alphaMul})`;
       ctx.lineWidth = Math.max(0.6, lw * 0.35);
+      if (touchesLeaf) ctx.setLineDash([6, 5]);
+      else ctx.setLineDash([]);
       ctx.stroke();
+      ctx.setLineDash([]);
     }
 
     const nodeDrawOrder = [...simNodes].sort((u, v) => {
@@ -306,7 +319,7 @@ export function TracerouteTopologyGraph({
       ctx.fillStyle = `rgba(226, 232, 240, ${fade})`;
       ctx.fillText(label, gx, ty);
     }
-  }, [dimensions, transform, arcEnc, nodeExtents, staleMs, hoverId, selectedNodeId, adjacency]);
+  }, [dimensions, transform, arcEnc, nodeExtents, staleMs, hoverId, selectedNodeId, adjacency, roleById]);
 
   useEffect(() => {
     draw();

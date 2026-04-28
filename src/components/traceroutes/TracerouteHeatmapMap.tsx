@@ -1,7 +1,8 @@
 import { useMemo, useCallback, useState } from 'react';
 import { Popup } from 'react-map-gl';
-import { ArcLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
-import type { PickingInfo } from '@deck.gl/core';
+import type { Layer, PickingInfo } from '@deck.gl/core';
+import { PathStyleExtension } from '@deck.gl/extensions';
+import { ArcLayer, PathLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
 import type { HeatmapEdge, HeatmapNode } from '@/hooks/api/useHeatmapEdges';
 
 import { DeckMapboxMap } from '@/components/map/DeckMapboxMap';
@@ -26,6 +27,11 @@ const HEATMAP_LABEL_MIN_ZOOM = 9.5;
 
 /** Default hours without mesh observation before nodes fade (client-side styling). */
 const DEFAULT_STALE_THRESHOLD_HOURS = 6;
+
+/** Grey dashed strokes for edges that touch a leaf node (matches topology view). */
+const LEAF_EDGE_GREY: [number, number, number, number] = [142, 142, 148, 200];
+
+const leafEdgeDashExtension = new PathStyleExtension({ dash: true });
 
 export interface TracerouteHeatmapMapProps {
   edges: HeatmapEdge[];
@@ -76,12 +82,55 @@ export function TracerouteHeatmapMap({
     [edges, edgeMetric, intensity]
   );
 
+  const roleById = useMemo(() => {
+    const m = new Map<number, HeatmapNode['role']>();
+    for (const n of nodes) m.set(n.node_id, n.role);
+    return m;
+  }, [nodes]);
+
+  const { coreEdges, leafEdges } = useMemo(() => {
+    const core: HeatmapEdge[] = [];
+    const leaf: HeatmapEdge[] = [];
+    for (const e of edges) {
+      const ra = roleById.get(e.from_node_id);
+      const rb = roleById.get(e.to_node_id);
+      const touchesLeaf = ra === 'leaf' || rb === 'leaf';
+      if (touchesLeaf) leaf.push(e);
+      else core.push(e);
+    }
+    return { coreEdges: core, leafEdges: leaf };
+  }, [edges, roleById]);
+
+  const leafPathLayer = useMemo(() => {
+    if (!arcEncoding || leafEdges.length === 0) return null;
+    const enc = arcEncoding;
+    return new PathLayer({
+      id: `heatmap-leaf-edges-${edgeMetric}`,
+      data: leafEdges,
+      extensions: [leafEdgeDashExtension],
+      getPath: (d: HeatmapEdge) => [
+        [d.from_lng, d.from_lat],
+        [d.to_lng, d.to_lat],
+      ],
+      getColor: LEAF_EDGE_GREY,
+      getWidth: (d: HeatmapEdge) => edgeArcWidth(d, enc),
+      widthMinPixels: 1,
+      widthMaxPixels: 18,
+      getDashArray: [5, 5],
+      capRounded: true,
+      jointRounded: true,
+      updateTriggers: {
+        getWidth: [enc.minVal, enc.maxVal, enc.baseWidth],
+      },
+    });
+  }, [leafEdges, arcEncoding, edgeMetric]);
+
   const arcLayer = useMemo(() => {
-    if (!arcEncoding || edges.length === 0) return null;
+    if (!arcEncoding || coreEdges.length === 0) return null;
     const enc = arcEncoding;
     return new ArcLayer({
       id: `heatmap-arcs-${edgeMetric}`,
-      data: edges,
+      data: coreEdges,
       getSourcePosition: (d) => [d.from_lng, d.from_lat],
       getTargetPosition: (d) => [d.to_lng, d.to_lat],
       getSourceColor: (d) => edgeArcColor(d, enc),
@@ -91,7 +140,7 @@ export function TracerouteHeatmapMap({
       widthMaxPixels: 20,
       getHeight: 0,
     });
-  }, [edges, arcEncoding, edgeMetric]);
+  }, [coreEdges, arcEncoding, edgeMetric]);
 
   const scatterLayer = useMemo(() => {
     if (nodes.length === 0) return null;
@@ -146,8 +195,8 @@ export function TracerouteHeatmapMap({
   }, [nodes, zoom]);
 
   const layers = useMemo(
-    () => [arcLayer, scatterLayer, textLayer].filter(Boolean) as (ArcLayer | ScatterplotLayer | TextLayer)[],
-    [arcLayer, scatterLayer, textLayer]
+    () => [leafPathLayer, arcLayer, scatterLayer, textLayer].filter(Boolean) as Layer[],
+    [leafPathLayer, arcLayer, scatterLayer, textLayer]
   );
 
   return (
