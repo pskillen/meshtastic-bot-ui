@@ -1,5 +1,6 @@
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useState, type ComponentProps } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import type { HeatmapEdge, HeatmapNode } from '@/hooks/api/useHeatmapEdges';
@@ -78,12 +79,77 @@ const edge: HeatmapEdge = {
   avg_snr: 4,
 };
 
+const hub: HeatmapNode = {
+  node_id: 0x11c,
+  node_id_str: '!0000011c',
+  short_name: 'Hub',
+  long_name: 'Hub',
+  lat: 55.92,
+  lng: -4.18,
+  role: 'backbone',
+  degree: 3,
+  centrality: 0.4,
+};
+
+const spoke: HeatmapNode = {
+  node_id: 0x11d,
+  node_id_str: '!0000011d',
+  short_name: 'Spoke',
+  long_name: 'Spoke',
+  lat: 55.91,
+  lng: -4.19,
+  role: 'leaf',
+  degree: 1,
+  centrality: 0,
+};
+
+const peer: HeatmapNode = {
+  node_id: 0x11e,
+  node_id_str: '!0000011e',
+  short_name: 'Peer',
+  long_name: 'Peer',
+  lat: 55.93,
+  lng: -4.17,
+  role: 'backbone',
+  degree: 3,
+  centrality: 0.35,
+};
+
+const edgeHubSpoke: HeatmapEdge = {
+  from_node_id: hub.node_id,
+  to_node_id: spoke.node_id,
+  from_lng: hub.lng,
+  from_lat: hub.lat,
+  to_lng: spoke.lng,
+  to_lat: spoke.lat,
+  weight: 3,
+  avg_snr: 5,
+};
+
+const edgeHubPeer: HeatmapEdge = {
+  from_node_id: hub.node_id,
+  to_node_id: peer.node_id,
+  from_lng: hub.lng,
+  from_lat: hub.lat,
+  to_lng: peer.lng,
+  to_lat: peer.lat,
+  weight: 8,
+  avg_snr: 6,
+};
+
 function layerIds(layers: { id: string }[]) {
   return layers.map((l) => l.id);
 }
 
 function lastCapture() {
   return mapboxCaptures[mapboxCaptures.length - 1];
+}
+
+function Harness(
+  props: Omit<ComponentProps<typeof TracerouteHeatmapMap>, 'selectedNode' | 'onSelectedNodeChange'>
+) {
+  const [selected, setSelected] = useState<HeatmapNode | null>(null);
+  return <TracerouteHeatmapMap {...props} selectedNode={selected} onSelectedNodeChange={setSelected} />;
 }
 
 describe('TracerouteHeatmapMap', () => {
@@ -94,7 +160,7 @@ describe('TracerouteHeatmapMap', () => {
   it('keeps arc layers after popup selection state (mock click / onClick)', () => {
     render(
       <MemoryRouter>
-        <TracerouteHeatmapMap edges={[edge]} nodes={[nodeA, nodeB]} edgeMetric="packets" />
+        <Harness edges={[edge]} nodes={[nodeA, nodeB]} edgeMetric="packets" />
       </MemoryRouter>
     );
 
@@ -112,7 +178,7 @@ describe('TracerouteHeatmapMap', () => {
   it('swaps arc layer id when edgeMetric changes but keeps node layers', () => {
     const { rerender } = render(
       <MemoryRouter>
-        <TracerouteHeatmapMap edges={[edge]} nodes={[nodeA, nodeB]} edgeMetric="packets" />
+        <Harness edges={[edge]} nodes={[nodeA, nodeB]} edgeMetric="packets" />
       </MemoryRouter>
     );
 
@@ -120,11 +186,37 @@ describe('TracerouteHeatmapMap', () => {
 
     rerender(
       <MemoryRouter>
-        <TracerouteHeatmapMap edges={[edge]} nodes={[nodeA, nodeB]} edgeMetric="snr" />
+        <Harness edges={[edge]} nodes={[nodeA, nodeB]} edgeMetric="snr" />
       </MemoryRouter>
     );
 
     expect(lastCapture().layers.some((l) => l.id === 'heatmap-arcs-snr')).toBe(true);
     expect(lastCapture().layers.some((l) => l.id === 'heatmap-nodes')).toBe(true);
+  });
+
+  it('omits leaf path layer when no edge touches a leaf node', () => {
+    render(
+      <MemoryRouter>
+        <Harness edges={[edgeHubPeer]} nodes={[hub, peer]} edgeMetric="packets" />
+      </MemoryRouter>
+    );
+    expect(layerIds(lastCapture().layers)).toEqual(
+      expect.arrayContaining(['heatmap-arcs-packets', 'heatmap-nodes'])
+    );
+    expect(lastCapture().layers.some((l) => l.id === 'heatmap-leaf-edges-packets')).toBe(false);
+  });
+
+  it('uses grey dashed path layer for edges touching a leaf, plus arcs for remaining edges', () => {
+    render(
+      <MemoryRouter>
+        <Harness
+          edges={[edgeHubSpoke, edgeHubPeer]}
+          nodes={[hub, spoke, peer]}
+          edgeMetric="packets"
+        />
+      </MemoryRouter>
+    );
+    const ids = layerIds(lastCapture().layers);
+    expect(ids).toEqual(expect.arrayContaining(['heatmap-leaf-edges-packets', 'heatmap-arcs-packets', 'heatmap-nodes']));
   });
 });

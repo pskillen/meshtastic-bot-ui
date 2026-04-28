@@ -21,6 +21,7 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@deck.gl/extensions": "~9.2.0",
     "@deck.gl/geo-layers": "~9.2.0",
     "@deck.gl/layers": "^9.0.0",
     "@dnd-kit/core": "^6.3.1",

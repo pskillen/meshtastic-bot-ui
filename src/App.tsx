@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react';
 import { TracerouteHistory } from '@/pages/traceroutes/TracerouteHistory';
 import { TracerouteHeatmapPage } from '@/pages/traceroutes/TracerouteHeatmapPage';
+import { TracerouteTopologyPage } from '@/pages/traceroutes/TracerouteTopologyPage';
 import { FeederCoveragePage } from '@/pages/traceroutes/FeederCoveragePage';
 import { ConstellationCoveragePage } from '@/pages/traceroutes/ConstellationCoveragePage';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
@@ -72,8 +73,17 @@ function App() {
                   <Route path="/messages" element={<MessageHistory />} />
                   <Route path="/traceroutes" element={<TracerouteHistory />} />
                   <Route path="/traceroutes/heatmap" element={<Navigate to="/traceroutes/map/heat" replace />} />
+                  <Route
+                    path="/traceroutes/topology"
+                    element={<Navigate to="/traceroutes/map/topology/heat" replace />}
+                  />
                   <Route path="/traceroutes/map/heat" element={<TracerouteHeatmapPage edgeMetric="packets" />} />
                   <Route path="/traceroutes/map/snr" element={<TracerouteHeatmapPage edgeMetric="snr" />} />
+                  <Route
+                    path="/traceroutes/map/topology/heat"
+                    element={<TracerouteTopologyPage edgeMetric="packets" />}
+                  />
+                  <Route path="/traceroutes/map/topology/snr" element={<TracerouteTopologyPage edgeMetric="snr" />} />
                   <Route path="/traceroutes/map/coverage" element={<FeederCoveragePage />} />
                   <Route
                     path="/traceroutes/map/coverage/constellation/:constellationId"
