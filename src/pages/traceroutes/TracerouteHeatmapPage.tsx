@@ -22,6 +22,9 @@ import { TRACEROUTE_STRATEGIES, type TracerouteStrategyValue } from '@/lib/trace
 type TimeRange = '24h' | '7d' | '30d' | 'custom';
 export type EdgeMetric = 'packets' | 'snr';
 
+/** Client-side stale styling threshold (hours without mesh observation). */
+const HEATMAP_STALE_THRESHOLD_HOURS = 6;
+
 function parseCsvParam<T extends string>(raw: string | null): T[] {
   if (!raw) return [];
   return raw
@@ -68,9 +71,11 @@ function toggleValue<T extends string>(current: T[], value: T): T[] {
 
 function NetworkStatsCard({
   meta,
+  staleThresholdHours,
   className,
 }: {
   meta: { active_nodes_count: number; total_trace_routes_count: number };
+  staleThresholdHours: number;
   className?: string;
 }) {
   return (
@@ -81,6 +86,15 @@ function NetworkStatsCard({
       <CardContent className="space-y-2 text-sm">
         <div>Active Nodes: {meta.active_nodes_count.toLocaleString()}</div>
         <div>Total Trace Routes: {meta.total_trace_routes_count.toLocaleString()}</div>
+        <div className="border-t border-border pt-2">
+          <div className="mb-1 text-xs font-medium text-muted-foreground">Nodes (topology)</div>
+          <ul className="list-inside list-disc space-y-1 text-xs text-muted-foreground">
+            <li>Dot size — centrality (backbone paths)</li>
+            <li>Fill hue — degree (cool → warm)</li>
+            <li>Ring weight — degree + backbone role (also for colour-blind contrast)</li>
+            <li>Opacity — mesh recency (older than {staleThresholdHours}h fades; API role “offline” from ~24h)</li>
+          </ul>
+        </div>
         <div className="pt-2">
           <div className="mb-1 text-xs text-muted-foreground">Packets: Quiet → Busy</div>
           <div
@@ -259,7 +273,7 @@ export function TracerouteHeatmapPage({ edgeMetric }: { edgeMetric: EdgeMetric }
 
       {/* Stats: below top bar on mobile, overlay on desktop */}
       <div className="block md:hidden">
-        <NetworkStatsCard meta={meta} />
+        <NetworkStatsCard meta={meta} staleThresholdHours={HEATMAP_STALE_THRESHOLD_HOURS} />
       </div>
 
       {/* Map area */}
@@ -276,13 +290,20 @@ export function TracerouteHeatmapPage({ edgeMetric }: { edgeMetric: EdgeMetric }
                 Loading heatmap data...
               </div>
             )}
-            {!error && !isLoading && <TracerouteHeatmapMap edges={edges} nodes={nodes} edgeMetric={edgeMetric} />}
+            {!error && !isLoading && (
+              <TracerouteHeatmapMap
+                edges={edges}
+                nodes={nodes}
+                edgeMetric={edgeMetric}
+                staleThresholdHours={HEATMAP_STALE_THRESHOLD_HOURS}
+              />
+            )}
           </CardContent>
         </Card>
 
         {/* Stats overlay on desktop */}
         <div className="absolute right-4 top-4 z-10 hidden md:block">
-          <NetworkStatsCard meta={meta} className="w-56" />
+          <NetworkStatsCard meta={meta} staleThresholdHours={HEATMAP_STALE_THRESHOLD_HOURS} className="w-64" />
         </div>
       </div>
     </div>

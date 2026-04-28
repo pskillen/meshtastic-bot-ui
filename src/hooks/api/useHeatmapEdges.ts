@@ -12,6 +12,8 @@ export interface HeatmapEdge {
   avg_snr?: number;
 }
 
+export type HeatmapNodeRole = 'backbone' | 'relay' | 'leaf' | 'offline';
+
 export interface HeatmapNode {
   node_id: number;
   node_id_str: string;
@@ -19,6 +21,14 @@ export interface HeatmapNode {
   lng: number;
   short_name?: string;
   long_name?: string;
+  /** Normalised betweenness centrality (0–1), when provided by API */
+  centrality?: number;
+  /** Distinct neighbours in the heatmap subgraph */
+  degree?: number;
+  /** ISO 8601 from ObservedNode last_heard */
+  last_seen?: string | null;
+  /** Server-derived role (~24h offline cutoff) */
+  role?: HeatmapNodeRole;
 }
 
 export interface HeatmapEdgesData {

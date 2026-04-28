@@ -99,13 +99,13 @@ describe('TracerouteHeatmapMap', () => {
     );
 
     expect(layerIds(lastCapture().layers)).toEqual(
-      expect.arrayContaining(['heatmap-arcs-packets', 'heatmap-nodes', 'heatmap-node-labels'])
+      expect.arrayContaining(['heatmap-arcs-packets', 'heatmap-nodes'])
     );
 
     fireEvent.click(screen.getByTestId('mock-pick-node'));
 
     expect(layerIds(lastCapture().layers)).toEqual(
-      expect.arrayContaining(['heatmap-arcs-packets', 'heatmap-nodes', 'heatmap-node-labels'])
+      expect.arrayContaining(['heatmap-arcs-packets', 'heatmap-nodes'])
     );
   });
 
@@ -126,6 +126,5 @@ describe('TracerouteHeatmapMap', () => {
 
     expect(lastCapture().layers.some((l) => l.id === 'heatmap-arcs-snr')).toBe(true);
     expect(lastCapture().layers.some((l) => l.id === 'heatmap-nodes')).toBe(true);
-    expect(lastCapture().layers.some((l) => l.id === 'heatmap-node-labels')).toBe(true);
   });
 });

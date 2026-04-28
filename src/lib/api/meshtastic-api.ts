@@ -869,6 +869,10 @@ export class MeshtasticApi extends BaseApi {
       lng: number;
       short_name?: string;
       long_name?: string;
+      centrality?: number;
+      degree?: number;
+      last_seen?: string | null;
+      role?: 'backbone' | 'relay' | 'leaf' | 'offline';
     }>;
     meta: {
       active_nodes_count: number;

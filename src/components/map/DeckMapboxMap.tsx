@@ -17,6 +17,8 @@ export type DeckMapboxMapProps = {
   layers: Layer[];
   initialViewState: DeckMapboxInitialViewState;
   onClick?: (info: PickingInfo) => void;
+  /** Fires on pan/zoom; use for zoom-dependent overlays (e.g. labels). */
+  onViewStateChange?: DeckGLProps['onViewStateChange'];
   getTooltip?: DeckGLProps['getTooltip'];
   children?: ReactNode;
   className?: string;
@@ -32,6 +34,7 @@ export function DeckMapboxMap({
   layers,
   initialViewState,
   onClick,
+  onViewStateChange,
   getTooltip,
   children,
   className,
@@ -56,6 +59,7 @@ export function DeckMapboxMap({
         layers={layers}
         initialViewState={initialViewState}
         onClick={onClick}
+        onViewStateChange={onViewStateChange}
         getTooltip={getTooltip}
         style={{ width: '100%', height: '100%', minHeight: '200px', minWidth: '0' }}
       >

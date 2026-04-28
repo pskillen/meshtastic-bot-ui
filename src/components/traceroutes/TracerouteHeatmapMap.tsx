@@ -2,6 +2,7 @@ import { useMemo, useState, useCallback } from 'react';
 import { Popup } from 'react-map-gl';
 import { ArcLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
 import type { PickingInfo } from '@deck.gl/core';
+import { formatDistanceToNow, parseISO } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
 import type { HeatmapEdge, HeatmapNode } from '@/hooks/api/useHeatmapEdges';
@@ -9,6 +10,9 @@ import type { HeatmapEdge, HeatmapNode } from '@/hooks/api/useHeatmapEdges';
 import { DeckMapboxMap } from '@/components/map/DeckMapboxMap';
 
 const DEFAULT_CENTER = { longitude: -4.2518, latitude: 55.8642, zoom: 8 };
+/** Hide name labels when zoomed out past this level (deck.gl zoom). */
+const HEATMAP_LABEL_MIN_ZOOM = 9.5;
+
 const NODE_COLOR: [number, number, number, number] = [134, 239, 172, 200]; // light green
 // Packets: quiet = blue, busy = orange
 const PACKETS_QUIET_COLOR: [number, number, number, number] = [59, 130, 246, 200]; // blue
@@ -16,6 +20,9 @@ const PACKETS_BUSY_COLOR: [number, number, number, number] = [249, 115, 22, 200]
 // Link quality (SNR): unhealthy = red, healthy = green
 const SNR_BAD_COLOR: [number, number, number, number] = [239, 68, 68, 200]; // red
 const SNR_GOOD_COLOR: [number, number, number, number] = [34, 197, 94, 200]; // green
+
+/** Default hours without mesh observation before nodes fade (client-side styling). */
+const DEFAULT_STALE_THRESHOLD_HOURS = 6;
 
 function interpolatePacketsColor(weight: number, minW: number, maxW: number): [number, number, number, number] {
   if (maxW <= minW) return PACKETS_QUIET_COLOR;
@@ -35,11 +42,97 @@ function interpolateSnrColor(snr: number, minS: number, maxS: number): [number, 
   return [r, g, b, 200];
 }
 
+function numericExtent(values: number[]): { min: number; max: number } {
+  if (values.length === 0) return { min: 0, max: 1 };
+  let min = values[0];
+  let max = values[0];
+  for (const v of values) {
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  if (max <= min) return { min, max: min + 1e-9 };
+  return { min, max };
+}
+
+/** Client-side stale window (hours); fades nodes not heard within this window. */
+function staleThresholdMs(hours: number): number {
+  return hours * 60 * 60 * 1000;
+}
+
+function isVisuallyStale(node: HeatmapNode, nowMs: number, staleMs: number): boolean {
+  if (node.role === 'offline') return true;
+  if (!node.last_seen) return true;
+  const t = Date.parse(node.last_seen);
+  if (Number.isNaN(t)) return true;
+  return nowMs - t > staleMs;
+}
+
+/** Fill alpha by age within stale window (recent → opaque). */
+function recencyAlpha(node: HeatmapNode, nowMs: number, staleMs: number): number {
+  if (!node.last_seen) return 95;
+  const t = Date.parse(node.last_seen);
+  if (Number.isNaN(t)) return 95;
+  const age = nowMs - t;
+  if (age >= staleMs) return 88;
+  const u = age / staleMs;
+  return Math.round(255 - u * (255 - 155));
+}
+
+function degreeFillColor(
+  node: HeatmapNode,
+  degMin: number,
+  degMax: number,
+  nowMs: number,
+  staleMs: number
+): [number, number, number, number] {
+  const grey: [number, number, number] = [148, 163, 184];
+  if (isVisuallyStale(node, nowMs, staleMs)) {
+    return [...grey, 100];
+  }
+  const t = degMax > degMin ? ((node.degree ?? 0) - degMin) / (degMax - degMin) : 0.5;
+  const r = Math.round(59 + (249 - 59) * t);
+  const g = Math.round(130 + (115 - 130) * t);
+  const b = Math.round(246 + (22 - 246) * t);
+  const alpha = recencyAlpha(node, nowMs, staleMs);
+  return [r, g, b, alpha];
+}
+
+function nodeRadiusMeters(centrality: number | undefined, cMin: number, cMax: number): number {
+  if (centrality == null) return 380;
+  if (cMax <= cMin) return 380;
+  const u = (centrality - cMin) / (cMax - cMin);
+  return 140 + u * 760;
+}
+
+function nodeLineWidth(node: HeatmapNode, degMin: number, degMax: number): number {
+  const t = degMax > degMin ? ((node.degree ?? 0) - degMin) / (degMax - degMin) : 0;
+  let w = 1 + t * 6;
+  if (node.role === 'backbone') w += 2.5;
+  if (node.role === 'offline') w = Math.min(w, 1);
+  return w;
+}
+
+function nodeLineColor(fill: [number, number, number, number]): [number, number, number, number] {
+  const [r, g, b, a] = fill;
+  return [Math.round(r * 0.35), Math.round(g * 0.38), Math.round(b * 0.42), Math.min(255, a + 35)];
+}
+
+function formatRecency(iso: string | null | undefined): string {
+  if (!iso) return 'No recent mesh observation';
+  try {
+    return formatDistanceToNow(parseISO(iso), { addSuffix: true });
+  } catch {
+    return iso;
+  }
+}
+
 export interface TracerouteHeatmapMapProps {
   edges: HeatmapEdge[];
   nodes: HeatmapNode[];
   intensity?: number;
   edgeMetric?: 'packets' | 'snr';
+  /** Hours without last_seen before treating as stale for styling (default 6). */
+  staleThresholdHours?: number;
 }
 
 function getNodeLabel(node: HeatmapNode): string {
@@ -51,8 +144,21 @@ export function TracerouteHeatmapMap({
   nodes,
   intensity = 0.7,
   edgeMetric = 'packets',
+  staleThresholdHours = DEFAULT_STALE_THRESHOLD_HOURS,
 }: TracerouteHeatmapMapProps) {
   const [selectedNode, setSelectedNode] = useState<HeatmapNode | null>(null);
+  const [zoom, setZoom] = useState<number>(typeof DEFAULT_CENTER.zoom === 'number' ? DEFAULT_CENTER.zoom : 8);
+
+  const staleMs = staleThresholdMs(staleThresholdHours);
+
+  const nodeMetrics = useMemo(() => {
+    const hasSignal = nodes.some((n) => n.centrality != null && n.degree != null);
+    const centralities = nodes.map((n) => n.centrality).filter((c): c is number => c != null && !Number.isNaN(c));
+    const degrees = nodes.map((n) => n.degree).filter((d): d is number => d != null && !Number.isNaN(d));
+    const cExt = numericExtent(centralities.length ? centralities : [0, 1]);
+    const dExt = numericExtent(degrees.length ? degrees : [0, 1]);
+    return { cExt, dExt, hasSignal };
+  }, [nodes]);
 
   const handleClick = useCallback((info: PickingInfo) => {
     if (info.object && (info.layer?.id === 'heatmap-nodes' || info.layer?.id === 'heatmap-node-labels')) {
@@ -60,6 +166,11 @@ export function TracerouteHeatmapMap({
     } else {
       setSelectedNode(null);
     }
+  }, []);
+
+  const handleViewStateChange = useCallback((params: { viewState: { zoom?: number } }) => {
+    const z = params.viewState?.zoom;
+    if (typeof z === 'number' && !Number.isNaN(z)) setZoom(z);
   }, []);
 
   const arcLayer = useMemo(() => {
@@ -99,20 +210,36 @@ export function TracerouteHeatmapMap({
 
   const scatterLayer = useMemo(() => {
     if (nodes.length === 0) return null;
+    const nowMs = Date.now();
+    const { cExt, dExt, hasSignal } = nodeMetrics;
+
     return new ScatterplotLayer({
       id: 'heatmap-nodes',
       data: nodes,
       getPosition: (d) => [d.lng, d.lat],
-      getFillColor: () => NODE_COLOR,
-      getRadius: 100,
-      radiusMinPixels: 3,
-      radiusMaxPixels: 8,
+      getFillColor: (d) => (hasSignal ? degreeFillColor(d, dExt.min, dExt.max, nowMs, staleMs) : NODE_COLOR),
+      getRadius: (d) => (hasSignal ? nodeRadiusMeters(d.centrality, cExt.min, cExt.max) : 380),
+      radiusMinPixels: 4,
+      radiusMaxPixels: 22,
+      stroked: true,
+      lineWidthUnits: 'pixels',
+      getLineWidth: (d) => (hasSignal ? nodeLineWidth(d, dExt.min, dExt.max) : 1),
+      lineWidthMinPixels: 0.5,
+      lineWidthMaxPixels: 8,
+      getLineColor: (d) =>
+        hasSignal ? nodeLineColor(degreeFillColor(d, dExt.min, dExt.max, nowMs, staleMs)) : [30, 60, 40, 180],
       pickable: true,
+      updateTriggers: {
+        getFillColor: [nowMs, staleMs, hasSignal, dExt.min, dExt.max, cExt.min, cExt.max],
+        getRadius: [hasSignal, cExt.min, cExt.max],
+        getLineWidth: [hasSignal, dExt.min, dExt.max],
+        getLineColor: [nowMs, staleMs, hasSignal, dExt.min, dExt.max],
+      },
     });
-  }, [nodes]);
+  }, [nodes, nodeMetrics, staleMs]);
 
   const textLayer = useMemo(() => {
-    if (nodes.length === 0) return null;
+    if (nodes.length === 0 || zoom < HEATMAP_LABEL_MIN_ZOOM) return null;
     return new TextLayer({
       id: 'heatmap-node-labels',
       data: nodes,
@@ -130,7 +257,7 @@ export function TracerouteHeatmapMap({
       backgroundBorderRadius: 2,
       pickable: true,
     });
-  }, [nodes]);
+  }, [nodes, zoom]);
 
   const layers = useMemo(
     () => [arcLayer, scatterLayer, textLayer].filter(Boolean) as (ArcLayer | ScatterplotLayer | TextLayer)[],
@@ -142,6 +269,7 @@ export function TracerouteHeatmapMap({
       layers={layers}
       initialViewState={DEFAULT_CENTER}
       onClick={handleClick}
+      onViewStateChange={handleViewStateChange}
       data-testid="heatmap-map-container"
     >
       {selectedNode && (
@@ -172,6 +300,31 @@ export function TracerouteHeatmapMap({
               </div>
               <div className="mt-0.5 text-xs text-slate-400">
                 {selectedNode.node_id_str || `!${selectedNode.node_id.toString(16)}`}
+              </div>
+              {(selectedNode.centrality != null || selectedNode.degree != null) && (
+                <dl className="mt-2 space-y-0.5 text-xs text-slate-300">
+                  {selectedNode.centrality != null && (
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-slate-500">Centrality</dt>
+                      <dd>{(selectedNode.centrality * 100).toFixed(1)}%</dd>
+                    </div>
+                  )}
+                  {selectedNode.degree != null && (
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-slate-500">Degree</dt>
+                      <dd>{selectedNode.degree}</dd>
+                    </div>
+                  )}
+                  {selectedNode.role && (
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-slate-500">Role</dt>
+                      <dd className="capitalize">{selectedNode.role}</dd>
+                    </div>
+                  )}
+                </dl>
+              )}
+              <div className="mt-1.5 text-xs text-slate-400">
+                Last seen: <span className="text-slate-300">{formatRecency(selectedNode.last_seen)}</span>
               </div>
               <Link
                 to={`/nodes/${selectedNode.node_id}`}
