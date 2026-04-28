@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useHeatmapEdges } from '@/hooks/api/useHeatmapEdges';
 import { useManagedNodesSuspense } from '@/hooks/api/useNodes';
 import { TracerouteHeatmapMap } from '@/components/traceroutes/TracerouteHeatmapMap';
+import { TracerouteHeatmapBackboneRelayTable } from '@/components/traceroutes/TracerouteHeatmapBackboneRelayTable';
 import {
   NetworkStatsCard,
   TracerouteHeatmapChrome,
@@ -143,6 +144,8 @@ export function TracerouteHeatmapPage({ edgeMetric }: { edgeMetric: EdgeMetric }
           <NetworkStatsCard meta={meta} staleThresholdHours={HEATMAP_STALE_THRESHOLD_HOURS} className="w-64" />
         </div>
       </div>
+
+      {!error && !isLoading && <TracerouteHeatmapBackboneRelayTable nodes={nodes} />}
     </div>
   );
 }
