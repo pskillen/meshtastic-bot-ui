@@ -11,6 +11,22 @@ function byCentralityDesc(a: HeatmapNode, b: HeatmapNode): number {
 
 const SCROLL_AREA_HEIGHT = 'h-56'; /* 14rem; fixed so both panels align */
 
+function MetricsColumnDescriptions() {
+  return (
+    <div className="text-muted-foreground mb-4 space-y-1.5 text-sm leading-snug">
+      <p>
+        <span className="text-foreground font-medium">Centrality</span> — Normalised betweenness for this filtered
+        graph, shown as 0–100%. Higher values mean more shortest traceroute paths between other nodes pass through this
+        node.
+      </p>
+      <p>
+        <span className="text-foreground font-medium">Degree</span> — Number of distinct neighbours (other nodes linked
+        by at least one edge) in this filtered graph.
+      </p>
+    </div>
+  );
+}
+
 function RoleNodeTable({ nodes }: { nodes: HeatmapNode[] }) {
   if (nodes.length === 0) {
     return (
@@ -58,8 +74,16 @@ export function TracerouteHeatmapBackboneRelayTable({ nodes }: { nodes: HeatmapN
       <Card data-testid="heatmap-backbone-relay-table">
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Backbone and relay nodes</CardTitle>
-          <CardDescription>No backbone or relay nodes in this graph for the current filters.</CardDescription>
+          <CardDescription>
+            Nodes classified from mesh topology (betweenness and degree). Same roles as on the map and topology views.
+          </CardDescription>
         </CardHeader>
+        <CardContent className="px-2 pb-4 pt-0 sm:px-6">
+          <MetricsColumnDescriptions />
+          <p className="text-muted-foreground text-sm">
+            No backbone or relay nodes in this graph for the current filters.
+          </p>
+        </CardContent>
       </Card>
     );
   }
@@ -69,10 +93,11 @@ export function TracerouteHeatmapBackboneRelayTable({ nodes }: { nodes: HeatmapN
       <CardHeader className="pb-2">
         <CardTitle className="text-base">Backbone and relay nodes</CardTitle>
         <CardDescription>
-          Nodes classified from mesh topology (betweenness and degree). Same roles as on the map.
+          Nodes classified from mesh topology (betweenness and degree). Same roles as on the map and topology views.
         </CardDescription>
       </CardHeader>
       <CardContent className="px-2 pb-4 pt-0 sm:px-6">
+        <MetricsColumnDescriptions />
         <div className="grid gap-6 md:grid-cols-2">
           <section data-testid="heatmap-backbone-list">
             <h3 className="text-foreground mb-2 text-sm font-semibold tracking-tight">Backbone</h3>

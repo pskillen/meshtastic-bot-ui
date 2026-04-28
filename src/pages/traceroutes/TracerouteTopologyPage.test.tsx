@@ -30,6 +30,7 @@ const sampleNode = {
   lng: -4.2,
   degree: 2,
   centrality: 0.5,
+  role: 'relay' as const,
   last_seen: '2026-01-10T12:00:00.000Z',
 };
 
@@ -86,5 +87,11 @@ describe('TracerouteTopologyPage URL → API', () => {
     renderPage(`/traceroutes/map/topology/heat?selected=${sampleNode.node_id}`);
     expect(screen.getByTestId('topology-node-panel')).toBeInTheDocument();
     expect(screen.getByText('Open details')).toBeInTheDocument();
+  });
+
+  it('renders backbone and relay table below the graph', () => {
+    renderPage('/traceroutes/map/topology/heat');
+    expect(screen.getByTestId('heatmap-backbone-relay-table')).toBeInTheDocument();
+    expect(screen.getByText(/Normalised betweenness/)).toBeInTheDocument();
   });
 });

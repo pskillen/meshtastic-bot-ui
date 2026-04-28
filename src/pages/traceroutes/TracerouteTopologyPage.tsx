@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useHeatmapEdges } from '@/hooks/api/useHeatmapEdges';
 import { useManagedNodesSuspense } from '@/hooks/api/useNodes';
 import { TracerouteTopologyGraph } from '@/components/traceroutes/TracerouteTopologyGraph';
+import { TracerouteHeatmapBackboneRelayTable } from '@/components/traceroutes/TracerouteHeatmapBackboneRelayTable';
 import { TracerouteHeatmapChrome, type EdgeMetric } from '@/components/traceroutes/TracerouteHeatmapChrome';
 import { TracerouteHeatmapNodePanel } from '@/components/traceroutes/TracerouteHeatmapNodePanel';
 import type { HeatmapNode } from '@/hooks/api/useHeatmapEdges';
@@ -140,6 +141,8 @@ export function TracerouteTopologyPage({ edgeMetric }: { edgeMetric: EdgeMetric 
           </div>
         )}
       </div>
+
+      {!error && !isLoading && <TracerouteHeatmapBackboneRelayTable nodes={nodes} />}
     </div>
   );
 }
