@@ -1,5 +1,6 @@
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useState, type ComponentProps } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import type { HeatmapEdge, HeatmapNode } from '@/hooks/api/useHeatmapEdges';
@@ -86,6 +87,13 @@ function lastCapture() {
   return mapboxCaptures[mapboxCaptures.length - 1];
 }
 
+function Harness(
+  props: Omit<ComponentProps<typeof TracerouteHeatmapMap>, 'selectedNode' | 'onSelectedNodeChange'>
+) {
+  const [selected, setSelected] = useState<HeatmapNode | null>(null);
+  return <TracerouteHeatmapMap {...props} selectedNode={selected} onSelectedNodeChange={setSelected} />;
+}
+
 describe('TracerouteHeatmapMap', () => {
   beforeEach(() => {
     mapboxCaptures.length = 0;
@@ -94,7 +102,7 @@ describe('TracerouteHeatmapMap', () => {
   it('keeps arc layers after popup selection state (mock click / onClick)', () => {
     render(
       <MemoryRouter>
-        <TracerouteHeatmapMap edges={[edge]} nodes={[nodeA, nodeB]} edgeMetric="packets" />
+        <Harness edges={[edge]} nodes={[nodeA, nodeB]} edgeMetric="packets" />
       </MemoryRouter>
     );
 
@@ -112,7 +120,7 @@ describe('TracerouteHeatmapMap', () => {
   it('swaps arc layer id when edgeMetric changes but keeps node layers', () => {
     const { rerender } = render(
       <MemoryRouter>
-        <TracerouteHeatmapMap edges={[edge]} nodes={[nodeA, nodeB]} edgeMetric="packets" />
+        <Harness edges={[edge]} nodes={[nodeA, nodeB]} edgeMetric="packets" />
       </MemoryRouter>
     );
 
@@ -120,7 +128,7 @@ describe('TracerouteHeatmapMap', () => {
 
     rerender(
       <MemoryRouter>
-        <TracerouteHeatmapMap edges={[edge]} nodes={[nodeA, nodeB]} edgeMetric="snr" />
+        <Harness edges={[edge]} nodes={[nodeA, nodeB]} edgeMetric="snr" />
       </MemoryRouter>
     );
 

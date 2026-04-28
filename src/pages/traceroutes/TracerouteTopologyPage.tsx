@@ -4,12 +4,13 @@ import { subHours, subDays } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
 import { useHeatmapEdges } from '@/hooks/api/useHeatmapEdges';
 import { useManagedNodesSuspense } from '@/hooks/api/useNodes';
-import { TracerouteHeatmapMap } from '@/components/traceroutes/TracerouteHeatmapMap';
+import { TracerouteTopologyGraph } from '@/components/traceroutes/TracerouteTopologyGraph';
 import {
   NetworkStatsCard,
   TracerouteHeatmapChrome,
   type EdgeMetric,
 } from '@/components/traceroutes/TracerouteHeatmapChrome';
+import { TracerouteHeatmapNodePanel } from '@/components/traceroutes/TracerouteHeatmapNodePanel';
 import type { HeatmapNode } from '@/hooks/api/useHeatmapEdges';
 import type { TracerouteStrategyValue } from '@/lib/traceroute-strategy';
 
@@ -31,10 +32,9 @@ function parseSourceParam(raw: string | null): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** Client-side stale styling threshold (hours without mesh observation). */
 const HEATMAP_STALE_THRESHOLD_HOURS = 6;
 
-export function TracerouteHeatmapPage({ edgeMetric }: { edgeMetric: EdgeMetric }) {
+export function TracerouteTopologyPage({ edgeMetric }: { edgeMetric: EdgeMetric }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [timeRange, setTimeRange] = useState<TimeRange>('7d');
 
@@ -88,15 +88,15 @@ export function TracerouteHeatmapPage({ edgeMetric }: { edgeMetric: EdgeMetric }
   }, [nodes, selectedNodeId, updateParams]);
 
   const searchSuffix = searchParams.toString() ? `?${searchParams.toString()}` : '';
-  const topologyLink = {
-    to: `${edgeMetric === 'packets' ? '/traceroutes/map/topology/heat' : '/traceroutes/map/topology/snr'}${searchSuffix}`,
-    label: 'Topology view',
+  const mapLink = {
+    to: `/traceroutes/map/${edgeMetric === 'packets' ? 'heat' : 'snr'}${searchSuffix}`,
+    label: 'Map view',
   };
 
   return (
     <div className="flex min-h-[50vh] flex-col gap-4 px-4 py-4 md:px-6 md:py-6">
       <TracerouteHeatmapChrome
-        viewMode="map"
+        viewMode="topology"
         edgeMetric={edgeMetric}
         searchSuffix={searchSuffix}
         timeRange={timeRange}
@@ -112,9 +112,9 @@ export function TracerouteHeatmapPage({ edgeMetric }: { edgeMetric: EdgeMetric }
         <NetworkStatsCard meta={meta} staleThresholdHours={HEATMAP_STALE_THRESHOLD_HOURS} />
       </div>
 
-      <div className="relative flex-1 min-h-[300px] md:min-h-[calc(100dvh-16rem)]" data-testid="heatmap-map">
-        <Card className="h-full min-h-[300px]">
-          <CardContent className="h-full p-0">
+      <div className="relative flex min-h-[300px] flex-1 flex-col gap-4 md:min-h-[calc(100dvh-16rem)] md:flex-row">
+        <Card className="relative min-h-[300px] flex-1 overflow-hidden md:min-h-[calc(100dvh-16rem)]">
+          <CardContent className="h-full min-h-[300px] p-0">
             {error && (
               <div className="flex h-full min-h-[300px] items-center justify-center text-destructive">
                 Failed to load heatmap: {error instanceof Error ? error.message : 'Unknown error'}
@@ -126,18 +126,28 @@ export function TracerouteHeatmapPage({ edgeMetric }: { edgeMetric: EdgeMetric }
               </div>
             )}
             {!error && !isLoading && (
-              <TracerouteHeatmapMap
+              <TracerouteTopologyGraph
                 edges={edges}
                 nodes={nodes}
                 edgeMetric={edgeMetric}
                 staleThresholdHours={HEATMAP_STALE_THRESHOLD_HOURS}
-                selectedNode={selectedNode}
+                selectedNodeId={selectedNodeId}
                 onSelectedNodeChange={(node) => updateParams({ selected: node ? String(node.node_id) : null })}
-                topologyLink={topologyLink}
               />
             )}
           </CardContent>
         </Card>
+
+        {selectedNode && !error && !isLoading && (
+          <div className="shrink-0 md:w-80" data-testid="topology-node-panel">
+            <TracerouteHeatmapNodePanel
+              node={selectedNode}
+              onClose={() => updateParams({ selected: null })}
+              secondaryLink={mapLink}
+              className="relative min-w-[120px] rounded-md border border-border bg-card px-3 py-2 text-sm text-card-foreground shadow-sm"
+            />
+          </div>
+        )}
 
         <div className="absolute right-4 top-4 z-10 hidden md:block">
           <NetworkStatsCard meta={meta} staleThresholdHours={HEATMAP_STALE_THRESHOLD_HOURS} className="w-64" />

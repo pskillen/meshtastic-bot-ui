@@ -84,6 +84,7 @@ export function NavMain() {
       icon: RouteIcon,
       children: [
         { title: 'Heatmap', url: '/traceroutes/map/heat', icon: MapIcon },
+        { title: 'Topology', url: '/traceroutes/map/topology/heat', icon: NetworkIcon },
         { title: 'Link quality', url: '/traceroutes/map/snr', icon: SignalIcon },
         { title: 'Coverage by node', url: '/traceroutes/map/coverage', icon: CircleDashedIcon },
         {
