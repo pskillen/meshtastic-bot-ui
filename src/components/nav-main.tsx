@@ -11,7 +11,7 @@ import {
   RouteIcon,
   ScanSearchIcon,
   ServerIcon,
-  SignalIcon,
+  Share2,
   type LucideIcon,
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -50,6 +50,21 @@ function isPathActive(pathname: string, url: string, exact: boolean) {
   return pathname === url || pathname.startsWith(`${url}/`);
 }
 
+function navSubItemActive(pathname: string, childUrl: string): boolean {
+  switch (childUrl) {
+    case '/traceroutes/map/heat':
+      return pathname === '/traceroutes/map/heat' || pathname === '/traceroutes/map/snr';
+    case '/traceroutes/map/topology/heat':
+      return pathname.startsWith('/traceroutes/map/topology');
+    case '/traceroutes/map/coverage':
+      return pathname === '/traceroutes/map/coverage';
+    case '/traceroutes/map/coverage/constellation':
+      return pathname.startsWith('/traceroutes/map/coverage/constellation');
+    default:
+      return pathname === childUrl || pathname.startsWith(`${childUrl}/`);
+  }
+}
+
 export function NavMain() {
   const { hasUnreadMessages, unreadMessages, markAllAsRead } = useWebSocket();
   const navigate = useNavigate();
@@ -84,8 +99,7 @@ export function NavMain() {
       icon: RouteIcon,
       children: [
         { title: 'Heatmap', url: '/traceroutes/map/heat', icon: MapIcon },
-        { title: 'Topology', url: '/traceroutes/map/topology/heat', icon: NetworkIcon },
-        { title: 'Link quality', url: '/traceroutes/map/snr', icon: SignalIcon },
+        { title: 'Topology', url: '/traceroutes/map/topology/heat', icon: Share2 },
         { title: 'Coverage by node', url: '/traceroutes/map/coverage', icon: CircleDashedIcon },
         {
           title: 'Constellation coverage',
@@ -130,7 +144,7 @@ export function NavMain() {
                   <SidebarMenuSub>
                     {item.children.map((child) => {
                       const ChildIcon = child.icon;
-                      const childIsActive = isPathActive(pathname, child.url, true);
+                      const childIsActive = navSubItemActive(pathname, child.url);
                       return (
                         <SidebarMenuSubItem key={child.title}>
                           <SidebarMenuSubButton asChild isActive={childIsActive}>

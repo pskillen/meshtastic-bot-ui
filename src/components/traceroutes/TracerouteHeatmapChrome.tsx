@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -12,8 +12,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { ManagedNode } from '@/lib/models';
 import { RouteIcon, ChevronDown, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { TRACEROUTE_STRATEGIES, type TracerouteStrategyValue } from '@/lib/traceroute-strategy';
+
+const MESH_VIEW_OPTIONS = [
+  { value: 'map-packets', label: 'Heatmap · Packet volume', path: '/traceroutes/map/heat' },
+  { value: 'map-snr', label: 'Heatmap · Link quality (SNR)', path: '/traceroutes/map/snr' },
+  { value: 'topology-packets', label: 'Topology · Packet volume', path: '/traceroutes/map/topology/heat' },
+  { value: 'topology-snr', label: 'Topology · Link quality (SNR)', path: '/traceroutes/map/topology/snr' },
+] as const;
 
 export type HeatmapViewMode = 'map' | 'topology';
 
@@ -129,68 +135,35 @@ export function TracerouteHeatmapChrome({
   hasGeoFilters,
   onUpdateParams,
 }: TracerouteHeatmapChromeProps) {
-  const mapPacketsPath = '/traceroutes/map/heat';
-  const mapSnrPath = '/traceroutes/map/snr';
-  const topoPacketsPath = '/traceroutes/map/topology/heat';
-  const topoSnrPath = '/traceroutes/map/topology/snr';
-  const mapPathForMetric = edgeMetric === 'packets' ? mapPacketsPath : mapSnrPath;
-  const topoPathForMetric = edgeMetric === 'packets' ? topoPacketsPath : topoSnrPath;
+  const navigate = useNavigate();
+  const meshViewValue = `${viewMode}-${edgeMetric}`;
 
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-2">
         <RouteIcon className="h-6 w-6" />
-        <h1 className="text-xl font-semibold sm:text-2xl">Traceroute Heatmap</h1>
+        <h1 className="text-xl font-semibold sm:text-2xl">Traceroute mesh</h1>
       </div>
       <div className="flex flex-wrap items-center gap-4" data-testid="heatmap-filters">
-        <div className="flex flex-wrap gap-2 rounded-md border border-input bg-muted/50 p-0.5">
-          <Link
-            to={`${mapPathForMetric}${searchSuffix}`}
-            className={cn(
-              'rounded px-3 py-1.5 text-sm font-medium transition-colors',
-              viewMode === 'map'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
+        <div className="w-full min-w-[min(100%,280px)] sm:w-auto sm:min-w-[280px]">
+          <Select
+            value={meshViewValue}
+            onValueChange={(v) => {
+              const opt = MESH_VIEW_OPTIONS.find((o) => o.value === v);
+              if (opt) navigate(`${opt.path}${searchSuffix}`);
+            }}
           >
-            Map
-          </Link>
-          <Link
-            to={`${topoPathForMetric}${searchSuffix}`}
-            className={cn(
-              'rounded px-3 py-1.5 text-sm font-medium transition-colors',
-              viewMode === 'topology'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            Topology
-          </Link>
-        </div>
-
-        <div className="flex rounded-md border border-input bg-muted/50 p-0.5">
-          <Link
-            to={`${viewMode === 'topology' ? topoPacketsPath : mapPacketsPath}${searchSuffix}`}
-            className={cn(
-              'rounded px-3 py-1.5 text-sm font-medium transition-colors',
-              edgeMetric === 'packets'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            Packets
-          </Link>
-          <Link
-            to={`${viewMode === 'topology' ? topoSnrPath : mapSnrPath}${searchSuffix}`}
-            className={cn(
-              'rounded px-3 py-1.5 text-sm font-medium transition-colors',
-              edgeMetric === 'snr'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            Link quality (SNR)
-          </Link>
+            <SelectTrigger data-testid="heatmap-mesh-view-select" aria-label="Mesh visualization">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MESH_VIEW_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="w-full sm:w-auto sm:min-w-[180px]">
