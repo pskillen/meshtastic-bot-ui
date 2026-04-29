@@ -46,6 +46,72 @@ export function getLowBatteryRowFlags(node: ObservedNode, now: Date = new Date()
   return { isZeroPercent, showLowBatteryBadge, showStaleBatteryBadge };
 }
 
+/** Row matches the “no battery telemetry” bucket (no device metrics or no reported_time). */
+export function matchesLowBatteryNoTelemetryRow(node: ObservedNode): boolean {
+  const m = node.latest_device_metrics;
+  const reportedAt = getBatteryMetricsReportedAt(node);
+  return !(m && reportedAt);
+}
+
+/** Row matches the “always 0%” bucket (usable metrics, level 0). */
+export function matchesLowBatteryZeroPercentRow(node: ObservedNode, now: Date = new Date()): boolean {
+  return getLowBatteryRowFlags(node, now).isZeroPercent;
+}
+
+/** Row matches the “stale reading” bucket (usable telemetry older than STALE_BATTERY_TELEMETRY_DAYS). */
+export function matchesLowBatteryStaleReadingRow(node: ObservedNode, now: Date = new Date()): boolean {
+  if (matchesLowBatteryNoTelemetryRow(node)) return false;
+  return isBatteryTelemetryStale(node, now);
+}
+
+export type LowBatteryTableFilters = {
+  showStaleReadings: boolean;
+  showZeroPercent: boolean;
+  showNoTelemetry: boolean;
+};
+
+/**
+ * Whether a low-battery table row should be shown given pill filters (all default off = hide that bucket).
+ * Rows matching multiple buckets are hidden if any of those buckets is filtered off.
+ */
+export function isLowBatteryTableRowVisible(
+  node: ObservedNode,
+  filters: LowBatteryTableFilters,
+  now: Date = new Date()
+): boolean {
+  if (matchesLowBatteryNoTelemetryRow(node) && !filters.showNoTelemetry) return false;
+  if (matchesLowBatteryZeroPercentRow(node, now) && !filters.showZeroPercent) return false;
+  if (matchesLowBatteryStaleReadingRow(node, now) && !filters.showStaleReadings) return false;
+  return true;
+}
+
+/**
+ * Map pin alert halo on Mesh Infra: offline, mesh battery alert, missing battery telemetry, 0%, or low %.
+ * Does **not** treat “reading is old but % still looks fine” as an alert (stale-only).
+ */
+export function hasMeshInfraMapBatteryOrPresenceAlert(node: ObservedNode, now: Date = new Date()): boolean {
+  const cutoff = subDays(now, 7);
+  const lastHeard = node.last_heard
+    ? node.last_heard instanceof Date
+      ? node.last_heard
+      : new Date(node.last_heard)
+    : null;
+  const isOffline = !lastHeard || lastHeard < cutoff;
+  if (isOffline) return true;
+  if (node.battery_alert_active) return true;
+
+  const m = node.latest_device_metrics;
+  const reportedAt = getBatteryMetricsReportedAt(node);
+  const hasUsableMetrics = Boolean(m && reportedAt);
+  if (!hasUsableMetrics) return true;
+
+  const level = m!.battery_level;
+  if (level === 0) return true;
+  if (level != null && level < LOW_BATTERY_THRESHOLD_PERCENT) return true;
+
+  return false;
+}
+
 function lastHeardTime(node: ObservedNode): number {
   if (!node.last_heard) return 0;
   return node.last_heard instanceof Date ? node.last_heard.getTime() : new Date(node.last_heard).getTime();

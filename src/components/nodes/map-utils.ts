@@ -186,7 +186,9 @@ export function createNodeIcon(
   highlighted = false,
   dimmed = false,
   opacity?: number,
-  grayscale?: number
+  grayscale?: number,
+  /** Optional outer frame for ops alerts (Mesh Infra); keeps pin fill `color`. */
+  alertRing?: 'diamond' | 'rounded-square'
 ): L.DivIcon {
   const highlightClass = highlighted ? ' marker-pin-highlighted' : '';
   const styles: string[] = [];
@@ -194,17 +196,40 @@ export function createNodeIcon(
   else if (dimmed) styles.push('opacity: 0.5');
   if (grayscale != null && grayscale > 0) styles.push(`filter: grayscale(${grayscale * 100}%)`);
   const containerStyle = styles.length > 0 ? styles.join('; ') + ';' : '';
+  const ringColor = 'rgba(234, 88, 12, 0.95)';
+  const diamondRing =
+    alertRing === 'diamond'
+      ? `<div style="position:absolute;left:50%;top:50%;width:42px;height:42px;margin:-21px 0 0 -21px;border:3px solid ${ringColor};border-radius:5px;transform:rotate(45deg);pointer-events:none;z-index:0;"></div>`
+      : '';
+  const roundedRing =
+    alertRing === 'rounded-square'
+      ? `<div style="position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border:3px solid ${ringColor};border-radius:12px;pointer-events:none;z-index:0;"></div>`
+      : '';
+  const stackOpen =
+    alertRing != null
+      ? `<div class="marker-stack" style="position:relative;width:52px;height:52px;margin:-6px 0 0 -6px;">${diamondRing}${roundedRing}`
+      : '';
+  const stackClose = alertRing != null ? '</div>' : '';
+  const innerWrap = alertRing != null ? `<div style="position:relative;z-index:1;">` : '';
+  const innerClose = alertRing != null ? '</div>' : '';
+  const iconSize: [number, number] = alertRing != null ? [52, 52] : [40, 40];
+  const iconAnchor: [number, number] = alertRing != null ? [26, 46] : [20, 40];
+  const popupY = alertRing != null ? -46 : -40;
   return L.divIcon({
     className: 'custom-node-marker',
     html: `
+      ${stackOpen}
+      ${innerWrap}
       <div class="marker-container" style="${containerStyle}">
         <div class="marker-pin${highlightClass}" style="background: ${color};"></div>
         <span class="marker-text">${text}</span>
       </div>
+      ${innerClose}
+      ${stackClose}
     `,
-    iconSize: [40, 40],
-    iconAnchor: [20, 40],
-    popupAnchor: [0, -40],
+    iconSize,
+    iconAnchor,
+    popupAnchor: [0, popupY],
   });
 }
 
