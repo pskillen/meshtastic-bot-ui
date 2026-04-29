@@ -29,7 +29,12 @@ import { Battery, MapPinOff } from 'lucide-react';
 import {
   getBatteryMetricsReportedAt,
   getLowBatteryRowFlags,
+  hasMeshInfraMapBatteryOrPresenceAlert,
+  isLowBatteryTableRowVisible,
   LOW_BATTERY_THRESHOLD_PERCENT,
+  matchesLowBatteryNoTelemetryRow,
+  matchesLowBatteryStaleReadingRow,
+  matchesLowBatteryZeroPercentRow,
   partitionMeshInfraLowBatteryTableNodes,
   STALE_BATTERY_TELEMETRY_DAYS,
 } from '@/lib/infrastructure-low-battery';
@@ -146,6 +151,50 @@ function MeshInfrastructureContent() {
 
   const lowBatteryNodesOrdered = useMemo(() => partitionMeshInfraLowBatteryTableNodes(allInfraNodes), [allInfraNodes]);
 
+  const [showStaleBatteryReadings, setShowStaleBatteryReadings] = useState(false);
+  const [showZeroPercentBattery, setShowZeroPercentBattery] = useState(false);
+  const [showNoBatteryTelemetry, setShowNoBatteryTelemetry] = useState(false);
+
+  const lowBatteryTableFilters = useMemo(
+    () => ({
+      showStaleReadings: showStaleBatteryReadings,
+      showZeroPercent: showZeroPercentBattery,
+      showNoTelemetry: showNoBatteryTelemetry,
+    }),
+    [showStaleBatteryReadings, showZeroPercentBattery, showNoBatteryTelemetry]
+  );
+
+  const visibleLowBatteryRows = useMemo(
+    () => lowBatteryNodesOrdered.filter((n) => isLowBatteryTableRowVisible(n, lowBatteryTableFilters)),
+    [lowBatteryNodesOrdered, lowBatteryTableFilters]
+  );
+
+  const lowBatteryHiddenLineCounts = useMemo(() => {
+    const hidden = lowBatteryNodesOrdered.filter((n) => !isLowBatteryTableRowVisible(n, lowBatteryTableFilters));
+    let noTelemetry = 0;
+    let zeroPercent = 0;
+    let staleReadings = 0;
+    for (const n of hidden) {
+      if (matchesLowBatteryNoTelemetryRow(n) && !lowBatteryTableFilters.showNoTelemetry) {
+        noTelemetry++;
+      } else if (matchesLowBatteryZeroPercentRow(n) && !lowBatteryTableFilters.showZeroPercent) {
+        zeroPercent++;
+      } else if (matchesLowBatteryStaleReadingRow(n) && !lowBatteryTableFilters.showStaleReadings) {
+        staleReadings++;
+      }
+    }
+    return { noTelemetry, zeroPercent, staleReadings };
+  }, [lowBatteryNodesOrdered, lowBatteryTableFilters]);
+
+  const nodeAlertRing = useMemo(() => {
+    const m = new Map<number, 'diamond' | 'rounded-square'>();
+    for (const n of allInfraNodes) {
+      if (!hasMeshInfraMapBatteryOrPresenceAlert(n)) continue;
+      m.set(n.node_id, n.node_id % 2 === 0 ? 'diamond' : 'rounded-square');
+    }
+    return m;
+  }, [allInfraNodes]);
+
   const sortedNodes = useMemo(
     () =>
       [...nodes].sort((a, b) => {
@@ -226,6 +275,7 @@ function MeshInfrastructureContent() {
                 drawPositionUncertainty={true}
                 enableBubbles={true}
                 showRoleLegendSwatches={false}
+                getNodeAlertRing={(nodeId) => nodeAlertRing.get(nodeId) ?? null}
               />
             </div>
           </CardContent>
@@ -251,7 +301,6 @@ function MeshInfrastructureContent() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Node</TableHead>
-                  <TableHead>Node ID</TableHead>
                   <TableHead>Last heard</TableHead>
                   <TableHead>Last GPS position reported</TableHead>
                   <TableHead>Owner</TableHead>
@@ -271,21 +320,23 @@ function MeshInfrastructureContent() {
                   return (
                     <TableRow key={node.internal_id}>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Link to={`/nodes/${node.node_id}`} className="font-medium text-primary hover:underline">
-                            {node.long_name} ({node.short_name || node.node_id_str})
-                          </Link>
-                          {isOffline && (
-                            <Badge
-                              variant="outline"
-                              className="text-xs border-red-500/70 text-red-700 dark:border-red-400 dark:text-red-300"
-                            >
-                              OFFLINE
-                            </Badge>
-                          )}
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-2">
+                            <Link to={`/nodes/${node.node_id}`} className="font-medium text-primary hover:underline">
+                              {node.long_name} ({node.short_name || node.node_id_str})
+                            </Link>
+                            {isOffline && (
+                              <Badge
+                                variant="outline"
+                                className="text-xs border-red-500/70 text-red-700 dark:border-red-400 dark:text-red-300"
+                              >
+                                OFFLINE
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="text-xs text-muted-foreground">{node.node_id_str}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{node.node_id_str}</TableCell>
                       <TableCell>
                         <div className="flex flex-col">
                           {node.last_heard ? (
@@ -358,21 +409,76 @@ function MeshInfrastructureContent() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Battery className="h-5 w-5" />
-              Low battery nodes ({lowBatteryNodesOrdered.length})
+              Low battery nodes (
+              {visibleLowBatteryRows.length === lowBatteryNodesOrdered.length
+                ? lowBatteryNodesOrdered.length
+                : `${visibleLowBatteryRows.length} of ${lowBatteryNodesOrdered.length}`}
+              )
             </CardTitle>
             <CardDescription>
               Includes nodes below {LOW_BATTERY_THRESHOLD_PERCENT}% battery, no battery telemetry, a reading older than{' '}
               {STALE_BATTERY_TELEMETRY_DAYS} days, or an active mesh monitoring low-battery alert. Last heard can still
               be recent while metrics are missing or stale—that is not always a problem. Rows showing 0% are often bogus
-              telemetry and are listed last.
+              telemetry and are listed last. Use the toggles to reveal stale readings, 0% rows, or nodes with no battery
+              telemetry (all off by default).
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-2 items-center">
+              <span className="text-xs uppercase tracking-wide text-muted-foreground mr-1">Show in table:</span>
+              <Button
+                type="button"
+                variant={showStaleBatteryReadings ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowStaleBatteryReadings((v) => !v)}
+              >
+                Stale battery readings
+              </Button>
+              <Button
+                type="button"
+                variant={showZeroPercentBattery ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowZeroPercentBattery((v) => !v)}
+              >
+                0% battery
+              </Button>
+              <Button
+                type="button"
+                variant={showNoBatteryTelemetry ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowNoBatteryTelemetry((v) => !v)}
+              >
+                No battery telemetry
+              </Button>
+            </div>
+            {(lowBatteryHiddenLineCounts.staleReadings > 0 ||
+              lowBatteryHiddenLineCounts.zeroPercent > 0 ||
+              lowBatteryHiddenLineCounts.noTelemetry > 0) && (
+              <div className="text-sm text-muted-foreground space-y-1">
+                {lowBatteryHiddenLineCounts.staleReadings > 0 && (
+                  <p>
+                    {lowBatteryHiddenLineCounts.staleReadings} node
+                    {lowBatteryHiddenLineCounts.staleReadings === 1 ? '' : 's'} with stale battery readings hidden
+                  </p>
+                )}
+                {lowBatteryHiddenLineCounts.zeroPercent > 0 && (
+                  <p>
+                    {lowBatteryHiddenLineCounts.zeroPercent} node
+                    {lowBatteryHiddenLineCounts.zeroPercent === 1 ? '' : 's'} reporting 0% battery hidden
+                  </p>
+                )}
+                {lowBatteryHiddenLineCounts.noTelemetry > 0 && (
+                  <p>
+                    {lowBatteryHiddenLineCounts.noTelemetry} node
+                    {lowBatteryHiddenLineCounts.noTelemetry === 1 ? '' : 's'} with no battery telemetry hidden
+                  </p>
+                )}
+              </div>
+            )}
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Node</TableHead>
-                  <TableHead>Node ID</TableHead>
                   <TableHead>Last heard</TableHead>
                   <TableHead>Battery</TableHead>
                   <TableHead>Status</TableHead>
@@ -382,126 +488,136 @@ function MeshInfrastructureContent() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lowBatteryNodesOrdered.map((node) => {
-                  const flags = getLowBatteryRowFlags(node);
-                  const reportedAt = getBatteryMetricsReportedAt(node);
-                  const level = node.latest_device_metrics?.battery_level;
-                  const watch = watchesByNodeIdStr.get(node.node_id_str);
-                  const managed = managedByMeshId.get(node.node_id);
-                  const cutoff = subDays(new Date(), 7);
-                  const isOffline =
-                    !node.last_heard ||
-                    (node.last_heard instanceof Date ? node.last_heard : new Date(node.last_heard)) < cutoff;
-                  return (
-                    <TableRow
-                      key={node.internal_id}
-                      className={flags.isZeroPercent ? 'opacity-70 text-muted-foreground' : undefined}
-                    >
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Link to={`/nodes/${node.node_id}`} className="font-medium text-primary hover:underline">
-                            {node.long_name} ({node.short_name || node.node_id_str})
-                          </Link>
-                          {isOffline && (
-                            <Badge
-                              variant="outline"
-                              className="text-xs border-red-500/70 text-red-700 dark:border-red-400 dark:text-red-300"
-                            >
-                              OFFLINE
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{node.node_id_str}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          {node.last_heard ? (
-                            <>
-                              <span>
-                                {format(
-                                  node.last_heard instanceof Date ? node.last_heard : new Date(node.last_heard),
-                                  'PPpp',
-                                  { locale: enGB }
-                                )}
-                              </span>
-                              <StaleReportedTime
-                                at={node.last_heard instanceof Date ? node.last_heard : new Date(node.last_heard)}
-                                className="text-xs text-muted-foreground"
-                              />
-                            </>
-                          ) : (
-                            'Never'
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          {level != null ? (
-                            <>
-                              <span>{level}%</span>
-                              {reportedAt ? (
-                                <>
-                                  <span className="text-xs text-muted-foreground">
-                                    {format(reportedAt, 'PPpp', { locale: enGB })}
-                                  </span>
-                                  <StaleReportedTime at={reportedAt} className="text-xs text-muted-foreground" />
-                                </>
-                              ) : null}
-                            </>
-                          ) : (
-                            '—'
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {flags.showLowBatteryBadge ? (
-                            <Badge variant="secondary" className="text-xs">
-                              Low battery
-                            </Badge>
-                          ) : null}
-                          {flags.showStaleBatteryBadge ? (
-                            <Badge variant="outline" className="text-xs">
-                              {node.latest_device_metrics?.reported_time
-                                ? `Battery reading ${STALE_BATTERY_TELEMETRY_DAYS}+ days old`
-                                : 'No battery telemetry'}
-                            </Badge>
-                          ) : null}
-                          {node.battery_alert_active ? (
-                            <Badge variant="destructive" className="text-xs">
-                              Mesh battery alert
-                            </Badge>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                      <TableCell>{node.owner?.username ?? '—'}</TableCell>
-                      <TableCell>
-                        <MeshWatchControls
-                          node={node}
-                          watch={watch}
-                          watchesQuery={watchesQuery}
-                          idPrefix={`infra-batt-${node.node_id}`}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-3">
-                          <Link to={`/nodes/${node.node_id}`} className="text-primary text-sm hover:underline">
-                            View details
-                          </Link>
-                          {managed != null && (
-                            <Link
-                              to={`/traceroutes/map/coverage?feeder=${node.node_id}`}
-                              className="text-muted-foreground text-sm underline-offset-4 hover:text-primary hover:underline"
-                              data-testid={`infra-batt-coverage-link-${node.node_id}`}
-                            >
-                              Coverage map
+                {visibleLowBatteryRows.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                      No rows match the current filters. Turn on one or more categories above to show hidden nodes.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  visibleLowBatteryRows.map((node) => {
+                    const flags = getLowBatteryRowFlags(node);
+                    const reportedAt = getBatteryMetricsReportedAt(node);
+                    const level = node.latest_device_metrics?.battery_level;
+                    const watch = watchesByNodeIdStr.get(node.node_id_str);
+                    const managed = managedByMeshId.get(node.node_id);
+                    const cutoff = subDays(new Date(), 7);
+                    const isOffline =
+                      !node.last_heard ||
+                      (node.last_heard instanceof Date ? node.last_heard : new Date(node.last_heard)) < cutoff;
+                    return (
+                      <TableRow
+                        key={node.internal_id}
+                        className={flags.isZeroPercent ? 'opacity-70 text-muted-foreground' : undefined}
+                      >
+                        <TableCell>
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-2">
+                              <Link to={`/nodes/${node.node_id}`} className="font-medium text-primary hover:underline">
+                                {node.long_name} ({node.short_name || node.node_id_str})
+                              </Link>
+                              {isOffline && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs border-red-500/70 text-red-700 dark:border-red-400 dark:text-red-300"
+                                >
+                                  OFFLINE
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground">{node.node_id_str}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            {node.last_heard ? (
+                              <>
+                                <span>
+                                  {format(
+                                    node.last_heard instanceof Date ? node.last_heard : new Date(node.last_heard),
+                                    'PPpp',
+                                    { locale: enGB }
+                                  )}
+                                </span>
+                                <StaleReportedTime
+                                  at={node.last_heard instanceof Date ? node.last_heard : new Date(node.last_heard)}
+                                  className="text-xs text-muted-foreground"
+                                />
+                              </>
+                            ) : (
+                              'Never'
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            {level != null ? (
+                              <>
+                                <span>{level}%</span>
+                                {reportedAt ? (
+                                  <>
+                                    <span className="text-xs text-muted-foreground">
+                                      {format(reportedAt, 'PPpp', { locale: enGB })}
+                                    </span>
+                                    <StaleReportedTime at={reportedAt} className="text-xs text-muted-foreground" />
+                                  </>
+                                ) : null}
+                              </>
+                            ) : (
+                              '—'
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {flags.showLowBatteryBadge ? (
+                              <Badge variant="secondary" className="text-xs">
+                                Low battery
+                              </Badge>
+                            ) : null}
+                            {flags.showStaleBatteryBadge ? (
+                              <Badge variant="outline" className="text-xs">
+                                {node.latest_device_metrics?.reported_time
+                                  ? `Battery reading ${STALE_BATTERY_TELEMETRY_DAYS}+ days old`
+                                  : 'No battery telemetry'}
+                              </Badge>
+                            ) : null}
+                            {node.battery_alert_active ? (
+                              <Badge variant="destructive" className="text-xs">
+                                Mesh battery alert
+                              </Badge>
+                            ) : null}
+                          </div>
+                        </TableCell>
+                        <TableCell>{node.owner?.username ?? '—'}</TableCell>
+                        <TableCell>
+                          <MeshWatchControls
+                            node={node}
+                            watch={watch}
+                            watchesQuery={watchesQuery}
+                            idPrefix={`infra-batt-${node.node_id}`}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-3">
+                            <Link to={`/nodes/${node.node_id}`} className="text-primary text-sm hover:underline">
+                              View details
                             </Link>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                            {managed != null && (
+                              <Link
+                                to={`/traceroutes/map/coverage?feeder=${node.node_id}`}
+                                className="text-muted-foreground text-sm underline-offset-4 hover:text-primary hover:underline"
+                                data-testid={`infra-batt-coverage-link-${node.node_id}`}
+                              >
+                                Coverage map
+                              </Link>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
               </TableBody>
             </Table>
           </CardContent>

@@ -7,6 +7,8 @@ import { Formatter, NameType, ValueType, Payload } from 'recharts/types/componen
 interface NodeMiniChartProps {
   metrics: DeviceMetrics[];
   dateRange: { startDate: Date; endDate: Date };
+  /** When `battery`, only the battery % series is drawn (e.g. compact watch cards). */
+  lines?: 'all' | 'battery';
 }
 
 const chartConfig: ChartConfig = {
@@ -14,7 +16,7 @@ const chartConfig: ChartConfig = {
   channel_utilization: { color: '#ff7b72', label: 'Ch. util %' },
 };
 
-export function NodeMiniChart({ metrics, dateRange }: NodeMiniChartProps) {
+export function NodeMiniChart({ metrics, dateRange, lines = 'all' }: NodeMiniChartProps) {
   const chartData = React.useMemo(() => {
     return metrics
       .filter((m) => m.reported_time != null)
@@ -80,14 +82,16 @@ export function NodeMiniChart({ metrics, dateRange }: NodeMiniChartProps) {
           }
         />
         <Line type="monotone" dataKey="battery_level" stroke="#76d9c4" strokeWidth={1.5} dot={false} connectNulls />
-        <Line
-          type="monotone"
-          dataKey="channel_utilization"
-          stroke="#ff7b72"
-          strokeWidth={1.5}
-          dot={false}
-          connectNulls
-        />
+        {lines === 'all' ? (
+          <Line
+            type="monotone"
+            dataKey="channel_utilization"
+            stroke="#ff7b72"
+            strokeWidth={1.5}
+            dot={false}
+            connectNulls
+          />
+        ) : null}
       </LineChart>
     </ChartContainer>
   );

@@ -76,6 +76,8 @@ export interface NodesAndConstellationsMapProps {
   showMapLegend?: boolean;
   /** When false, hides role-colour swatches in the legend (constellation section unchanged). Default true. */
   showRoleLegendSwatches?: boolean;
+  /** Optional alert ring around standard pins (e.g. Mesh Infra ops); constellation fill colour unchanged. */
+  getNodeAlertRing?: (nodeId: number) => 'diamond' | 'rounded-square' | null | undefined;
 }
 
 export function NodesAndConstellationsMap({
@@ -100,6 +102,7 @@ export function NodesAndConstellationsMap({
   getManagedNodeMarkerColor,
   showMapLegend,
   showRoleLegendSwatches = true,
+  getNodeAlertRing,
 }: NodesAndConstellationsMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -434,7 +437,15 @@ export function NodesAndConstellationsMap({
             grayscale,
             getMarkerBorderColor?.(node as ObservedNode)
           )
-        : createNodeIcon(label, color, isSelected, dimmed, opacity, grayscale);
+        : createNodeIcon(
+            label,
+            color,
+            isSelected,
+            dimmed,
+            opacity,
+            grayscale,
+            getNodeAlertRing?.(node.node_id) ?? undefined
+          );
       const marker = L.marker(position, { icon });
       marker.on('click', () => handleMarkerClick(node));
       if (enableBubbles) {
@@ -458,7 +469,10 @@ export function NodesAndConstellationsMap({
               node.short_name || node.node_id_str?.slice(4, 8) || '?',
               getManagedNodeMarkerColor ? getManagedNodeMarkerColor(node) : c.color,
               isSelected,
-              hasSelection && !isSelected
+              hasSelection && !isSelected,
+              undefined,
+              undefined,
+              getNodeAlertRing?.(node.node_id) ?? undefined
             ),
           });
           marker.on('click', () => handleMarkerClick(node));
@@ -498,6 +512,7 @@ export function NodesAndConstellationsMap({
     getMarkerGrayscale,
     getMarkerBorderColor,
     getManagedNodeMarkerColor,
+    getNodeAlertRing,
   ]);
 
   return (
