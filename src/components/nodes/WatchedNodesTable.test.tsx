@@ -23,6 +23,15 @@ vi.mock('@/hooks/useTraceroutesWithWebSocket', () => ({
   useTraceroutesWebSocketInvalidator: vi.fn(),
 }));
 
+vi.mock('@/hooks/api/useMultiNodeMetrics', () => ({
+  useMultiNodeMetrics: () => ({
+    metricsMap: {} as Record<number, unknown[]>,
+    isLoading: false,
+    isError: false,
+    errors: [],
+  }),
+}));
+
 function makeObservedNode(overrides: Partial<ObservedNodeWatchSummary> = {}): ObservedNode {
   return {
     internal_id: 1,
@@ -120,6 +129,27 @@ describe('WatchedNodesTable', () => {
     const offlineIdx = headings.findIndex((h) => h.textContent?.startsWith('Offline'));
     const onlineIdx = headings.findIndex((h) => h.textContent?.startsWith('Online'));
     expect(offlineIdx).toBeLessThan(onlineIdx);
+  });
+
+  it('hides latest traceroutes for low-battery watches (same as online)', () => {
+    const recent = new Date(Date.now() - 10 * 60 * 1000);
+    renderTable({
+      watches: [
+        makeWatch({
+          id: 1,
+          node: {
+            node_id: 1,
+            short_name: 'LowBatt',
+            last_heard: recent,
+            monitoring_offline_confirmed_at: null,
+            monitoring_verification_started_at: null,
+            battery_alert_active: true,
+          },
+        }),
+      ],
+    });
+    expect(screen.getByText(/Low battery watch — traceroute history is hidden/)).toBeInTheDocument();
+    expect(screen.queryByText('Latest traceroutes (this target)')).not.toBeInTheDocument();
   });
 
   it('hides latest traceroutes table for online watches', () => {

@@ -159,11 +159,15 @@ export default function MonitorNodesPage() {
             />
           </div>
 
-          <div className="bg-background rounded-lg border">
-            <MonitoredNodesBatteryChart nodes={nodesForCharts} />
-          </div>
-
-          <Accordion type="single" collapsible className="bg-background rounded-lg border px-2">
+          <Accordion type="multiple" className="bg-background rounded-lg border px-2">
+            <AccordionItem value="battery" className="border-0">
+              <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
+                Battery voltage comparison
+              </AccordionTrigger>
+              <AccordionContent className="pb-4 pt-0">
+                <MonitoredNodesBatteryChart nodes={nodesForCharts} />
+              </AccordionContent>
+            </AccordionItem>
             <AccordionItem value="channel-util" className="border-0">
               <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
                 Channel utilization
