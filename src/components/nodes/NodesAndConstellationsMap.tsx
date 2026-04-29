@@ -74,6 +74,8 @@ export interface NodesAndConstellationsMapProps {
    * Set `false` to hide; set `true` to force on even with `getMarkerColor`.
    */
   showMapLegend?: boolean;
+  /** When false, hides role-colour swatches in the legend (constellation section unchanged). Default true. */
+  showRoleLegendSwatches?: boolean;
 }
 
 export function NodesAndConstellationsMap({
@@ -97,6 +99,7 @@ export function NodesAndConstellationsMap({
   getMarkerBorderColor,
   getManagedNodeMarkerColor,
   showMapLegend,
+  showRoleLegendSwatches = true,
 }: NodesAndConstellationsMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -502,7 +505,7 @@ export function NodesAndConstellationsMap({
       {showLegendResolved ? (
         <MapMarkerLegend
           constellationItems={showConstellation ? legendConstellationItems : []}
-          showRoleSwatches={getMarkerColor == null}
+          showRoleSwatches={showRoleLegendSwatches && getMarkerColor == null}
           roleSwatches={roleLegendData}
           roleSectionTitle={showConstellation ? 'Other mesh nodes (by role)' : 'Node role'}
         />
