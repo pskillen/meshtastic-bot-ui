@@ -1,19 +1,21 @@
 import type { NodeWatch } from '@/lib/models';
 
 /** Mesh monitoring status for a watched node (UI + map + sorting). */
-export type WatchMonitoringStatus = 'offline' | 'verifying' | 'unknown' | 'online';
+export type WatchMonitoringStatus = 'offline' | 'verifying' | 'battery_low' | 'unknown' | 'online';
 
 /** Sort rank: lower = show first. */
 export const WATCH_STATUS_SORT_RANK: Record<WatchMonitoringStatus, number> = {
   offline: 0,
   verifying: 1,
-  unknown: 2,
-  online: 3,
+  battery_low: 2,
+  unknown: 3,
+  online: 4,
 };
 
 export const WATCH_STATUS_MAP_COLOR: Record<WatchMonitoringStatus, string> = {
   offline: '#dc2626',
   verifying: '#d97706',
+  battery_low: '#b45309',
   unknown: '#64748b',
   online: '#16a34a',
 };
@@ -21,6 +23,7 @@ export const WATCH_STATUS_MAP_COLOR: Record<WatchMonitoringStatus, string> = {
 export const WATCH_STATUS_LABEL: Record<WatchMonitoringStatus, string> = {
   offline: 'Offline',
   verifying: 'Verifying',
+  battery_low: 'Low battery',
   unknown: 'Unknown / stale',
   online: 'Online',
 };
@@ -35,7 +38,7 @@ function toTimeMs(value: Date | string | null | undefined): number | null {
 /**
  * Derive monitoring status for a watch using API hints and last_heard vs silence threshold.
  *
- * Precedence: offline confirmed > verifying > online (heard within threshold) > unknown.
+ * Precedence: offline confirmed > verifying > active battery alert > online (heard within threshold) > unknown.
  */
 export function deriveWatchMonitoringStatus(watch: NodeWatch, nowMs: number = Date.now()): WatchMonitoringStatus {
   const n = watch.observed_node;
@@ -44,6 +47,9 @@ export function deriveWatchMonitoringStatus(watch: NodeWatch, nowMs: number = Da
   }
   if (n.monitoring_verification_started_at) {
     return 'verifying';
+  }
+  if (n.battery_alert_active) {
+    return 'battery_low';
   }
 
   const offlineAfterSec = watch.offline_after ?? n.offline_after;
@@ -94,6 +100,7 @@ export function countWatchesByMonitoringStatus(
   const counts: Record<WatchMonitoringStatus, number> = {
     offline: 0,
     verifying: 0,
+    battery_low: 0,
     unknown: 0,
     online: 0,
   };

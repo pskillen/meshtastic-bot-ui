@@ -37,6 +37,10 @@ export function parseObservedNodeFromAPI(node: ObservedNode): ObservedNode {
             : null,
         }
       : null,
+    battery_alert_confirmed_at:
+      node.battery_alert_confirmed_at == null
+        ? (node.battery_alert_confirmed_at as null | undefined)
+        : new Date(node.battery_alert_confirmed_at as string | Date),
   };
 }
 

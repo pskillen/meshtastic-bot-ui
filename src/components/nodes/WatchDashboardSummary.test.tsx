@@ -27,6 +27,8 @@ function makeWatch(id: number, node: Partial<ObservedNode>): NodeWatch {
     observed_node: makeNode({ internal_id: id, node_id: 50 + id, ...node }) as NodeWatch['observed_node'],
     offline_after: 3600,
     enabled: true,
+    offline_notifications_enabled: true,
+    battery_notifications_enabled: false,
     created_at: '2026-04-21T00:00:00Z',
   };
 }

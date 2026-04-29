@@ -26,7 +26,7 @@ import {
 
 const LATEST_TRACEROUTES = 5;
 
-const GROUP_ORDER: WatchMonitoringStatus[] = ['offline', 'verifying', 'unknown', 'online'];
+const GROUP_ORDER: WatchMonitoringStatus[] = ['offline', 'verifying', 'battery_low', 'unknown', 'online'];
 
 function toDate(value: Date | string | null | undefined): Date | null {
   if (value == null) return null;
@@ -180,6 +180,7 @@ function BatteryBlock({ node }: { node: ObservedNode }) {
 function statusBadgeVariant(status: WatchMonitoringStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
   if (status === 'offline') return 'destructive';
   if (status === 'verifying') return 'secondary';
+  if (status === 'battery_low') return 'secondary';
   if (status === 'online') return 'default';
   return 'outline';
 }

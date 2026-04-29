@@ -34,6 +34,8 @@ function makeWatch(overrides: {
     observed_node: node,
     offline_after: 3600,
     enabled: true,
+    offline_notifications_enabled: true,
+    battery_notifications_enabled: false,
     created_at: '2026-01-01T00:00:00Z',
     ...overrides.watch,
   };
@@ -60,6 +62,19 @@ describe('deriveWatchMonitoringStatus', () => {
       },
     });
     expect(deriveWatchMonitoringStatus(w, now)).toBe('verifying');
+  });
+
+  it('returns battery_low when battery_alert_active and not verifying/offline', () => {
+    const w = makeWatch({
+      node: {
+        battery_alert_active: true,
+        monitoring_verification_started_at: null,
+        monitoring_offline_confirmed_at: null,
+        last_heard: new Date('2026-01-01T12:30:00.000Z'),
+      },
+      watch: { offline_after: 7200 },
+    });
+    expect(deriveWatchMonitoringStatus(w, now)).toBe('battery_low');
   });
 
   it('returns online when last_heard is within offline_after', () => {
@@ -132,6 +147,7 @@ describe('countWatchesByMonitoringStatus', () => {
     expect(countWatchesByMonitoringStatus(watches, now)).toEqual({
       offline: 1,
       verifying: 0,
+      battery_low: 0,
       unknown: 0,
       online: 1,
     });

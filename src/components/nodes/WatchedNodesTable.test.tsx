@@ -54,6 +54,8 @@ function makeWatch(overrides: Partial<NodeWatch> & { node?: Partial<ObservedNode
     observed_node: node as NodeWatch['observed_node'],
     offline_after: rest.offline_after ?? 3600,
     enabled: rest.enabled ?? true,
+    offline_notifications_enabled: rest.offline_notifications_enabled ?? true,
+    battery_notifications_enabled: rest.battery_notifications_enabled ?? false,
     created_at: rest.created_at ?? '2026-04-21T00:00:00Z',
   };
 }

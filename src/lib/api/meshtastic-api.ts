@@ -23,7 +23,9 @@ import {
   AutoTraceRoute,
   DiscordNotificationPrefs,
   NodeWatch,
-  MonitoringOfflineAfterResponse,
+  NodeMonitoringConfig,
+  NodeMonitoringConfigPatch,
+  MeshInfraMonitoringAlertSummary,
   DxEventListItem,
   DxEventDetail,
   DxNodeExclusionResponse,
@@ -1041,12 +1043,24 @@ export class MeshtasticApi extends BaseApi {
     };
   }
 
-  async createNodeWatch(body: { observed_node_id: string; enabled?: boolean }): Promise<NodeWatch> {
+  async createNodeWatch(body: {
+    observed_node_id: string;
+    enabled?: boolean;
+    offline_notifications_enabled?: boolean;
+    battery_notifications_enabled?: boolean;
+  }): Promise<NodeWatch> {
     const watch = await this.post<NodeWatch>('/monitoring/watches/', body);
     return parseNodeWatchFromAPI(watch);
   }
 
-  async patchNodeWatch(id: number, body: { enabled?: boolean }): Promise<NodeWatch> {
+  async patchNodeWatch(
+    id: number,
+    body: {
+      enabled?: boolean;
+      offline_notifications_enabled?: boolean;
+      battery_notifications_enabled?: boolean;
+    }
+  ): Promise<NodeWatch> {
     const watch = await this.patch<NodeWatch>(`/monitoring/watches/${id}/`, body);
     return parseNodeWatchFromAPI(watch);
   }
@@ -1055,15 +1069,19 @@ export class MeshtasticApi extends BaseApi {
     await this.delete<unknown>(`/monitoring/watches/${id}/`);
   }
 
-  async getMonitoringOfflineAfter(observedNodeId: string): Promise<MonitoringOfflineAfterResponse> {
-    return this.get<MonitoringOfflineAfterResponse>(`/monitoring/nodes/${observedNodeId}/offline-after/`);
+  async getNodeMonitoringConfig(observedNodeId: string): Promise<NodeMonitoringConfig> {
+    return this.get<NodeMonitoringConfig>(`/monitoring/nodes/${observedNodeId}/config/`);
   }
 
-  async patchMonitoringOfflineAfter(
+  async patchNodeMonitoringConfig(
     observedNodeId: string,
-    body: { offline_after: number }
-  ): Promise<MonitoringOfflineAfterResponse> {
-    return this.patch<MonitoringOfflineAfterResponse>(`/monitoring/nodes/${observedNodeId}/offline-after/`, body);
+    body: NodeMonitoringConfigPatch
+  ): Promise<NodeMonitoringConfig> {
+    return this.patch<NodeMonitoringConfig>(`/monitoring/nodes/${observedNodeId}/config/`, body);
+  }
+
+  async getMeshInfraMonitoringAlertsSummary(): Promise<{ mesh_infra: MeshInfraMonitoringAlertSummary }> {
+    return this.get<{ mesh_infra: MeshInfraMonitoringAlertSummary }>('/monitoring/alerts/summary/?scope=mesh_infra');
   }
 
   // ===== DX monitoring (staff-only) =====
