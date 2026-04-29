@@ -3,7 +3,11 @@ import { Link } from 'react-router-dom';
 import { subDays, subHours, format } from 'date-fns';
 import { enGB } from 'date-fns/locale';
 import { StaleReportedTime } from '@/components/nodes/StaleReportedTime';
-import { useInfrastructureNodesSuspense, useManagedNodesSuspense } from '@/hooks/api/useNodes';
+import {
+  useAllInfrastructureNodesSuspense,
+  useInfrastructureNodesSuspense,
+  useManagedNodesSuspense,
+} from '@/hooks/api/useNodes';
 import { useNodeWatches } from '@/hooks/api/useNodeWatches';
 import { useMultiNodeMetricsSuspense } from '@/hooks/api/useMultiNodeMetrics';
 import { InfrastructureNodeCard } from '@/components/nodes/InfrastructureNodeCard';
@@ -21,7 +25,14 @@ import { Button } from '@/components/ui/button';
 import { ObservedNode, type NodeWatch } from '@/lib/models';
 import { filterManagedNodesForMapDisplay } from '@/lib/managed-node-status';
 import { MeshWatchControls } from '@/components/nodes/MeshWatchControls';
-import { MapPinOff } from 'lucide-react';
+import { Battery, MapPinOff } from 'lucide-react';
+import {
+  getBatteryMetricsReportedAt,
+  getLowBatteryRowFlags,
+  LOW_BATTERY_THRESHOLD_PERCENT,
+  partitionLowBatteryNodes,
+  STALE_BATTERY_TELEMETRY_DAYS,
+} from '@/lib/infrastructure-low-battery';
 
 const CHART_TIME_RANGE_OPTIONS = [
   { key: '24h', label: '24 hours' },
@@ -32,12 +43,13 @@ const CHART_TIME_RANGE_OPTIONS = [
   { key: '14d', label: '14 days' },
 ];
 
-type NodeListTimeRange = '2h' | '24h' | '7d' | '30d' | 'all';
+type NodeListTimeRange = '2h' | '24h' | '7d' | '14d' | '30d' | 'all';
 
 const TIME_RANGE_OPTIONS: { value: NodeListTimeRange; label: string }[] = [
   { value: '2h', label: '2 hours' },
   { value: '24h', label: '24 hours' },
   { value: '7d', label: '7 days' },
+  { value: '14d', label: '14 days' },
   { value: '30d', label: '30 days' },
   { value: 'all', label: 'All time' },
 ];
@@ -52,6 +64,8 @@ function getLastHeardAfter(timeRange: NodeListTimeRange): Date | undefined {
       return subHours(now, 24);
     case '7d':
       return subDays(now, 7);
+    case '14d':
+      return subDays(now, 14);
     case '30d':
       return subDays(now, 30);
     default:
@@ -84,7 +98,7 @@ function hasRecentLocation(node: ObservedNode): boolean {
 }
 
 function MeshInfrastructureContent() {
-  const [timeRange, setTimeRange] = useState<NodeListTimeRange>('30d');
+  const [timeRange, setTimeRange] = useState<NodeListTimeRange>('14d');
   const [includeClientBase, setIncludeClientBase] = useState(false);
   const [chartTimeRangeLabel, setChartTimeRangeLabel] = useState('7d');
   const [chartDateRange, setChartDateRange] = useState<{ startDate: Date; endDate: Date }>({
@@ -98,7 +112,13 @@ function MeshInfrastructureContent() {
 
   const { nodes, totalNodes, fetchNextPage, hasNextPage } = useInfrastructureNodesSuspense({
     lastHeardAfter,
-    pageSize: 100,
+    pageSize: 12,
+    includeClientBase,
+  });
+
+  /** Full list for map + alert tables; the paged `nodes` above only includes loaded card pages. */
+  const { nodes: allInfraNodes } = useAllInfrastructureNodesSuspense({
+    lastHeardAfter,
     includeClientBase,
   });
 
@@ -121,8 +141,10 @@ function MeshInfrastructureContent() {
 
   const { metricsMap } = useMultiNodeMetricsSuspense(nodes, chartDateRange);
 
-  const nodesWithLocation = useMemo(() => nodes.filter(hasRecentLocation), [nodes]);
-  const nodesWithoutLocation = useMemo(() => nodes.filter((n) => !hasRecentLocation(n)), [nodes]);
+  const nodesWithLocation = useMemo(() => allInfraNodes.filter(hasRecentLocation), [allInfraNodes]);
+  const nodesWithoutLocation = useMemo(() => allInfraNodes.filter((n) => !hasRecentLocation(n)), [allInfraNodes]);
+
+  const lowBatteryNodesOrdered = useMemo(() => partitionLowBatteryNodes(allInfraNodes), [allInfraNodes]);
 
   const sortedNodes = useMemo(
     () =>
@@ -187,16 +209,6 @@ function MeshInfrastructureContent() {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex items-center gap-2">
-          <label htmlFor="chart-time-range" className="text-sm text-muted-foreground">
-            Chart time range:
-          </label>
-          <TimeRangeSelect
-            options={CHART_TIME_RANGE_OPTIONS}
-            value={chartTimeRangeLabel}
-            onChange={handleChartTimeRangeChange}
-          />
-        </div>
       </div>
 
       <div className="mb-8">
@@ -213,6 +225,7 @@ function MeshInfrastructureContent() {
                 showUnmanagedNodes={true}
                 drawPositionUncertainty={true}
                 enableBubbles={true}
+                showRoleLegendSwatches={false}
               />
             </div>
           </CardContent>
@@ -224,11 +237,13 @@ function MeshInfrastructureContent() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MapPinOff className="h-5 w-5" />
-              Nodes without recent location
+              Nodes without recent location ({nodesWithoutLocation.length})
             </CardTitle>
             <CardDescription>
-              Infrastructure nodes that have not broadcast their GPS position in the last 7 days (
-              {nodesWithoutLocation.length}). A node can be active (Last Heard) without reporting location.
+              &quot;Recent location&quot; means a GPS fix reported in the last {STALE_LOCATION_DAYS} days. The node list
+              time range (default 14 days of last heard) controls which infrastructure nodes appear on this page—nodes
+              outside that window are not listed, which is separate from GPS freshness. A node can be active (last
+              heard) without reporting location.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -338,12 +353,171 @@ function MeshInfrastructureContent() {
         </Card>
       )}
 
+      {lowBatteryNodesOrdered.length > 0 && (
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Battery className="h-5 w-5" />
+              Low battery nodes ({lowBatteryNodesOrdered.length})
+            </CardTitle>
+            <CardDescription>
+              Includes nodes below {LOW_BATTERY_THRESHOLD_PERCENT}% battery, no battery telemetry, or a reading older
+              than {STALE_BATTERY_TELEMETRY_DAYS} days. Last heard can still be recent while metrics are missing or
+              stale—that is not always a problem. Rows showing 0% are often bogus telemetry and are listed last.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Node</TableHead>
+                  <TableHead>Node ID</TableHead>
+                  <TableHead>Last heard</TableHead>
+                  <TableHead>Battery</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Owner</TableHead>
+                  <TableHead>Mesh watch</TableHead>
+                  <TableHead className="w-0"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {lowBatteryNodesOrdered.map((node) => {
+                  const flags = getLowBatteryRowFlags(node);
+                  const reportedAt = getBatteryMetricsReportedAt(node);
+                  const level = node.latest_device_metrics?.battery_level;
+                  const watch = watchesByNodeIdStr.get(node.node_id_str);
+                  const managed = managedByMeshId.get(node.node_id);
+                  const cutoff = subDays(new Date(), 7);
+                  const isOffline =
+                    !node.last_heard ||
+                    (node.last_heard instanceof Date ? node.last_heard : new Date(node.last_heard)) < cutoff;
+                  return (
+                    <TableRow
+                      key={node.internal_id}
+                      className={flags.isZeroPercent ? 'opacity-70 text-muted-foreground' : undefined}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Link to={`/nodes/${node.node_id}`} className="font-medium text-primary hover:underline">
+                            {node.long_name} ({node.short_name || node.node_id_str})
+                          </Link>
+                          {isOffline && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs border-red-500/70 text-red-700 dark:border-red-400 dark:text-red-300"
+                            >
+                              OFFLINE
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{node.node_id_str}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          {node.last_heard ? (
+                            <>
+                              <span>
+                                {format(
+                                  node.last_heard instanceof Date ? node.last_heard : new Date(node.last_heard),
+                                  'PPpp',
+                                  { locale: enGB }
+                                )}
+                              </span>
+                              <StaleReportedTime
+                                at={node.last_heard instanceof Date ? node.last_heard : new Date(node.last_heard)}
+                                className="text-xs text-muted-foreground"
+                              />
+                            </>
+                          ) : (
+                            'Never'
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          {level != null ? (
+                            <>
+                              <span>{level}%</span>
+                              {reportedAt ? (
+                                <>
+                                  <span className="text-xs text-muted-foreground">
+                                    {format(reportedAt, 'PPpp', { locale: enGB })}
+                                  </span>
+                                  <StaleReportedTime at={reportedAt} className="text-xs text-muted-foreground" />
+                                </>
+                              ) : null}
+                            </>
+                          ) : (
+                            '—'
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {flags.showLowBatteryBadge ? (
+                            <Badge variant="secondary" className="text-xs">
+                              Low battery
+                            </Badge>
+                          ) : null}
+                          {flags.showStaleBatteryBadge ? (
+                            <Badge variant="outline" className="text-xs">
+                              {node.latest_device_metrics?.reported_time
+                                ? `Battery reading ${STALE_BATTERY_TELEMETRY_DAYS}+ days old`
+                                : 'No battery telemetry'}
+                            </Badge>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                      <TableCell>{node.owner?.username ?? '—'}</TableCell>
+                      <TableCell>
+                        <MeshWatchControls
+                          node={node}
+                          watch={watch}
+                          watchesQuery={watchesQuery}
+                          idPrefix={`infra-batt-${node.node_id}`}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-3">
+                          <Link to={`/nodes/${node.node_id}`} className="text-primary text-sm hover:underline">
+                            View details
+                          </Link>
+                          {managed != null && (
+                            <Link
+                              to={`/traceroutes/map/coverage?feeder=${node.node_id}`}
+                              className="text-muted-foreground text-sm underline-offset-4 hover:text-primary hover:underline"
+                              data-testid={`infra-batt-coverage-link-${node.node_id}`}
+                            >
+                              Coverage map
+                            </Link>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <h2 className="text-xl font-semibold">
             All Infrastructure Nodes ({sortedNodes.length}
             {totalNodes > sortedNodes.length ? ` of ${totalNodes}` : ''})
           </h2>
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <label htmlFor="chart-time-range" className="text-sm text-muted-foreground whitespace-nowrap">
+              Chart time range:
+            </label>
+            <TimeRangeSelect
+              options={CHART_TIME_RANGE_OPTIONS}
+              value={chartTimeRangeLabel}
+              onChange={handleChartTimeRangeChange}
+            />
+          </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sortedNodes.map((node) => (
