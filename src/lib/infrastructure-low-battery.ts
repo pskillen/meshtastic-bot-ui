@@ -52,6 +52,22 @@ function lastHeardTime(node: ObservedNode): number {
 }
 
 /**
+ * Infrastructure “low battery” table: heuristic low/stale rows **plus** nodes with an active mesh
+ * monitoring battery alert from the API (`battery_alert_active`), even when telemetry looks fine.
+ */
+export function partitionMeshInfraLowBatteryTableNodes(nodes: ObservedNode[], now: Date = new Date()): ObservedNode[] {
+  const base = partitionLowBatteryNodes(nodes, now);
+  const inBase = new Set(base.map((n) => n.node_id));
+  const additions: ObservedNode[] = [];
+  for (const n of nodes) {
+    if (inBase.has(n.node_id)) continue;
+    if (n.battery_alert_active) additions.push(n);
+  }
+  additions.sort((a, b) => lastHeardTime(b) - lastHeardTime(a));
+  return [...additions, ...base];
+}
+
+/**
  * Deduplicates by node id, partitions 0% rows to the bottom, sorts by most recently heard within each group.
  */
 export function partitionLowBatteryNodes(nodes: ObservedNode[], now: Date = new Date()): ObservedNode[] {

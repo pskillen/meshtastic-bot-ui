@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/sidebar';
 import { useWebSocket } from '@/providers/WebSocketProvider';
 import { authService } from '@/lib/auth/authService';
+import { useMeshInfraMonitoringAlertsSummary } from '@/hooks/api/useNodeWatches';
 
 type NavChild = {
   title: string;
@@ -69,7 +70,10 @@ export function NavMain() {
   const { hasUnreadMessages, unreadMessages, markAllAsRead } = useWebSocket();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const showDxMonitoring = Boolean(authService.getCurrentUser()?.is_staff);
+  const currentUser = authService.getCurrentUser();
+  const showDxMonitoring = Boolean(currentUser?.is_staff);
+  const infraAlerts = useMeshInfraMonitoringAlertsSummary(Boolean(currentUser));
+  const infraAlertCount = infraAlerts.data?.mesh_infra.alerting_nodes_count ?? 0;
 
   const handleMessagesClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
@@ -128,7 +132,7 @@ export function NavMain() {
                       <Icon />
                       <span>{item.title}</span>
                       {hasUnreadMessages && (
-                        <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 p-0 text-xs text-white">
+                        <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 p-0 text-xs text-white shadow-sm ring-2 ring-sidebar">
                           {unreadMessages.length > 9 ? '9+' : unreadMessages.length}
                         </span>
                       )}
@@ -145,12 +149,24 @@ export function NavMain() {
                     {item.children.map((child) => {
                       const ChildIcon = child.icon;
                       const childIsActive = navSubItemActive(pathname, child.url);
+                      const isMeshInfra = child.title === 'Mesh infra';
                       return (
                         <SidebarMenuSubItem key={child.title}>
                           <SidebarMenuSubButton asChild isActive={childIsActive}>
-                            <Link to={child.url}>
+                            <Link
+                              to={child.url}
+                              className={isMeshInfra && infraAlertCount > 0 ? 'relative pr-8' : undefined}
+                            >
                               <ChildIcon />
                               <span>{child.title}</span>
+                              {isMeshInfra && infraAlertCount > 0 ? (
+                                <span
+                                  className="absolute right-1 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-600 px-1 text-[10px] font-semibold leading-none text-white shadow-sm"
+                                  title="Mesh infrastructure monitoring alerts"
+                                >
+                                  {infraAlertCount > 99 ? '99+' : infraAlertCount}
+                                </span>
+                              ) : null}
                             </Link>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>

@@ -101,6 +101,9 @@ export interface ObservedNode {
   rf_profile_editable?: boolean;
   has_rf_profile?: boolean;
   has_ready_rf_render?: boolean;
+  /** True when battery alerting is enabled and a low-battery episode is confirmed (mesh monitoring). */
+  battery_alert_active?: boolean;
+  battery_alert_confirmed_at?: Date | string | null;
   // Additional fields for UI compatibility
   last_heard?: Date | null;
   latest_device_metrics?: DeviceMetrics | null;
@@ -599,16 +602,39 @@ export const DX_NOTIFICATION_CATEGORY_META: Record<
  * plus mesh monitoring hints (`GET /api/monitoring/watches/`).
  */
 export type ObservedNodeWatchSummary = ObservedNode & {
-  /** Node-level silence threshold (seconds); duplicated from NodePresence for convenience. */
+  /** Node-level silence threshold (seconds); alias for `last_heard_offline_after_seconds` on config. */
   offline_after?: number;
   monitoring_verification_started_at?: string | null;
   monitoring_offline_confirmed_at?: string | null;
 };
 
-/** GET/PATCH `/api/monitoring/nodes/{internal_id}/offline-after/` */
-export interface MonitoringOfflineAfterResponse {
-  offline_after: number;
+/** GET/PATCH `/api/monitoring/nodes/{internal_id}/config/` */
+export interface NodeMonitoringConfig {
+  last_heard_offline_after_seconds: number;
+  battery_alert_enabled: boolean;
+  battery_alert_threshold_percent: number;
+  battery_alert_report_count: number;
   editable: boolean;
+  battery_alert_active: boolean;
+  battery_alert_confirmed_at: string | null;
+}
+
+export type NodeMonitoringConfigPatch = Partial<
+  Pick<
+    NodeMonitoringConfig,
+    | 'last_heard_offline_after_seconds'
+    | 'battery_alert_enabled'
+    | 'battery_alert_threshold_percent'
+    | 'battery_alert_report_count'
+  >
+>;
+
+/** GET `/api/monitoring/alerts/summary/?scope=mesh_infra` */
+export interface MeshInfraMonitoringAlertSummary {
+  alerting_nodes_count: number;
+  offline_count: number;
+  battery_count: number;
+  verifying_count: number;
 }
 
 /** User watch on an observed node (`GET/POST /monitoring/watches/`). */
@@ -617,6 +643,8 @@ export interface NodeWatch {
   observed_node: ObservedNodeWatchSummary;
   offline_after: number;
   enabled: boolean;
+  offline_notifications_enabled: boolean;
+  battery_notifications_enabled: boolean;
   created_at: string;
 }
 

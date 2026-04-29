@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { UserPage } from '@/pages/user/UserPage';
 import { DX_NOTIFICATION_CATEGORY_ORDER } from '@/lib/models';
@@ -59,7 +60,9 @@ function renderUserPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <UserPage />
+      <MemoryRouter>
+        <UserPage />
+      </MemoryRouter>
     </QueryClientProvider>
   );
 }
@@ -69,12 +72,13 @@ describe('UserPage', () => {
     vi.clearAllMocks();
   });
 
-  it('renders Discord setup and DX Discord notification panels', async () => {
+  it('renders Discord, node watch info, and DX Discord notification panels', async () => {
     renderUserPage();
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'User Profile' })).toBeInTheDocument();
     });
     expect(screen.getByText('Discord')).toBeInTheDocument();
+    expect(screen.getByText('Node watch Discord notifications')).toBeInTheDocument();
     expect(screen.getByText('DX Discord notifications')).toBeInTheDocument();
   });
 });

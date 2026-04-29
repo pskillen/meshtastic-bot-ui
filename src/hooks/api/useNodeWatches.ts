@@ -1,11 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMeshtasticApi } from './useApi';
-import type { MonitoringOfflineAfterResponse, NodeWatch, PaginatedResponse } from '@/lib/models';
+import type {
+  MeshInfraMonitoringAlertSummary,
+  NodeMonitoringConfig,
+  NodeMonitoringConfigPatch,
+  NodeWatch,
+  PaginatedResponse,
+} from '@/lib/models';
 
 const watchesKey = ['monitoring', 'watches'] as const;
 
-export const monitoringOfflineAfterQueryKey = (observedNodeId: string) =>
-  ['monitoring', 'offline-after', observedNodeId] as const;
+const meshInfraAlertsSummaryKey = ['monitoring', 'alerts-summary', 'mesh_infra'] as const;
+
+export const nodeMonitoringConfigQueryKey = (observedNodeId: string) =>
+  ['monitoring', 'config', observedNodeId] as const;
 
 function mergeWatchIntoWatchesCache(
   old: PaginatedResponse<NodeWatch> | undefined,
@@ -47,33 +55,38 @@ export function useNodeWatches(pageSize = 500) {
   });
 }
 
-export function useMonitoringOfflineAfter(observedNodeId: string | undefined, enabled = true) {
+export function useMeshInfraMonitoringAlertsSummary(enabled = true) {
   const api = useMeshtasticApi();
-  return useQuery<MonitoringOfflineAfterResponse>({
-    queryKey: monitoringOfflineAfterQueryKey(observedNodeId ?? ''),
-    queryFn: () => api.getMonitoringOfflineAfter(observedNodeId!),
+  return useQuery<{ mesh_infra: MeshInfraMonitoringAlertSummary }>({
+    queryKey: meshInfraAlertsSummaryKey,
+    queryFn: () => api.getMeshInfraMonitoringAlertsSummary(),
+    enabled,
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  });
+}
+
+export function useNodeMonitoringConfig(observedNodeId: string | undefined, enabled = true) {
+  const api = useMeshtasticApi();
+  return useQuery<NodeMonitoringConfig>({
+    queryKey: nodeMonitoringConfigQueryKey(observedNodeId ?? ''),
+    queryFn: () => api.getNodeMonitoringConfig(observedNodeId!),
     enabled: Boolean(enabled && observedNodeId),
   });
 }
 
-export function usePatchMonitoringOfflineAfterMutation() {
+export function usePatchNodeMonitoringConfigMutation() {
   const api = useMeshtasticApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      observedNodeId,
-      offline_after,
-    }: {
-      observedNodeId: string;
-      offline_after: number;
-      /** When set, invalidates single-node detail cache after threshold change. */
-      nodeId?: number;
-    }) => api.patchMonitoringOfflineAfter(observedNodeId, { offline_after }),
-    onSuccess: (data, variables) => {
-      queryClient.setQueryData(monitoringOfflineAfterQueryKey(variables.observedNodeId), data);
+    mutationFn: (variables: { observedNodeId: string; body: NodeMonitoringConfigPatch; nodeId?: number }) =>
+      api.patchNodeMonitoringConfig(variables.observedNodeId, variables.body),
+    onSuccess: (data, { observedNodeId, nodeId }) => {
+      queryClient.setQueryData(nodeMonitoringConfigQueryKey(observedNodeId), data);
       queryClient.invalidateQueries({ queryKey: watchesKey });
-      if (variables.nodeId != null) {
-        queryClient.invalidateQueries({ queryKey: ['nodes', variables.nodeId] });
+      queryClient.invalidateQueries({ queryKey: meshInfraAlertsSummaryKey });
+      if (nodeId != null) {
+        queryClient.invalidateQueries({ queryKey: ['nodes', nodeId] });
       }
     },
   });
@@ -83,13 +96,19 @@ export function useCreateNodeWatchMutation() {
   const api = useMeshtasticApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: { observed_node_id: string; enabled?: boolean }) => api.createNodeWatch(body),
+    mutationFn: (body: {
+      observed_node_id: string;
+      enabled?: boolean;
+      offline_notifications_enabled?: boolean;
+      battery_notifications_enabled?: boolean;
+    }) => api.createNodeWatch(body),
     onSuccess: (newWatch) => {
       queryClient.setQueriesData<PaginatedResponse<NodeWatch>>({ queryKey: watchesKey }, (old) =>
         mergeWatchIntoWatchesCache(old, newWatch)
       );
       queryClient.invalidateQueries({ queryKey: watchesKey });
       queryClient.invalidateQueries({ queryKey: ['observed-nodes', 'mine'] });
+      queryClient.invalidateQueries({ queryKey: meshInfraAlertsSummaryKey });
     },
   });
 }
@@ -98,13 +117,22 @@ export function usePatchNodeWatchMutation() {
   const api = useMeshtasticApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: number; enabled?: boolean }) => api.patchNodeWatch(id, body),
+    mutationFn: ({
+      id,
+      ...body
+    }: {
+      id: number;
+      enabled?: boolean;
+      offline_notifications_enabled?: boolean;
+      battery_notifications_enabled?: boolean;
+    }) => api.patchNodeWatch(id, body),
     onSuccess: (updated) => {
       queryClient.setQueriesData<PaginatedResponse<NodeWatch>>({ queryKey: watchesKey }, (old) =>
         mergeWatchIntoWatchesCache(old, updated)
       );
       queryClient.invalidateQueries({ queryKey: watchesKey });
       queryClient.invalidateQueries({ queryKey: ['observed-nodes', 'mine'] });
+      queryClient.invalidateQueries({ queryKey: meshInfraAlertsSummaryKey });
     },
   });
 }
@@ -120,6 +148,7 @@ export function useDeleteNodeWatchMutation() {
       );
       queryClient.invalidateQueries({ queryKey: watchesKey });
       queryClient.invalidateQueries({ queryKey: ['observed-nodes', 'mine'] });
+      queryClient.invalidateQueries({ queryKey: meshInfraAlertsSummaryKey });
     },
   });
 }

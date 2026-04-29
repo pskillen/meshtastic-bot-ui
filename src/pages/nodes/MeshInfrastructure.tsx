@@ -30,7 +30,7 @@ import {
   getBatteryMetricsReportedAt,
   getLowBatteryRowFlags,
   LOW_BATTERY_THRESHOLD_PERCENT,
-  partitionLowBatteryNodes,
+  partitionMeshInfraLowBatteryTableNodes,
   STALE_BATTERY_TELEMETRY_DAYS,
 } from '@/lib/infrastructure-low-battery';
 
@@ -144,7 +144,7 @@ function MeshInfrastructureContent() {
   const nodesWithLocation = useMemo(() => allInfraNodes.filter(hasRecentLocation), [allInfraNodes]);
   const nodesWithoutLocation = useMemo(() => allInfraNodes.filter((n) => !hasRecentLocation(n)), [allInfraNodes]);
 
-  const lowBatteryNodesOrdered = useMemo(() => partitionLowBatteryNodes(allInfraNodes), [allInfraNodes]);
+  const lowBatteryNodesOrdered = useMemo(() => partitionMeshInfraLowBatteryTableNodes(allInfraNodes), [allInfraNodes]);
 
   const sortedNodes = useMemo(
     () =>
@@ -361,9 +361,10 @@ function MeshInfrastructureContent() {
               Low battery nodes ({lowBatteryNodesOrdered.length})
             </CardTitle>
             <CardDescription>
-              Includes nodes below {LOW_BATTERY_THRESHOLD_PERCENT}% battery, no battery telemetry, or a reading older
-              than {STALE_BATTERY_TELEMETRY_DAYS} days. Last heard can still be recent while metrics are missing or
-              stale—that is not always a problem. Rows showing 0% are often bogus telemetry and are listed last.
+              Includes nodes below {LOW_BATTERY_THRESHOLD_PERCENT}% battery, no battery telemetry, a reading older than{' '}
+              {STALE_BATTERY_TELEMETRY_DAYS} days, or an active mesh monitoring low-battery alert. Last heard can still
+              be recent while metrics are missing or stale—that is not always a problem. Rows showing 0% are often bogus
+              telemetry and are listed last.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -464,6 +465,11 @@ function MeshInfrastructureContent() {
                               {node.latest_device_metrics?.reported_time
                                 ? `Battery reading ${STALE_BATTERY_TELEMETRY_DAYS}+ days old`
                                 : 'No battery telemetry'}
+                            </Badge>
+                          ) : null}
+                          {node.battery_alert_active ? (
+                            <Badge variant="destructive" className="text-xs">
+                              Mesh battery alert
                             </Badge>
                           ) : null}
                         </div>
