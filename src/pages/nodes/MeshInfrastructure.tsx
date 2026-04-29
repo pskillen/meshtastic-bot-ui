@@ -3,7 +3,11 @@ import { Link } from 'react-router-dom';
 import { subDays, subHours, format } from 'date-fns';
 import { enGB } from 'date-fns/locale';
 import { StaleReportedTime } from '@/components/nodes/StaleReportedTime';
-import { useInfrastructureNodesSuspense, useManagedNodesSuspense } from '@/hooks/api/useNodes';
+import {
+  useAllInfrastructureNodesSuspense,
+  useInfrastructureNodesSuspense,
+  useManagedNodesSuspense,
+} from '@/hooks/api/useNodes';
 import { useNodeWatches } from '@/hooks/api/useNodeWatches';
 import { useMultiNodeMetricsSuspense } from '@/hooks/api/useMultiNodeMetrics';
 import { InfrastructureNodeCard } from '@/components/nodes/InfrastructureNodeCard';
@@ -112,6 +116,12 @@ function MeshInfrastructureContent() {
     includeClientBase,
   });
 
+  /** Full list for map + alert tables; the paged `nodes` above only includes loaded card pages. */
+  const { nodes: allInfraNodes } = useAllInfrastructureNodesSuspense({
+    lastHeardAfter,
+    includeClientBase,
+  });
+
   const watchesQuery = useNodeWatches();
   const watchesByNodeIdStr = useMemo(() => {
     const m = new Map<string, NodeWatch>();
@@ -131,10 +141,10 @@ function MeshInfrastructureContent() {
 
   const { metricsMap } = useMultiNodeMetricsSuspense(nodes, chartDateRange);
 
-  const nodesWithLocation = useMemo(() => nodes.filter(hasRecentLocation), [nodes]);
-  const nodesWithoutLocation = useMemo(() => nodes.filter((n) => !hasRecentLocation(n)), [nodes]);
+  const nodesWithLocation = useMemo(() => allInfraNodes.filter(hasRecentLocation), [allInfraNodes]);
+  const nodesWithoutLocation = useMemo(() => allInfraNodes.filter((n) => !hasRecentLocation(n)), [allInfraNodes]);
 
-  const lowBatteryNodesOrdered = useMemo(() => partitionLowBatteryNodes(nodes), [nodes]);
+  const lowBatteryNodesOrdered = useMemo(() => partitionLowBatteryNodes(allInfraNodes), [allInfraNodes]);
 
   const sortedNodes = useMemo(
     () =>

@@ -373,6 +373,44 @@ export function useInfrastructureNodesSuspense(options?: UseInfrastructureNodesO
   };
 }
 
+/** API page size when walking every page of infrastructure results. */
+const INFRASTRUCTURE_FULL_FETCH_PAGE_SIZE = 1000;
+
+/**
+ * Fetches every infrastructure node for the given filters (all pages), for maps and summary tables.
+ * Use {@link useInfrastructureNodesSuspense} with a small page size for the card grid and "Load more".
+ */
+export function useAllInfrastructureNodesSuspense(options?: UseInfrastructureNodesOptions) {
+  const api = useMeshtasticApi();
+  const lastHeardAfterKey = options?.lastHeardAfter ? roundToFiveMinutes(options.lastHeardAfter) : null;
+  const includeClientBase = options?.includeClientBase ?? false;
+
+  const query = useSuspenseQuery({
+    queryKey: ['nodes', 'infrastructure', 'all-pages', lastHeardAfterKey, includeClientBase],
+    queryFn: async () => {
+      const all: ObservedNode[] = [];
+      let page = 1;
+      let totalNodes = 0;
+      while (true) {
+        const res = await api.getInfrastructureNodes({
+          page,
+          pageSize: INFRASTRUCTURE_FULL_FETCH_PAGE_SIZE,
+          lastHeardAfter: options?.lastHeardAfter,
+          includeClientBase: options?.includeClientBase,
+        });
+        totalNodes = res.count;
+        all.push(...res.results);
+        if (!res.next || res.results.length === 0) break;
+        page += 1;
+      }
+      return { nodes: all, totalNodes };
+    },
+    refetchInterval: 1000 * 60,
+  });
+
+  return { nodes: query.data.nodes, totalNodes: query.data.totalNodes };
+}
+
 export interface UseWeatherNodesOptions {
   pageSize?: number;
   environmentReportedAfter?: Date;
