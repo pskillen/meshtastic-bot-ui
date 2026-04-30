@@ -340,7 +340,7 @@ export function FeederCoveragePage() {
                 <span>Failed to load coverage: {error instanceof Error ? error.message : 'Unknown error'}</span>
                 <Button type="button" variant="outline" size="sm" asChild>
                   <Link to="/traceroutes">
-                    <RouteIcon className="mr-1 h-4 w-4" /> Back to traceroutes
+                    <RouteIcon className="mr-1 h-4 w-4" /> Back to traceroute stats
                   </Link>
                 </Button>
               </div>

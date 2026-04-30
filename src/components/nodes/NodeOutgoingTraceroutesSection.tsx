@@ -163,7 +163,7 @@ export function NodeOutgoingTraceroutesSection({ nodeId, managed }: NodeOutgoing
                 </Table>
                 <div className="text-right">
                   <Link
-                    to={`/traceroutes?source_node=${nodeId}`}
+                    to={`/traceroutes/history?source_node=${nodeId}`}
                     className="text-sm text-teal-600 hover:underline dark:text-teal-400"
                   >
                     View all traceroutes from this feeder →

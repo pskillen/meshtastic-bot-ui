@@ -10,11 +10,11 @@ describe('dx-exploration', () => {
 
   it('builds traceroute history links with optional source and trigger filter', () => {
     expect(buildDxTracerouteHistoryLink({ targetNodeId: 99, sourceNodeId: 1, triggerFilter: 'dx_watch' })).toBe(
-      `/traceroutes?target_node=99&source_node=1&trigger_type=${TRIGGER_TYPE_DX_WATCH}`
+      `/traceroutes/history?target_node=99&source_node=1&trigger_type=${TRIGGER_TYPE_DX_WATCH}`
     );
     expect(buildDxTracerouteHistoryLink({ targetNodeId: 99, triggerFilter: 'new_node_baseline' })).toBe(
-      `/traceroutes?target_node=99&trigger_type=${TRIGGER_TYPE_NEW_NODE_BASELINE}`
+      `/traceroutes/history?target_node=99&trigger_type=${TRIGGER_TYPE_NEW_NODE_BASELINE}`
     );
-    expect(buildDxTracerouteHistoryLink({ targetNodeId: 42 })).toBe('/traceroutes?target_node=42');
+    expect(buildDxTracerouteHistoryLink({ targetNodeId: 42 })).toBe('/traceroutes/history?target_node=42');
   });
 });

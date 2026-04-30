@@ -9,6 +9,7 @@ import {
   NetworkIcon,
   RadioIcon,
   RouteIcon,
+  ListIcon,
   ScanSearchIcon,
   ServerIcon,
   Share2,
@@ -53,6 +54,8 @@ function isPathActive(pathname: string, url: string, exact: boolean) {
 
 function navSubItemActive(pathname: string, childUrl: string): boolean {
   switch (childUrl) {
+    case '/traceroutes/history':
+      return pathname === '/traceroutes/history' || pathname.startsWith('/traceroutes/history/');
     case '/traceroutes/map/heat':
       return pathname === '/traceroutes/map/heat' || pathname === '/traceroutes/map/snr';
     case '/traceroutes/map/topology/heat':
@@ -102,6 +105,7 @@ export function NavMain() {
       url: '/traceroutes',
       icon: RouteIcon,
       children: [
+        { title: 'History', url: '/traceroutes/history', icon: ListIcon },
         { title: 'Geographic', url: '/traceroutes/map/heat', icon: MapIcon },
         { title: 'Topology', url: '/traceroutes/map/topology/heat', icon: Share2 },
         { title: 'Coverage by node', url: '/traceroutes/map/coverage', icon: CircleDashedIcon },

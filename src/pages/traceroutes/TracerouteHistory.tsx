@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { format, subDays } from 'date-fns';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,7 +21,6 @@ import { useManagedNodesSuspense, useNodesSuspense } from '@/hooks/api/useNodes'
 import { TriggerTracerouteModal, TriggerMode } from './TriggerTracerouteModal';
 import { TracerouteDetailModal } from './TracerouteDetailModal';
 import { getTracerouteErrorMessage } from './tracerouteErrors';
-import { TracerouteStatsSection } from '@/components/traceroutes/TracerouteStatsSection';
 import { StrategyBadge } from '@/components/traceroutes/StrategyBadge';
 import { TracerouteQueueDispatchCell } from '@/components/traceroutes/TracerouteQueueDispatchCell';
 import { TracerouteStatusBadge } from '@/components/traceroutes/TracerouteStatusBadge';
@@ -205,20 +204,26 @@ export function TracerouteHistory() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      <div className="flex flex-row items-center justify-between gap-4">
+      <div className="flex flex-row items-center justify-between gap-4 flex-wrap">
         <h1 className="text-2xl font-semibold flex items-center gap-2">
           <RouteIcon className="h-6 w-6" />
           Traceroute history
         </h1>
-        {canTrigger && (
-          <Button size="default" onClick={() => setTriggerModalOpen(true)}>
-            <RouteIcon className="mr-2 h-4 w-4" />
-            Trigger traceroute
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="default" asChild>
+            <Link to="/traceroutes">
+              <RouteIcon className="mr-2 h-4 w-4" />
+              Statistics
+            </Link>
           </Button>
-        )}
+          {canTrigger && (
+            <Button size="default" onClick={() => setTriggerModalOpen(true)}>
+              <RouteIcon className="mr-2 h-4 w-4" />
+              Trigger traceroute
+            </Button>
+          )}
+        </div>
       </div>
-
-      <TracerouteStatsSection sourceNodeId={sourceNodeId} />
 
       <Card>
         <CardHeader>

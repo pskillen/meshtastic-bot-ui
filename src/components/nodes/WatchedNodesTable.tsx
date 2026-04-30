@@ -341,7 +341,7 @@ function WatchCard({
             {status === 'battery_low' ? (
               <>
                 Low battery watch — traceroute history is hidden while the node is otherwise online.{' '}
-                <Link to="/traceroutes" className="text-teal-600 dark:text-teal-400 hover:underline">
+                <Link to="/traceroutes/history" className="text-teal-600 dark:text-teal-400 hover:underline">
                   Open full traceroute history
                 </Link>
                 .
@@ -349,7 +349,7 @@ function WatchCard({
             ) : (
               <>
                 Node is currently online; traceroute history is hidden here.{' '}
-                <Link to="/traceroutes" className="text-teal-600 dark:text-teal-400 hover:underline">
+                <Link to="/traceroutes/history" className="text-teal-600 dark:text-teal-400 hover:underline">
                   Open full traceroute history
                 </Link>
                 .
@@ -397,7 +397,7 @@ export function WatchedNodesTable({
         <CardTitle className="flex items-center gap-2">Watched nodes</CardTitle>
         <CardDescription>
           Mesh monitoring watches for your account, grouped by status. Offline and verifying nodes are listed first.{' '}
-          <Link to="/traceroutes" className="text-teal-600 dark:text-teal-400 hover:underline">
+          <Link to="/traceroutes/history" className="text-teal-600 dark:text-teal-400 hover:underline">
             Open full traceroute history
           </Link>
           .

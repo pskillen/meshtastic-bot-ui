@@ -670,7 +670,7 @@ function TargetsRankingCard({
                   <TableRow key={row.node_id}>
                     <TableCell>
                       <Link
-                        to={`/traceroutes?target_node=${row.node_id}`}
+                        to={`/traceroutes/history?target_node=${row.node_id}`}
                         className="flex flex-col gap-0.5 min-w-0 hover:underline"
                       >
                         <span className="font-medium truncate" title={row.short_name ?? row.node_id_str}>
