@@ -25,8 +25,8 @@ export type StrategySuccessBarRow = {
   success_pct: number | null;
 } & TracerouteStrategyStatCounts;
 
-/** Row passed to Recharts after adding bar geometry and colour. */
-export type StrategySuccessBarChartRow = StrategySuccessBarRow & { barHeight: number; fill: string };
+/** Row passed to Recharts stacked bar (completed + failed counts, display colours). */
+export type StrategySuccessBarChartRow = StrategySuccessBarRow & { fill: string; failedFill: string };
 
 /**
  * Rows for a bar chart: one column per known strategy (even when zero runs), then any extra keys from the API.
