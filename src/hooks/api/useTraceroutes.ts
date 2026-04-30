@@ -62,16 +62,20 @@ export function useTracerouteTriggerableNodes() {
 
 export interface UseTracerouteStatsParams {
   triggeredAtAfter?: Date;
+  /** Meshtastic node id of source managed node; same as traceroute list ``source_node``. */
+  sourceNodeId?: number | null;
 }
 
 export function useTracerouteStats(params?: UseTracerouteStatsParams) {
   const api = useMeshtasticApi();
   const triggeredAtAfter = params?.triggeredAtAfter?.toISOString();
+  const sourceNode = params?.sourceNodeId ?? undefined;
   return useQuery({
-    queryKey: ['traceroutes', 'stats', { triggeredAtAfter }],
+    queryKey: ['traceroutes', 'stats', { triggeredAtAfter, sourceNode }],
     queryFn: () =>
       api.getTracerouteStats({
         triggered_at_after: triggeredAtAfter,
+        source_node: sourceNode,
       }),
   });
 }

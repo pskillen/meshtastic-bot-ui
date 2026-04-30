@@ -808,7 +808,7 @@ export class MeshtasticApi extends BaseApi {
   /**
    * Get traceroute statistics (sources, success/failure, top routers, by source, success over time)
    */
-  async getTracerouteStats(params?: { triggered_at_after?: string }): Promise<{
+  async getTracerouteStats(params?: { triggered_at_after?: string; source_node?: number }): Promise<{
     sources: Array<{ trigger_type: number; count: number }>;
     success_failure: Array<{ status: string; count: number }>;
     top_routers: Array<{ node_id: number; node_id_str: string; short_name: string; count: number }>;
@@ -835,10 +835,17 @@ export class MeshtasticApi extends BaseApi {
     }>;
     success_over_time: Array<{ date: string; completed: number; failed: number }>;
     by_strategy: Record<string, { completed: number; failed: number; pending: number; sent: number }>;
+    by_strategy_excluding_external: Record<
+      string,
+      { completed: number; failed: number; pending: number; sent: number }
+    >;
   }> {
     const searchParams = new URLSearchParams();
     if (params?.triggered_at_after) {
       searchParams.append('triggered_at_after', params.triggered_at_after);
+    }
+    if (params?.source_node != null) {
+      searchParams.append('source_node', String(params.source_node));
     }
     return this.get('/traceroutes/stats/', searchParams);
   }

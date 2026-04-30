@@ -218,7 +218,7 @@ export function TracerouteHistory() {
         )}
       </div>
 
-      <TracerouteStatsSection />
+      <TracerouteStatsSection sourceNodeId={sourceNodeId} />
 
       <Card>
         <CardHeader>
