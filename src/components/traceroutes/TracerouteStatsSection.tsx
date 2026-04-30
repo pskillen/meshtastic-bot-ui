@@ -34,6 +34,8 @@ const TR_STATS_TIMEFRAME_OPTIONS = [
   { key: '7d', label: '7 days' },
   { key: '14d', label: '14 days' },
   { key: '30d', label: '30 days' },
+  { key: '60d', label: '60 days' },
+  { key: '90d', label: '90 days' },
 ] as const;
 
 type TimeframeKey = (typeof TR_STATS_TIMEFRAME_OPTIONS)[number]['key'];
@@ -44,7 +46,21 @@ function getTriggeredAtAfter(timeframe: TimeframeKey): Date {
   if (timeframe === '7d') return subDays(new Date(), 7);
   if (timeframe === '14d') return subDays(new Date(), 14);
   if (timeframe === '30d') return subDays(new Date(), 30);
-  return subDays(new Date(), 7);
+  if (timeframe === '60d') return subDays(new Date(), 60);
+  if (timeframe === '90d') return subDays(new Date(), 90);
+  return subDays(new Date(), 14);
+}
+
+/** Muted overlay colour for failed segment on stacked bars (same hue family, translucent). */
+function withChartFillAlpha(hex: string, alpha: number): string {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex.trim());
+  if (!m) {
+    return `rgba(148, 163, 184, ${alpha})`;
+  }
+  const r = parseInt(m[1], 16);
+  const g = parseInt(m[2], 16);
+  const b = parseInt(m[3], 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#ef4444', '#06b6d4', '#84cc16'];
@@ -75,7 +91,7 @@ export type TracerouteStatsSectionProps = {
 };
 
 export function TracerouteStatsSection({ sourceNodeId = null }: TracerouteStatsSectionProps) {
-  const [timeframe, setTimeframe] = useState<TimeframeKey>('7d');
+  const [timeframe, setTimeframe] = useState<TimeframeKey>('14d');
   const triggeredAtAfter = useMemo(() => getTriggeredAtAfter(timeframe), [timeframe]);
 
   const { data, isLoading, error } = useTracerouteStats({ triggeredAtAfter, sourceNodeId });
@@ -106,13 +122,18 @@ export function TracerouteStatsSection({ sourceNodeId = null }: TracerouteStatsS
 
   const strategySuccessBarRows = useMemo(
     () =>
-      buildStrategySuccessBarChartData(data?.by_strategy_excluding_external ?? data?.by_strategy).map((r, idx) => ({
-        ...r,
-        barHeight: r.success_pct ?? 0,
-        fill: CHART_COLORS[idx % CHART_COLORS.length],
-      })),
+      buildStrategySuccessBarChartData(data?.by_strategy_excluding_external ?? data?.by_strategy).map((r, idx) => {
+        const fill = CHART_COLORS[idx % CHART_COLORS.length];
+        return {
+          ...r,
+          fill,
+          failedFill: withChartFillAlpha(fill, 0.4),
+        };
+      }),
     [data?.by_strategy_excluding_external, data?.by_strategy]
   );
+
+  const timeframeLabel = TR_STATS_TIMEFRAME_OPTIONS.find((o) => o.key === timeframe)?.label ?? timeframe;
 
   const sourceScopeHint = useMemo(() => {
     if (sourceNodeId == null || !data?.by_source?.length) return null;
@@ -167,8 +188,9 @@ export function TracerouteStatsSection({ sourceNodeId = null }: TracerouteStatsS
     success_pct: { color: '#3b82f6', label: 'Success %' },
   };
 
-  const strategyBarChartConfig: ChartConfig = {
-    barHeight: { label: 'Success %', color: '#3b82f6' },
+  const strategyStackChartConfig: ChartConfig = {
+    completed: { label: 'Completed', color: '#22c55e' },
+    failed: { label: 'Failed', color: '#94a3b8' },
   };
 
   const eligibleTargets = useMemo(
@@ -201,7 +223,7 @@ export function TracerouteStatsSection({ sourceNodeId = null }: TracerouteStatsS
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-lg font-semibold">Traceroute Statistics</h2>
         <Select value={timeframe} onValueChange={(v) => setTimeframe(v as TimeframeKey)}>
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-[160px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -323,12 +345,13 @@ export function TracerouteStatsSection({ sourceNodeId = null }: TracerouteStatsS
           </CardContent>
         </Card>
 
-        {/* Success over time (14d line) */}
+        {/* Success over time (window matches selector + source scope) */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Success Over Time (14d)</CardTitle>
+            <CardTitle className="text-sm">Success over time ({timeframeLabel})</CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
-              Daily completed / failed counts (left axis) and success rate (right axis, dashed).
+              Daily completed / failed counts (left axis) and success rate (right axis, dashed). Uses the same time
+              window and source scope as the selector above.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -412,11 +435,12 @@ export function TracerouteStatsSection({ sourceNodeId = null }: TracerouteStatsS
 
       <Card data-testid="traceroute-strategy-success-chart-card">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Success rate by strategy</CardTitle>
+          <CardTitle className="text-sm">Runs by strategy</CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
-            Completed ÷ (completed + failed) for each target selection strategy. Rows with no recorded strategy are
-            grouped under Legacy. External mesh reports are omitted here only (they do not select a hypothesis). Pending
-            and in-flight runs count toward volume only, not the rate.
+            Stacked counts: completed (solid) and failed (lighter overlay) per target selection strategy so bar height
+            reflects volume. Success % in the tooltip is completed ÷ (completed + failed). Rows with no recorded
+            strategy are grouped under Legacy. External mesh reports are omitted here only (they do not select a
+            hypothesis). Pending and in-flight runs are not stacked; counts appear in the tooltip only.
             {sourceScopeHint ? ` ${sourceScopeHint}` : ''}
           </CardDescription>
         </CardHeader>
@@ -424,7 +448,7 @@ export function TracerouteStatsSection({ sourceNodeId = null }: TracerouteStatsS
           {isLoading ? (
             <div className="h-[220px] flex items-center justify-center text-muted-foreground text-sm">Loading…</div>
           ) : (
-            <ChartContainer config={strategyBarChartConfig} className="aspect-auto h-[240px] w-full max-w-4xl">
+            <ChartContainer config={strategyStackChartConfig} className="aspect-auto h-[240px] w-full max-w-4xl">
               <BarChart
                 data={strategySuccessBarRows}
                 margin={{ top: 8, right: 8, left: 4, bottom: 52 }}
@@ -445,9 +469,10 @@ export function TracerouteStatsSection({ sourceNodeId = null }: TracerouteStatsS
                 <YAxis
                   tickLine={false}
                   axisLine={false}
-                  domain={[0, 100]}
+                  domain={[0, 'auto']}
                   width={36}
-                  tickFormatter={(v: number) => `${v}%`}
+                  tickFormatter={(v: number) => `${v}`}
+                  allowDecimals={false}
                   tick={{ fontSize: 11 }}
                 />
                 <RechartsTooltip
@@ -467,9 +492,15 @@ export function TracerouteStatsSection({ sourceNodeId = null }: TracerouteStatsS
                     );
                   }}
                 />
-                <Bar dataKey="barHeight" radius={[4, 4, 0, 0]}>
+                <Legend />
+                <Bar dataKey="completed" stackId="strategy" name="Completed" radius={[0, 0, 0, 0]}>
                   {strategySuccessBarRows.map((entry) => (
-                    <Cell key={entry.strategyKey} fill={entry.fill} />
+                    <Cell key={`c-${entry.strategyKey}`} fill={entry.fill} />
+                  ))}
+                </Bar>
+                <Bar dataKey="failed" stackId="strategy" name="Failed" radius={[4, 4, 0, 0]}>
+                  {strategySuccessBarRows.map((entry) => (
+                    <Cell key={`f-${entry.strategyKey}`} fill={entry.failedFill} />
                   ))}
                 </Bar>
               </BarChart>
