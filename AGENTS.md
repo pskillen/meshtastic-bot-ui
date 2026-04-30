@@ -12,6 +12,7 @@ src/
 │   ├── nodes/                 # NodesList, NodeDetails, ClaimNode, MyNodes, monitor
 │   ├── messages/              # MessageHistory
 │   ├── map/                   # NodeMap
+│   ├── traceroutes/           # TracerouteStatsPage, TracerouteHistory, heatmap/coverage pages
 │   ├── user/                  # UserPage, NodeSettings
 │   └── auth/                  # LoginPage, OAuthCallback
 ├── components/                # Reusable UI

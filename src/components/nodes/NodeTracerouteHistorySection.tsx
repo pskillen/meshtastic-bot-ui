@@ -183,7 +183,7 @@ export function NodeTracerouteHistorySection({ nodeId, observedNode }: NodeTrace
               </Table>
               <div className="mt-4 text-right">
                 <Link
-                  to={`/traceroutes?target_node=${nodeId}`}
+                  to={`/traceroutes/history?target_node=${nodeId}`}
                   className="text-sm text-teal-600 dark:text-teal-400 hover:underline"
                 >
                   View all traceroutes to this node →

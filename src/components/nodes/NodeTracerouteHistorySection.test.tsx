@@ -249,6 +249,6 @@ describe('NodeTracerouteHistorySection', () => {
     setupHooks({ traceroutes: [makeTraceroute({ source_node: managed })], triggerableNodes: [managed] });
     renderSection(observed);
     const link = screen.getByRole('link', { name: /view all traceroutes to this node/i });
-    expect(link).toHaveAttribute('href', '/traceroutes?target_node=100');
+    expect(link).toHaveAttribute('href', '/traceroutes/history?target_node=100');
   });
 });

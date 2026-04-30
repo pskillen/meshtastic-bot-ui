@@ -36,5 +36,5 @@ export function buildDxTracerouteHistoryLink(params: {
   if (params.triggerFilter === 'new_node_baseline') {
     sp.set('trigger_type', String(TRIGGER_TYPE_NEW_NODE_BASELINE));
   }
-  return `/traceroutes?${sp.toString()}`;
+  return `/traceroutes/history?${sp.toString()}`;
 }

@@ -16,10 +16,6 @@ vi.mock('@/hooks/api/useNodes', () => ({
   useManagedNodesSuspense: vi.fn(),
 }));
 
-vi.mock('@/components/traceroutes/TracerouteStatsSection', () => ({
-  TracerouteStatsSection: () => <div data-testid="stats-section" />,
-}));
-
 vi.mock('@/pages/traceroutes/TracerouteDetailModal', () => ({
   TracerouteDetailModal: ({ tracerouteId, open }: { tracerouteId: number | null; open: boolean }) =>
     open ? <div role="dialog" data-testid="detail-modal">Detail for {tracerouteId}</div> : null,
@@ -163,7 +159,7 @@ describe('TracerouteHistory', () => {
 
   it('hydrates target_node from the URL into the query params', () => {
     setupHooks();
-    renderAt('/traceroutes?target_node=1127903080');
+    renderAt('/traceroutes/history?target_node=1127903080');
     expect(mockedUseInfinite).toHaveBeenCalledWith(
       expect.objectContaining({ target_node: 1127903080 })
     );
@@ -171,7 +167,7 @@ describe('TracerouteHistory', () => {
 
   it('hydrates target_node and status (CSV) from the URL', () => {
     setupHooks();
-    renderAt('/traceroutes?target_node=42&status=completed,failed');
+    renderAt('/traceroutes/history?target_node=42&status=completed,failed');
     expect(mockedUseInfinite).toHaveBeenCalledWith(
       expect.objectContaining({ target_node: 42, status: 'completed,failed' })
     );
@@ -179,7 +175,7 @@ describe('TracerouteHistory', () => {
 
   it('hydrates trigger_type CSV from the URL', () => {
     setupHooks();
-    renderAt('/traceroutes?trigger_type=user,monitor');
+    renderAt('/traceroutes/history?trigger_type=user,monitor');
     expect(mockedUseInfinite).toHaveBeenCalledWith(
       expect.objectContaining({ trigger_type: 'user,monitor' })
     );
@@ -187,7 +183,7 @@ describe('TracerouteHistory', () => {
 
   it('hydrates strategy CSV from the URL into target_strategy', () => {
     setupHooks();
-    renderAt('/traceroutes?strategy=intra_zone,dx_across');
+    renderAt('/traceroutes/history?strategy=intra_zone,dx_across');
     expect(mockedUseInfinite).toHaveBeenCalledWith(
       expect.objectContaining({ target_strategy: 'intra_zone,dx_across' })
     );
@@ -195,7 +191,7 @@ describe('TracerouteHistory', () => {
 
   it('passes unknown filter values through to the API (graceful)', () => {
     setupHooks();
-    renderAt('/traceroutes?status=bogus_value&target_node=999999999');
+    renderAt('/traceroutes/history?status=bogus_value&target_node=999999999');
     expect(mockedUseInfinite).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'bogus_value', target_node: 999999999 })
     );
@@ -203,29 +199,29 @@ describe('TracerouteHistory', () => {
 
   it('shows the Trigger CTA when the user has triggerable nodes', () => {
     setupHooks({}, [makeManagedNode()]);
-    renderAt('/traceroutes');
+    renderAt('/traceroutes/history');
     expect(screen.getByRole('button', { name: /trigger traceroute/i })).toBeInTheDocument();
   });
 
   it('hides the Trigger CTA when the user has no triggerable nodes', () => {
     setupHooks({}, []);
-    renderAt('/traceroutes');
+    renderAt('/traceroutes/history');
     expect(screen.queryByRole('button', { name: /^trigger traceroute$/i })).not.toBeInTheDocument();
   });
 
   it('shows a "Clear filters" button only when at least one filter is set', () => {
     setupHooks();
-    const { unmount } = renderAt('/traceroutes');
+    const { unmount } = renderAt('/traceroutes/history');
     expect(screen.queryByRole('button', { name: /clear filters/i })).not.toBeInTheDocument();
     unmount();
 
-    renderAt('/traceroutes?target_node=42');
+    renderAt('/traceroutes/history?target_node=42');
     expect(screen.getByRole('button', { name: /clear filters/i })).toBeInTheDocument();
   });
 
   it('renders Load more disabled when there is no next page', () => {
     setupHooks({ traceroutes: [makeTraceroute()], hasNextPage: false });
-    renderAt('/traceroutes');
+    renderAt('/traceroutes/history');
     const btn = screen.getByRole('button', { name: /no more results/i });
     expect(btn).toBeDisabled();
   });
@@ -237,20 +233,20 @@ describe('TracerouteHistory', () => {
       hasNextPage: true,
       fetchNextPage,
     });
-    renderAt('/traceroutes');
+    renderAt('/traceroutes/history');
     fireEvent.click(screen.getByRole('button', { name: /load more/i }));
     expect(fetchNextPage).toHaveBeenCalled();
   });
 
   it('shows the total count in the table title when available', () => {
     setupHooks({ traceroutes: [makeTraceroute()], totalCount: 73 });
-    renderAt('/traceroutes');
+    renderAt('/traceroutes/history');
     expect(screen.getByText('(73)')).toBeInTheDocument();
   });
 
   it('applies the "Show successful" preset to status filter when clicked', () => {
     setupHooks();
-    renderAt('/traceroutes');
+    renderAt('/traceroutes/history');
     fireEvent.click(screen.getByRole('button', { name: /show successful/i }));
     const lastCall = mockedUseInfinite.mock.calls.at(-1)?.[0];
     expect(lastCall).toEqual(expect.objectContaining({ status: 'completed,pending,sent' }));
@@ -258,7 +254,7 @@ describe('TracerouteHistory', () => {
 
   it('clears status when "Show successful" is clicked while already active', () => {
     setupHooks();
-    renderAt('/traceroutes?status=completed,pending,sent');
+    renderAt('/traceroutes/history?status=completed,pending,sent');
     fireEvent.click(screen.getByRole('button', { name: /show successful/i }));
     const lastCall = mockedUseInfinite.mock.calls.at(-1)?.[0];
     expect(lastCall?.status).toBeUndefined();
@@ -266,7 +262,7 @@ describe('TracerouteHistory', () => {
 
   it('applies the "Monitoring TRs" preset to trigger_type when clicked', () => {
     setupHooks();
-    renderAt('/traceroutes');
+    renderAt('/traceroutes/history');
     fireEvent.click(screen.getByRole('button', { name: /monitoring trs/i }));
     const lastCall = mockedUseInfinite.mock.calls.at(-1)?.[0];
     expect(lastCall).toEqual(expect.objectContaining({ trigger_type: '4' }));
@@ -274,7 +270,7 @@ describe('TracerouteHistory', () => {
 
   it('applies the "Manually triggered" preset to trigger_type when clicked', () => {
     setupHooks();
-    renderAt('/traceroutes');
+    renderAt('/traceroutes/history');
     fireEvent.click(screen.getByRole('button', { name: /manually triggered/i }));
     const lastCall = mockedUseInfinite.mock.calls.at(-1)?.[0];
     expect(lastCall).toEqual(expect.objectContaining({ trigger_type: '1' }));
@@ -287,7 +283,7 @@ describe('TracerouteHistory', () => {
       makeObservedNode({ node_id: 3, node_id_str: '!00000003', short_name: 'CCC', long_name: 'Charlie' }),
     ];
     setupHooks({}, [], nodes);
-    renderAt('/traceroutes');
+    renderAt('/traceroutes/history');
 
     fireEvent.click(screen.getByRole('button', { name: /target \(recipient\)/i }));
 
@@ -308,7 +304,7 @@ describe('TracerouteHistory', () => {
       makeObservedNode({ node_id: 555, node_id_str: '!0000022b', short_name: 'PICKME', long_name: 'Pick me' }),
     ];
     setupHooks({}, [], nodes);
-    renderAt('/traceroutes');
+    renderAt('/traceroutes/history');
 
     fireEvent.click(screen.getByRole('button', { name: /target \(recipient\)/i }));
     fireEvent.click(screen.getByRole('button', { name: /pickme/i }));
@@ -332,7 +328,7 @@ describe('TracerouteHistory', () => {
         }),
       ],
     });
-    renderAt('/traceroutes');
+    renderAt('/traceroutes/history');
     expect(screen.getByText('Queued')).toBeInTheDocument();
     expect(screen.getByText(/^Due /)).toBeInTheDocument();
   });
@@ -352,7 +348,7 @@ describe('TracerouteHistory', () => {
         }),
       ],
     });
-    renderAt('/traceroutes');
+    renderAt('/traceroutes/history');
     expect(screen.getByText('In flight')).toBeInTheDocument();
     expect(screen.getByText(/^Sent /)).toBeInTheDocument();
   });
@@ -360,7 +356,7 @@ describe('TracerouteHistory', () => {
   it('status filter dropdown uses Queued and In flight labels', async () => {
     const user = userEvent.setup();
     setupHooks();
-    renderAt('/traceroutes');
+    renderAt('/traceroutes/history');
     await user.click(screen.getByRole('button', { name: /^Status$/i }));
     expect(await screen.findByRole('menuitemcheckbox', { name: /^Queued$/i })).toBeInTheDocument();
     expect(screen.getByRole('menuitemcheckbox', { name: /^In flight$/i })).toBeInTheDocument();

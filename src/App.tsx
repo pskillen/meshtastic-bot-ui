@@ -1,5 +1,6 @@
 import { Suspense, lazy } from 'react';
 import { TracerouteHistory } from '@/pages/traceroutes/TracerouteHistory';
+import { TraceroutesLanding } from '@/pages/traceroutes/TraceroutesLanding';
 import { TracerouteHeatmapPage } from '@/pages/traceroutes/TracerouteHeatmapPage';
 import { TracerouteTopologyPage } from '@/pages/traceroutes/TracerouteTopologyPage';
 import { FeederCoveragePage } from '@/pages/traceroutes/FeederCoveragePage';
@@ -71,7 +72,8 @@ function App() {
                   <Route path="/nodes/:id" element={<NodeDetails />} />
                   <Route path="/map" element={<NodeMap />} />
                   <Route path="/messages" element={<MessageHistory />} />
-                  <Route path="/traceroutes" element={<TracerouteHistory />} />
+                  <Route path="/traceroutes/history" element={<TracerouteHistory />} />
+                  <Route path="/traceroutes" element={<TraceroutesLanding />} />
                   <Route path="/traceroutes/heatmap" element={<Navigate to="/traceroutes/map/heat" replace />} />
                   <Route
                     path="/traceroutes/topology"
