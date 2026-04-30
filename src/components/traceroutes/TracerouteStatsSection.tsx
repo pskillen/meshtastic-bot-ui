@@ -1,7 +1,20 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { subHours, subDays } from 'date-fns';
-import { Cell, Legend, Line, LineChart, Pie, PieChart, XAxis, YAxis, Tooltip as RechartsTooltip } from 'recharts';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+} from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
@@ -10,6 +23,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { HelpCircle } from 'lucide-react';
 import { useTracerouteStats } from '@/hooks/api/useTraceroutes';
 import { strategyLabel } from '@/lib/traceroute-strategy';
+import {
+  buildStrategySuccessBarChartData,
+  type StrategySuccessBarChartRow,
+} from '@/lib/traceroute-strategy-success-chart';
 
 const TR_STATS_TIMEFRAME_OPTIONS = [
   { key: '24h', label: '24 hours' },
@@ -52,11 +69,16 @@ const TOP_TARGETS_MIN_ATTEMPTS = 5;
 // Max distinct slices to show in "by node" pie charts before grouping into "Other".
 const PIE_TOP_N = 7;
 
-export function TracerouteStatsSection() {
+export type TracerouteStatsSectionProps = {
+  /** When set, stats (including this chart) are limited to traceroutes from this source mesh node id. */
+  sourceNodeId?: number | null;
+};
+
+export function TracerouteStatsSection({ sourceNodeId = null }: TracerouteStatsSectionProps) {
   const [timeframe, setTimeframe] = useState<TimeframeKey>('7d');
   const triggeredAtAfter = useMemo(() => getTriggeredAtAfter(timeframe), [timeframe]);
 
-  const { data, isLoading, error } = useTracerouteStats({ triggeredAtAfter });
+  const { data, isLoading, error } = useTracerouteStats({ triggeredAtAfter, sourceNodeId });
 
   const sourcesChartData = useMemo(() => {
     if (!data?.sources?.length) return [];
@@ -81,6 +103,23 @@ export function TracerouteStatsSection() {
       })
       .filter((d) => d.value > 0);
   }, [data?.by_strategy]);
+
+  const strategySuccessBarRows = useMemo(
+    () =>
+      buildStrategySuccessBarChartData(data?.by_strategy_excluding_external ?? data?.by_strategy).map((r, idx) => ({
+        ...r,
+        barHeight: r.success_pct ?? 0,
+        fill: CHART_COLORS[idx % CHART_COLORS.length],
+      })),
+    [data?.by_strategy_excluding_external, data?.by_strategy]
+  );
+
+  const sourceScopeHint = useMemo(() => {
+    if (sourceNodeId == null || !data?.by_source?.length) return null;
+    const row = data.by_source.find((r) => r.node_id === sourceNodeId);
+    if (!row) return 'Stats scoped to the selected source node.';
+    return `Stats scoped to source ${row.short_name ?? row.node_id_str ?? sourceNodeId}.`;
+  }, [sourceNodeId, data?.by_source]);
 
   const sentByNodeChartData = useMemo(() => {
     const rows = data?.by_source ?? [];
@@ -126,6 +165,10 @@ export function TracerouteStatsSection() {
     completed: { color: '#22c55e', label: 'Completed' },
     failed: { color: '#ef4444', label: 'Failed' },
     success_pct: { color: '#3b82f6', label: 'Success %' },
+  };
+
+  const strategyBarChartConfig: ChartConfig = {
+    barHeight: { label: 'Success %', color: '#3b82f6' },
   };
 
   const eligibleTargets = useMemo(
@@ -212,7 +255,7 @@ export function TracerouteStatsSection() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Strategy mix</CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
-              Share of runs by target selection hypothesis (scheduled + manual when recorded).
+              Share of runs by target selection hypothesis (scheduled and manual when recorded).
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -366,6 +409,74 @@ export function TracerouteStatsSection() {
           </CardContent>
         </Card>
       </div>
+
+      <Card data-testid="traceroute-strategy-success-chart-card">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Success rate by strategy</CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
+            Completed ÷ (completed + failed) for each target selection strategy. Rows with no recorded strategy are
+            grouped under Legacy. External mesh reports are omitted here only (they do not select a hypothesis). Pending
+            and in-flight runs count toward volume only, not the rate.
+            {sourceScopeHint ? ` ${sourceScopeHint}` : ''}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="h-[220px] flex items-center justify-center text-muted-foreground text-sm">Loading…</div>
+          ) : (
+            <ChartContainer config={strategyBarChartConfig} className="aspect-auto h-[240px] w-full max-w-4xl">
+              <BarChart
+                data={strategySuccessBarRows}
+                margin={{ top: 8, right: 8, left: 4, bottom: 52 }}
+                accessibilityLayer
+              >
+                <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  interval={0}
+                  angle={-32}
+                  textAnchor="end"
+                  height={56}
+                  tick={{ fontSize: 11 }}
+                />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  domain={[0, 100]}
+                  width={36}
+                  tickFormatter={(v: number) => `${v}%`}
+                  tick={{ fontSize: 11 }}
+                />
+                <RechartsTooltip
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const p = payload[0].payload as StrategySuccessBarChartRow;
+                    const finished = p.completed + p.failed;
+                    const rateLine =
+                      finished > 0
+                        ? `${p.success_pct != null ? p.success_pct.toFixed(0) : '—'}% (${p.completed} completed / ${p.failed} failed)`
+                        : `No finished runs (${p.pending} queued, ${p.sent} in flight)`;
+                    return (
+                      <div className="rounded-md border border-border/50 bg-background px-3 py-2 text-xs shadow-md">
+                        <div className="font-medium">{p.label}</div>
+                        <div className="mt-1 text-muted-foreground tabular-nums">{rateLine}</div>
+                      </div>
+                    );
+                  }}
+                />
+                <Bar dataKey="barHeight" radius={[4, 4, 0, 0]}>
+                  {strategySuccessBarRows.map((entry) => (
+                    <Cell key={entry.strategyKey} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ChartContainer>
+          )}
+        </CardContent>
+      </Card>
 
       <TooltipProvider>
         <div className="grid gap-4 md:grid-cols-2">
